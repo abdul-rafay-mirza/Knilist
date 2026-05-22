@@ -1,0 +1,14 @@
+LICENSE
+MANIFEST.in
+README.md
+com.github.abdul-rafay-mirza.knilist.desktop
+pyproject.toml
+knilist.egg-info/PKG-INFO
+knilist.egg-info/SOURCES.txt
+knilist.egg-info/dependency_links.txt
+knilist.egg-info/entry_points.txt
+knilist.egg-info/top_level.txt
+src/__init__.py
+src/__main__.py
+src/app.py
+src/qml/Main.qml

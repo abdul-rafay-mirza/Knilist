@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Knilist
+Exec=knilist
+Icon=kde-logo
+Type=Application
+Terminal=false
+Categories=Utility

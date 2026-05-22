@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: knilist
+Version: 0.1
+Author-email: Abdul Rafay <abdulrafayaneesmirza@gmail.com>
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: Topic :: Utilities
+Classifier: Programming Language :: Python
+Classifier: Operating System :: POSIX :: Linux
+License-File: LICENSE
+Dynamic: license-file

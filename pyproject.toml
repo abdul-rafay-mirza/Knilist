@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+
+name = "knilist"
+
+version = "0.1"
+authors = [
+    {name = "Abdul Rafay", email = "abdulrafayaneesmirza@gmail.com"}
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Utilities",
+    "Programming Language :: Python",
+    "Operating System :: POSIX :: Linux",
+]
+
+[project.scripts]
+
+knilist = "knilist.app:main"
+
+
+[tool.setuptools]
+
+packages = ["knilist"]
+
+package-dir = {knilist = "src"}
+
+include-package-data = true
+
+[tool.setuptools.data-files]
+"share/applications" = ["com.github.abdul-rafay-mirza.knilist.desktop"]
