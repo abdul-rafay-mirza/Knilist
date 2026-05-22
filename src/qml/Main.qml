@@ -5,33 +5,39 @@ import org.kde.kirigami as Kirigami
 
 Kirigami.ApplicationWindow {
     id: root
+    width: 800
+    height: 600
+    title: "Knilist"
 
-    width: 400
-    height: 300
+    Kirigami.PagePool {
+        id: appPagePool
+    }
 
-    title: "Day Kountdown"
+    // Use Component.onCompleted to push after the window is fully ready
+    // and use loadPage() not load()
+    Component.onCompleted: {
+        pageStack.push(appPagePool.loadPage(Qt.resolvedUrl("HomePage.qml")))
+    }
 
     globalDrawer: Kirigami.GlobalDrawer {
         id: globalDrawer
-        title: "Widget gallery"
-        titleIcon: "applications-graphics"
-
-        // Force the drawer to act as a slim, collapsible icon sidebar on startup
-        modal: false            // Keep it integrated into the window canvas rather than an overlay panel
-        collapsible: true       // Allow it to shrink down into a slim strip of icons
-        collapsed: false         // Force it to initialize in that collapsed icon strip state on launch
-        collapseButtonVisible: false // Removes default collapse button
-
+        modal: false
+        collapsible: true
+        collapsed: false
+        collapseButtonVisible: false
         showHeaderWhenCollapsed: true
+
         header: Controls.ToolBar {
             contentItem: RowLayout {
                 Layout.fillWidth: true
+
                 Controls.ToolButton {
                     icon.name: "application-menu"
                     visible: globalDrawer.collapsible
                     checked: !globalDrawer.collapsed
                     onClicked: globalDrawer.collapsed = !globalDrawer.collapsed
                 }
+
                 Controls.Label {
                     text: "Menu"
                     visible: !globalDrawer.collapsed
@@ -40,66 +46,50 @@ Kirigami.ApplicationWindow {
         }
 
         actions: [
-            Kirigami.Action {
+            Kirigami.PagePoolAction {
                 text: "Home"
                 icon.name: "go-home-symbolic"
-                onTriggered: showPassiveNotification("Home Clicked!")
+                pagePool: appPagePool
+                page: Qt.resolvedUrl("HomePage.qml")
+                pageStack: root.pageStack
+                // basePage removed — without it, PagePoolAction replaces
+                // the whole stack, which is exactly the swap behaviour you want
             },
-            Kirigami.Action {
+            Kirigami.PagePoolAction {
                 text: "Anime"
                 icon.name: "view-pages-single-symbolic"
-                onTriggered: showPassiveNotification("Anime Clicked!")
+                pagePool: appPagePool
+                page: Qt.resolvedUrl("AnimePage.qml")
+                pageStack: root.pageStack
             },
-            Kirigami.Action {
+            Kirigami.PagePoolAction {
                 text: "Manga"
                 icon.name: "view-pages-single-symbolic"
-                onTriggered: showPassiveNotification("Manga Clicked!")
+                pagePool: appPagePool
+                page: Qt.resolvedUrl("MangaPage.qml")
+                pageStack: root.pageStack
             },
-            Kirigami.Action {
+            Kirigami.PagePoolAction {
                 text: "Notifications"
-                icon.name: "view-pages-single-symbolic"
-                onTriggered: showPassiveNotification("Notifications Clicked!")
+                icon.name: "notifications"
+                pagePool: appPagePool
+                page: Qt.resolvedUrl("NotificationsPage.qml")
+                pageStack: root.pageStack
             },
-            Kirigami.Action {
+            Kirigami.PagePoolAction {
                 text: "Profile"
-                icon.name: "view-pages-single-symbolic"
-                onTriggered: showPassiveNotification("Profile Clicked!")
+                icon.name: "user-identity"
+                pagePool: appPagePool
+                page: Qt.resolvedUrl("ProfilePage.qml")
+                pageStack: root.pageStack
             },
-            Kirigami.Action {
+            Kirigami.PagePoolAction {
                 text: "Settings"
-                icon.name: "view-pages-single-symbolic"
-                onTriggered: showPassiveNotification("Settings Clicked!")
+                icon.name: "settings-configure"
+                pagePool: appPagePool
+                page: Qt.resolvedUrl("SettingsPage.qml")
+                pageStack: root.pageStack
             }
         ]
-    }
-
-    pageStack.initialPage: Kirigami.ScrollablePage {
-        title: "Kountdown"
-
-        ColumnLayout {
-            spacing: Kirigami.Units.largeSpacing
-            
-            anchors.left: parent.left
-            anchors.right: parent.right
-
-            Controls.Label {
-                text: "Welcome to Day Kountdown"
-                font.bold: true
-                font.pointSize: 16
-            }
-
-            Repeater {
-                model: 10 
-                
-                Kirigami.Card {
-                    Layout.fillWidth: true
-                    
-                    contentItem: Controls.Label {
-                        text: "Event Number " + (index + 1)
-                        padding: Kirigami.Units.largeSpacing
-                    }
-                }
-            }
-        }
     }
 }
