@@ -10,14 +10,13 @@ Kirigami.AbstractCard {
     property string title
     property string mediaType
     property string nextEpisodeText
-    property int    rating
+    property real   rating          // raw 0-100 from AniList
     property int    watchedEpisodes
     property int    totalEpisodes   // 0 = still airing / unknown
-
     property string coverSource
 
     signal addEpisode()
-    signal cardClicked()   // ← new: emitted when the card body is clicked
+    signal cardClicked()
 
     // Helpers
     readonly property bool  knownTotal:    totalEpisodes > 0
@@ -25,16 +24,18 @@ Kirigami.AbstractCard {
                                            ? watchedEpisodes / totalEpisodes
                                            : 0.5
 
+    // Formatted score string — delegates to the service so the format is
+    // always consistent with whatever AniList says the user's format is
+    readonly property string formattedScore: anilistService.formatScore(rating)
+
     // Geometry
     width:           440
     implicitHeight:  Math.max(110, contentItem.implicitHeight + 10)
-
     leftPadding:   0
     rightPadding:  0
     topPadding:    0
     bottomPadding: 0
 
-    // Make the whole card clickable (except the +1 EP button, handled separately)
     MouseArea {
         anchors.fill: parent
         z: 0
@@ -110,23 +111,30 @@ Kirigami.AbstractCard {
                 Layout.fillWidth: true
                 spacing: 6
 
+                // Score — always visible; shows "—" when unrated
                 RowLayout {
-                    spacing: 5
+                    spacing: 4
+
                     Kirigami.Icon {
                         source: "starred-symbolic"
-                        width:  18; height: 18
-                        color:  Kirigami.Theme.highlightColor
+                        width:  16; height: 16
+                        color:  animeCard.rating > 0
+                                ? Kirigami.Theme.highlightColor
+                                : Kirigami.Theme.disabledTextColor
                     }
                     Controls.Label {
-                        text:  animeCard.rating
-                        color: Kirigami.Theme.textColor
+                        text:  animeCard.rating > 0
+                               ? animeCard.formattedScore
+                               : "—"
+                        color: animeCard.rating > 0
+                               ? Kirigami.Theme.textColor
+                               : Kirigami.Theme.disabledTextColor
                         font.pixelSize: 13
                     }
                 }
 
                 Item { Layout.fillWidth: true }
 
-                // Episode counter — "?" when total is unknown
                 Controls.Label {
                     text:  animeCard.watchedEpisodes + " / "
                            + (animeCard.knownTotal ? animeCard.totalEpisodes : "?")
@@ -134,7 +142,7 @@ Kirigami.AbstractCard {
                     font.pixelSize: 13
                 }
 
-                // +1 EP button — z raised so it captures clicks above the card MouseArea
+                // +1 EP button
                 Rectangle {
                     z:      1
                     width:  68; height: 28
@@ -163,8 +171,8 @@ Kirigami.AbstractCard {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape:  Qt.PointingHandCursor
-                        onClicked:    (mouse) => {
-                            mouse.accepted = true   // stop propagation to card MouseArea
+                        onClicked: (mouse) => {
+                            mouse.accepted = true
                             animeCard.addEpisode()
                         }
                     }
@@ -173,7 +181,7 @@ Kirigami.AbstractCard {
         }
     }
 
-    // Progress bar — 50% wide when total is unknown, animated otherwise
+    // Progress bar
     Rectangle {
         anchors.bottom: parent.bottom
         anchors.left:   parent.left

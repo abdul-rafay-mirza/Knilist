@@ -7,7 +7,20 @@ Kirigami.ScrollablePage {
     id: settingsPage
     title: "Settings"
 
-    // ── React to auth state changes from Python ───────────────────────────────
+    // ── Human-readable labels for each AniList scoreFormat enum value ─────────
+    readonly property var scoreFormatLabels: ({
+        "POINT_100":        "100 Point  (e.g. 75/100)",
+        "POINT_10_DECIMAL": "10 Point Decimal  (e.g. 7.5/10)",
+        "POINT_10":         "10 Point  (e.g. 7/10)",
+        "POINT_5":          "5 Star  (e.g. ★★★☆☆)",
+        "POINT_3":          "3 Point Smiley  (e.g. :) :| :(",
+    })
+
+    function scoreFormatLabel(fmt) {
+        return scoreFormatLabels[fmt] ?? fmt
+    }
+
+    // ── React to auth / service signals ───────────────────────────────────────
     Connections {
         target: authManager
 
@@ -16,19 +29,15 @@ Kirigami.ScrollablePage {
             statusBar.text    = message
             statusBar.visible = true
         }
-
         function onLoginSuccess() {
             statusBar.type    = Kirigami.MessageType.Positive
             statusBar.text    = "Fetching your anime list…"
             statusBar.visible = true
         }
-
         function onLogoutDone() {
             statusBar.visible = false
         }
-
         function onLoginStateChanged() {
-            // Clear any leftover status message once state settles
             if (!authManager.isLoggedIn)
                 statusBar.visible = false
         }
@@ -40,7 +49,6 @@ Kirigami.ScrollablePage {
         function onAnimeLoaded() {
             statusBar.visible = false
         }
-
         function onErrorOccurred(msg) {
             statusBar.type    = Kirigami.MessageType.Error
             statusBar.text    = "AniList error: " + msg
@@ -59,7 +67,6 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible:          false
             showCloseButton:  true
-            // .type and .text set dynamically above
         }
 
         // ── AniList account card ──────────────────────────────────────────────
@@ -114,7 +121,6 @@ Kirigami.ScrollablePage {
                     visible:  authManager.isLoggedIn
                     spacing:  Kirigami.Units.largeSpacing
 
-                    // Avatar placeholder (swap for Image {} when you add avatarUrl)
                     Rectangle {
                         width:  Kirigami.Units.iconSizes.huge
                         height: Kirigami.Units.iconSizes.huge
@@ -140,7 +146,6 @@ Kirigami.ScrollablePage {
                             font.weight: Font.DemiBold
                             font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.15
                         }
-
                         Controls.Label {
                             text:    "Connected to AniList"
                             opacity: 0.6
@@ -163,7 +168,7 @@ Kirigami.ScrollablePage {
                     }
                 }
 
-                // Loading indicator (visible during fetchAll)
+                // Loading indicator
                 RowLayout {
                     visible:  anilistService.loading
                     spacing:  Kirigami.Units.smallSpacing
@@ -180,11 +185,100 @@ Kirigami.ScrollablePage {
                 }
             }
         }
-        // Spacing at the bottom
+
+        // ── Scoring format card — only shown when logged in ───────────────────
+        Kirigami.Card {
+            Layout.fillWidth: true
+            visible: authManager.isLoggedIn
+
+            header: RowLayout {
+                spacing: Kirigami.Units.smallSpacing
+                anchors.margins: Kirigami.Units.largeSpacing
+
+                Kirigami.Icon {
+                    source: "starred-symbolic"
+                    implicitWidth:  Kirigami.Units.iconSizes.medium
+                    implicitHeight: Kirigami.Units.iconSizes.medium
+                }
+                Kirigami.Heading {
+                    text:  "Scoring System"
+                    level: 3
+                }
+            }
+
+            contentItem: ColumnLayout {
+                spacing: Kirigami.Units.largeSpacing
+
+                // Detected format row
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.largeSpacing
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+
+                        Controls.Label {
+                            text: anilistService.scoreFormat !== ""
+                                  ? settingsPage.scoreFormatLabel(anilistService.scoreFormat)
+                                  : "Not yet detected — sync to load"
+                            font.pixelSize: 14
+                            font.weight:    Font.DemiBold
+                            color: Kirigami.Theme.textColor
+                        }
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            text: "Detected automatically from your AniList account settings. "
+                                + "To change it, update your scoring system on AniList, then sync."
+                            wrapMode: Text.WordWrap
+                            opacity:  0.65
+                            font.pixelSize: 12
+                        }
+                    }
+
+                    // Quick link to AniList settings
+                    Controls.Button {
+                        text:      "Change on AniList"
+                        icon.name: "internet-web-browser-symbolic"
+                        Layout.alignment: Qt.AlignVCenter
+                        onClicked: Qt.openUrlExternally(
+                            "https://anilist.co/settings/lists")
+                    }
+                }
+
+                // Visual example of how a score looks in the current format
+                RowLayout {
+                    visible: anilistService.scoreFormat !== ""
+                    spacing: Kirigami.Units.smallSpacing
+
+                    Controls.Label {
+                        text:    "Example:"
+                        opacity: 0.6
+                        font.pixelSize: 12
+                    }
+                    Controls.Label {
+                        // Show a mid-range score in whatever the user's format is
+                        text: {
+                            const fmt = anilistService.scoreFormat
+                            if (fmt === "POINT_100")        return anilistService.formatScore(72)
+                            if (fmt === "POINT_10_DECIMAL") return anilistService.formatScore(7.2)
+                            if (fmt === "POINT_10")         return anilistService.formatScore(7)
+                            if (fmt === "POINT_5")          return anilistService.formatScore(4)
+                            if (fmt === "POINT_3")          return anilistService.formatScore(2)
+                            return ""
+                        }
+                        color: Kirigami.Theme.highlightColor
+                        font { pixelSize: 13; bold: true }
+                    }
+                }
+            }
+        }
+
         Item { Layout.preferredHeight: Kirigami.Units.largeSpacing }
     }
 
-    // ── Logout confirmation dialog ─────────────────────────────────────────────
+    // ── Logout dialog ─────────────────────────────────────────────────────────
     Kirigami.PromptDialog {
         id:              logoutDialog
         title:           "Log out of AniList?"
