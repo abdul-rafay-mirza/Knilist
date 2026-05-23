@@ -27,6 +27,7 @@ query ($userId: Int) {
         status
         score
         progress
+        updatedAt
         media {
           id
           title { userPreferred }
@@ -55,37 +56,63 @@ mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
 """
 
 
-def _next_ep_text(status: str, next_airing: dict | None) -> str:
+def _next_ep_text(status: str, next_airing: dict | None,
+                  progress: int, total_episodes: int) -> str:
     if status == "COMPLETED":
         return "Finished"
+
     if not next_airing:
+        # No next airing episode — two possible reasons:
+        # 1. total_episodes known  → show finished airing, user hasn't caught up
+        # 2. total_episodes unknown → genuinely no schedule info yet
+        if total_episodes > 0:
+            behind = total_episodes - progress
+            if behind == 1:
+                return "Finished airing · 1 episode left"
+            if behind > 1:
+                return f"Finished airing · {behind} episodes left"
+            return "Finished airing"
         return "TBA"
-    sec  = next_airing.get("timeUntilAiring", 0)
-    ep   = next_airing.get("episode", "?")
-    days = sec // 86400
-    hrs  = (sec % 86400) // 3600
+
+    sec     = next_airing.get("timeUntilAiring", 0)
+    next_ep = next_airing.get("episode", 0)
+    days    = sec // 86400
+    hrs     = (sec % 86400) // 3600
+
     if days > 0:
-        return f"Ep. {ep} in {days}d"
-    if hrs > 0:
-        return f"Ep. {ep} in {hrs}h"
-    return f"Ep. {ep} airing soon"
+        time_str = f"Ep. {next_ep} in {days}d"
+    elif hrs > 0:
+        time_str = f"Ep. {next_ep} in {hrs}h"
+    else:
+        time_str = f"Ep. {next_ep} airing soon"
+
+    behind = (next_ep - 1) - progress
+    if behind == 1:
+        return f"{time_str} · You are 1 episode behind"
+    if behind > 1:
+        return f"{time_str} · You are {behind} episodes behind"
+
+    return time_str
 
 
 def _normalise(entry: dict) -> dict:
-    media       = entry.get("media") or {}
-    status      = entry.get("status", "CURRENT")
-    next_airing = media.get("nextAiringEpisode")
+    media          = entry.get("media") or {}
+    status         = entry.get("status", "CURRENT")
+    next_airing    = media.get("nextAiringEpisode")
+    progress       = entry.get("progress", 0)
+    total_episodes = media.get("episodes") or 0
     return {
         "entryId":    entry.get("id", 0),
         "anilistId":  media.get("id", 0),
         "title":      (media.get("title") or {}).get("userPreferred", "Unknown"),
         "mediaType":  media.get("format", "TV"),
         "cover":      (media.get("coverImage") or {}).get("large", ""),
-        "nextEpText": _next_ep_text(status, next_airing),
+        "nextEpText": _next_ep_text(status, next_airing, progress, total_episodes),
         "status":     status,
         "score":      entry.get("score", 0),
-        "progress":   entry.get("progress", 0),
-        "episodes":   media.get("episodes") or 0,
+        "progress":   progress,
+        "episodes":   total_episodes,
+        "updatedAt":  entry.get("updatedAt", 0),   # Unix timestamp; 0 = never updated
     }
 
 
@@ -141,6 +168,7 @@ class AniListService(QObject):
                     for lst in lists
                     for e in (lst.get("entries") or [])
                 ]
+                entries.sort(key=lambda e: e["updatedAt"], reverse=True)
                 self.animeLoaded.emit(entries)
 
             except Exception as exc:

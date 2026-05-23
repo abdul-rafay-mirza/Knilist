@@ -7,22 +7,27 @@ Kirigami.AbstractCard {
     id: animeCard
 
     // Public API
-    property string title:           "Classroom of the Elite 4th Season: Second Cours"
-    property string mediaType:       "TV"
-    property string nextEpisodeText: "Ep. 12 in 5 days."
-    property int    rating:          0
-    property int    watchedEpisodes: 11
-    property int    totalEpisodes:   16
-    property string coverSource:     ""
+    property string title
+    property string mediaType
+    property string nextEpisodeText
+    property int    rating
+    property int    watchedEpisodes
+    property int    totalEpisodes   // 0 = still airing / unknown
+
+    property string coverSource
 
     signal addEpisode()
 
-    // Geometry
-    width:  440
-    height: 110
+    // Helpers
+    readonly property bool  knownTotal:    totalEpisodes > 0
+    readonly property real  progressRatio: knownTotal
+                                           ? watchedEpisodes / totalEpisodes
+                                           : 0.5
 
-    // Kirigami.AbstractCard has its own padding — zero it out
-    // so our layout fills the card edge-to-edge
+    // Geometry
+    width:           440
+    implicitHeight:  Math.max(110, contentItem.implicitHeight + 10)
+
     leftPadding:   0
     rightPadding:  0
     topPadding:    0
@@ -39,7 +44,6 @@ Kirigami.AbstractCard {
         Rectangle {
             Layout.preferredWidth: 90
             Layout.fillHeight:     true
-            // Slightly darker shade of the card background
             color: Kirigami.ColorUtils.tintWithAlpha(
                        Kirigami.Theme.backgroundColor,
                        Kirigami.Theme.textColor,
@@ -54,7 +58,6 @@ Kirigami.AbstractCard {
                 visible:      animeCard.coverSource !== ""
             }
 
-            // Placeholder when no cover
             Kirigami.Icon {
                 anchors.centerIn: parent
                 source:  "image-missing"
@@ -73,7 +76,6 @@ Kirigami.AbstractCard {
             Layout.topMargin:   10
             spacing: 2
 
-            // Title
             Controls.Label {
                 Layout.fillWidth: true
                 text:  animeCard.title
@@ -83,21 +85,22 @@ Kirigami.AbstractCard {
                 maximumLineCount: 1
             }
 
-            // Media type • next-episode info
             Controls.Label {
-                text:  animeCard.mediaType + " • " + animeCard.nextEpisodeText
-                color: Kirigami.Theme.highlightColor
-                font.pixelSize: 12
+                Layout.fillWidth: true
+                text:      animeCard.mediaType + " • " + animeCard.nextEpisodeText
+                color:     Kirigami.Theme.highlightColor
+                font.pixelSize:   12
+                wrapMode:  Text.WordWrap
+                maximumLineCount: 2
+                elide:     Text.ElideRight
             }
 
             Item { Layout.fillHeight: true }
 
-            // Bottom row
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
 
-                // ★ Rating
                 RowLayout {
                     spacing: 5
                     Kirigami.Icon {
@@ -114,14 +117,14 @@ Kirigami.AbstractCard {
 
                 Item { Layout.fillWidth: true }
 
-                // Episode counter
+                // Episode counter — "?" when total is unknown
                 Controls.Label {
-                    text:  animeCard.watchedEpisodes + " / " + animeCard.totalEpisodes
+                    text:  animeCard.watchedEpisodes + " / "
+                           + (animeCard.knownTotal ? animeCard.totalEpisodes : "?")
                     color: Kirigami.Theme.textColor
                     font.pixelSize: 13
                 }
 
-                // +1 EP button
                 Rectangle {
                     width:  68; height: 28
                     radius: Kirigami.Units.smallSpacing
@@ -156,7 +159,7 @@ Kirigami.AbstractCard {
         }
     }
 
-    // Progress bar
+    // Progress bar — 50% wide when total is unknown, animated otherwise
     Rectangle {
         anchors.bottom: parent.bottom
         anchors.left:   parent.left
@@ -168,10 +171,15 @@ Kirigami.AbstractCard {
                     0.3)
 
         Rectangle {
-            width:  parent.width * (animeCard.watchedEpisodes / Math.max(animeCard.totalEpisodes, 1))
+            width:  parent.width * animeCard.progressRatio
             height: parent.height
             color:  Kirigami.Theme.positiveTextColor
-            Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+
+            Behavior on width {
+                // Only animate when the total is known; skip the jump to 50%
+                enabled: animeCard.knownTotal
+                NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+            }
         }
     }
 }

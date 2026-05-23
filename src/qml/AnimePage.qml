@@ -54,9 +54,9 @@ Kirigami.Page {
             if (item.episodes > 0 && item.progress >= item.episodes) return
 
             item.progress++
-            newProgress = item.progress
+            item.updatedAt = Math.floor(Date.now() / 1000)   // seconds, like AniList
+            newProgress    = item.progress
 
-            // Auto-complete when last episode is watched
             if (item.episodes > 0 && item.progress === item.episodes) {
                 item.status     = "COMPLETED"
                 item.nextEpText = "Finished"
@@ -67,9 +67,10 @@ Kirigami.Page {
             break
         }
 
+        // Re-sort so the just-updated show rises to the top
+        animeData.sort((a, b) => b.updatedAt - a.updatedAt)
         rebuildModel()
 
-        // Persist to AniList (fire-and-forget)
         if (newProgress > 0)
             anilistService.saveProgress(anilistId, newProgress, newStatus)
     }
