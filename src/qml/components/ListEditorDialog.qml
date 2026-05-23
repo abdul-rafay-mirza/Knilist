@@ -64,10 +64,15 @@ Kirigami.Dialog {
     }
 
     // ── Dialog chrome ─────────────────────────────────────────────────────────
-    title:           animeTitle
+    title:           ""
     standardButtons: Kirigami.Dialog.NoButton
-    preferredWidth:  Kirigami.Units.gridUnit * 44
-    preferredHeight: Kirigami.Units.gridUnit * 42
+
+    // Set width/height directly — preferredWidth is only advisory in Kirigami
+    // and gets overridden by overlay constraints
+    width:  Math.min(Kirigami.Units.gridUnit * 46,
+                     applicationWindow().width  * 0.9)
+    height: Math.min(Kirigami.Units.gridUnit * 42,
+                     applicationWindow().height * 0.9)
 
     customFooterActions: [
         Kirigami.Action {
@@ -178,7 +183,7 @@ Kirigami.Dialog {
 
         title: isStart ? "Start Date" : "Finish Date"
         standardButtons: Kirigami.Dialog.NoButton
-        preferredWidth: Kirigami.Units.gridUnit * 22
+        preferredWidth: Kirigami.Units.gridUnit * 24
 
         ColumnLayout {
             spacing: Kirigami.Units.largeSpacing
@@ -256,290 +261,279 @@ Kirigami.Dialog {
         onDateCleared: { listEditorDialog.editFinishYear = 0; listEditorDialog.editFinishMonth = 0; listEditorDialog.editFinishDay = 0 }
     }
 
-    // Validators — declared at dialog scope so the TextField can reference them
-    IntValidator {
-        id: intValidator
-        bottom: 0
-        top: Math.round(anilistService.scoreMax())
-    }
-    DoubleValidator {
-        id: doubleValidator
-        bottom: 0
-        top: anilistService.scoreMax()
-        decimals: 1
-        notation: DoubleValidator.StandardNotation
-    }
+    IntValidator    { id: intValidator;    bottom: 0; top: 100 }
+    DoubleValidator { id: doubleValidator; bottom: 0; top: 10; decimals: 1
+                      notation: DoubleValidator.StandardNotation }
 
     // ═════════════════════════════════════════════════════════════════════════
     // Content
     // ═════════════════════════════════════════════════════════════════════════
-    contentItem: Item {
-        Controls.ScrollView {
-            anchors.fill: parent
-            contentWidth: availableWidth
-            clip: true
+    contentItem: Controls.ScrollView {
+        contentWidth: availableWidth
+        clip: true
 
-            ColumnLayout {
-                width: parent.width
-                spacing: 0
+        ColumnLayout {
+            // Bind to the dialog's own width minus its padding so we never
+            // measure against an unconstrained ScrollView content size
+            width: listEditorDialog.width
+                   - listEditorDialog.leftPadding
+                   - listEditorDialog.rightPadding
+            spacing: 0
 
-                Item { Layout.preferredHeight: Kirigami.Units.gridUnit }
+            // ── Title ─────────────────────────────────────────────────────────
+            Controls.Label {
+                Layout.fillWidth:    true
+                Layout.leftMargin:   Kirigami.Units.gridUnit
+                Layout.rightMargin:  Kirigami.Units.gridUnit
+                Layout.topMargin:    Kirigami.Units.gridUnit
+                Layout.bottomMargin: Kirigami.Units.largeSpacing
+                text:     listEditorDialog.animeTitle
+                wrapMode: Text.WordWrap
+                font { pixelSize: 18; bold: true }
+                color: Kirigami.Theme.textColor
+            }
 
-                // ── GENERAL ───────────────────────────────────────────────────
-                SectionHeader { text: "General" }
-                Item { Layout.preferredHeight: Kirigami.Units.largeSpacing }
+            // ── GENERAL ───────────────────────────────────────────────────────
+            SectionHeader { text: "General" }
+            Item { Layout.preferredHeight: Kirigami.Units.largeSpacing }
 
-                // Status
-                EditorRow {
-                    label: "Status"
-                    Controls.Button {
-                        Layout.fillWidth: true
-                        text: listEditorDialog.statusLabel(listEditorDialog.editStatus)
-                        onClicked: statusSheet.open()
-                    }
+            // Status
+            EditorRow {
+                label: "Status"
+                Controls.Button {
+                    Layout.fillWidth: true
+                    text: listEditorDialog.statusLabel(listEditorDialog.editStatus)
+                    onClicked: statusSheet.open()
                 }
+            }
 
-                // Score — the control area is a plain Item acting as a switcher;
-                // only one child is visible at a time, avoiding multi-RowLayout conflicts.
-                EditorRow {
-                    label: "Score"
+            // Score
+            EditorRow {
+                label: "Score"
 
-                    Item {
-                        Layout.fillWidth: true
-                        // Height comes from whichever child is visible
-                        implicitHeight: scoreFmt === "POINT_5"
-                                        ? starRow.implicitHeight
-                                        : scoreFmt === "POINT_3"
-                                          ? smileyRow.implicitHeight
-                                          : numericRow.implicitHeight
+                Item {
+                    Layout.fillWidth: true
+                    implicitHeight: scoreFmt === "POINT_5"
+                                    ? starRow.implicitHeight
+                                    : scoreFmt === "POINT_3"
+                                      ? smileyRow.implicitHeight
+                                      : numericRow.implicitHeight
 
-                        // ── POINT_5: five stars ───────────────────────────────
-                        Row {
-                            id: starRow
-                            visible: listEditorDialog.scoreFmt === "POINT_5"
-                            spacing: 4
-
-                            Repeater {
-                                model: 5
-                                delegate: Controls.AbstractButton {
-                                    readonly property int  starValue: modelData + 1
-                                    readonly property bool filled: listEditorDialog.editScore >= starValue
-                                    implicitWidth:  Kirigami.Units.gridUnit * 2
-                                    implicitHeight: Kirigami.Units.gridUnit * 2
-                                    contentItem: Controls.Label {
-                                        text:  filled ? "★" : "☆"
-                                        color: filled ? Kirigami.Theme.highlightColor
-                                                      : Kirigami.Theme.disabledTextColor
-                                        font.pixelSize: 26
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment:   Text.AlignVCenter
-                                    }
-                                    onClicked: listEditorDialog.editScore =
-                                        (listEditorDialog.editScore === starValue) ? 0 : starValue
+                    Row {
+                        id: starRow
+                        visible: listEditorDialog.scoreFmt === "POINT_5"
+                        spacing: 4
+                        Repeater {
+                            model: 5
+                            delegate: Controls.AbstractButton {
+                                readonly property int  starValue: modelData + 1
+                                readonly property bool filled: listEditorDialog.editScore >= starValue
+                                implicitWidth:  Kirigami.Units.gridUnit * 2
+                                implicitHeight: Kirigami.Units.gridUnit * 2
+                                contentItem: Controls.Label {
+                                    text:  filled ? "★" : "☆"
+                                    color: filled ? Kirigami.Theme.highlightColor
+                                                  : Kirigami.Theme.disabledTextColor
+                                    font.pixelSize: 26
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment:   Text.AlignVCenter
                                 }
+                                onClicked: listEditorDialog.editScore =
+                                    (listEditorDialog.editScore === starValue) ? 0 : starValue
                             }
-
-                            Controls.Label {
-                                visible: listEditorDialog.editScore > 0
-                                text:    "(" + listEditorDialog.editScore + " / 5)"
-                                color:   Kirigami.Theme.disabledTextColor
-                                font.pixelSize: 12
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                        }
-
-                        // ── POINT_3: smileys ──────────────────────────────────
-                        Row {
-                            id: smileyRow
-                            visible: listEditorDialog.scoreFmt === "POINT_3"
-                            spacing: Kirigami.Units.largeSpacing
-
-                            Repeater {
-                                model: [
-                                    { val: 1, face: ":(", tip: "Bad"  },
-                                    { val: 2, face: ":|", tip: "Okay" },
-                                    { val: 3, face: ":)", tip: "Good" },
-                                ]
-                                delegate: Controls.Button {
-                                    readonly property bool active: listEditorDialog.editScore === modelData.val
-                                    text:        modelData.face
-                                    highlighted: active
-                                    font.pixelSize: 18
-                                    Controls.ToolTip.visible: hovered
-                                    Controls.ToolTip.text:    modelData.tip
-                                    onClicked: listEditorDialog.editScore = active ? 0 : modelData.val
-                                }
-                            }
-
-                            Controls.Label {
-                                visible: listEditorDialog.editScore === 0
-                                text:    "Not rated"
-                                color:   Kirigami.Theme.disabledTextColor
-                                font.pixelSize: 12
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                        }
-
-                        // ── POINT_100 / POINT_10 / POINT_10_DECIMAL ───────────
-                        Row {
-                            id: numericRow
-                            visible: listEditorDialog.scoreFmt !== "POINT_5"
-                                  && listEditorDialog.scoreFmt !== "POINT_3"
-                            spacing: Kirigami.Units.smallSpacing
-
-                            Controls.TextField {
-                                id: scoreField
-                                width: Kirigami.Units.gridUnit * 7
-                                placeholderText: "0"
-                                horizontalAlignment: Text.AlignHCenter
-                                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                validator: listEditorDialog.scoreFmt === "POINT_10_DECIMAL"
-                                           ? doubleValidator : intValidator
-
-                                text: listEditorDialog.editScore > 0
-                                      ? (listEditorDialog.scoreFmt === "POINT_10_DECIMAL"
-                                         ? listEditorDialog.editScore.toFixed(1)
-                                         : String(Math.round(listEditorDialog.editScore)))
-                                      : ""
-
-                                onEditingFinished: {
-                                    const v = parseFloat(text)
-                                    const max = anilistService.scoreMax()
-                                    listEditorDialog.editScore =
-                                        (!isNaN(v) && v >= 0 && v <= max) ? v : 0
-                                }
-                            }
-
-                            Controls.Label {
-                                text:  listEditorDialog.scoreSuffix[listEditorDialog.scoreFmt] ?? ""
-                                color: Kirigami.Theme.disabledTextColor
-                                font.pixelSize: 13
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                        }
-                    }
-                }
-
-                // Episode
-                EditorRow {
-                    label: "Episode"
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Kirigami.Units.largeSpacing
-                        Controls.SpinBox {
-                            Layout.fillWidth: true
-                            from: 0
-                            to: listEditorDialog.currentTotalEpisodes > 0
-                                    ? listEditorDialog.currentTotalEpisodes : 9999
-                            value:    listEditorDialog.editProgress
-                            editable: true
-                            onValueModified: listEditorDialog.editProgress = value
                         }
                         Controls.Label {
-                            text:  "/ " + (listEditorDialog.currentTotalEpisodes > 0
-                                           ? listEditorDialog.currentTotalEpisodes : "?")
+                            visible: listEditorDialog.editScore > 0
+                            text:    "(" + listEditorDialog.editScore + " / 5)"
+                            color:   Kirigami.Theme.disabledTextColor
+                            font.pixelSize: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    Row {
+                        id: smileyRow
+                        visible: listEditorDialog.scoreFmt === "POINT_3"
+                        spacing: Kirigami.Units.largeSpacing
+                        Repeater {
+                            model: [
+                                { val: 1, face: ":(", tip: "Bad"  },
+                                { val: 2, face: ":|", tip: "Okay" },
+                                { val: 3, face: ":)", tip: "Good" },
+                            ]
+                            delegate: Controls.Button {
+                                readonly property bool active: listEditorDialog.editScore === modelData.val
+                                text:        modelData.face
+                                highlighted: active
+                                font.pixelSize: 18
+                                Controls.ToolTip.visible: hovered
+                                Controls.ToolTip.text:    modelData.tip
+                                onClicked: listEditorDialog.editScore = active ? 0 : modelData.val
+                            }
+                        }
+                        Controls.Label {
+                            visible: listEditorDialog.editScore === 0
+                            text:    "Not rated"
+                            color:   Kirigami.Theme.disabledTextColor
+                            font.pixelSize: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    Row {
+                        id: numericRow
+                        visible: listEditorDialog.scoreFmt !== "POINT_5"
+                              && listEditorDialog.scoreFmt !== "POINT_3"
+                        spacing: Kirigami.Units.smallSpacing
+                        Controls.TextField {
+                            id: scoreField
+                            width: Kirigami.Units.gridUnit * 7
+                            placeholderText: "0"
+                            horizontalAlignment: Text.AlignHCenter
+                            inputMethodHints: Qt.ImhFormattedNumbersOnly
+                            validator: listEditorDialog.scoreFmt === "POINT_10_DECIMAL"
+                                       ? doubleValidator : intValidator
+                            text: listEditorDialog.editScore > 0
+                                  ? (listEditorDialog.scoreFmt === "POINT_10_DECIMAL"
+                                     ? listEditorDialog.editScore.toFixed(1)
+                                     : String(Math.round(listEditorDialog.editScore)))
+                                  : ""
+                            onEditingFinished: {
+                                const v   = parseFloat(text)
+                                const max = anilistService.scoreMax()
+                                listEditorDialog.editScore =
+                                    (!isNaN(v) && v >= 0 && v <= max) ? v : 0
+                            }
+                        }
+                        Controls.Label {
+                            text:  listEditorDialog.scoreSuffix[listEditorDialog.scoreFmt] ?? ""
                             color: Kirigami.Theme.disabledTextColor
                             font.pixelSize: 13
-                            Layout.minimumWidth: Kirigami.Units.gridUnit * 3
+                            anchors.verticalCenter: parent.verticalCenter
                         }
                     }
                 }
-
-                // Start Date
-                EditorRow {
-                    label: "Start Date"
-                    Controls.Button {
-                        Layout.fillWidth: true
-                        text: listEditorDialog.dateString(
-                            listEditorDialog.editStartYear,
-                            listEditorDialog.editStartMonth,
-                            listEditorDialog.editStartDay)
-                        onClicked: startDateDialog.open()
-                    }
-                }
-
-                // Finish Date
-                EditorRow {
-                    label: "Finish Date"
-                    Controls.Button {
-                        Layout.fillWidth: true
-                        text: listEditorDialog.dateString(
-                            listEditorDialog.editFinishYear,
-                            listEditorDialog.editFinishMonth,
-                            listEditorDialog.editFinishDay)
-                        onClicked: finishDateDialog.open()
-                    }
-                }
-
-                // Rewatches
-                EditorRow {
-                    label: "Rewatches"
-                    Controls.SpinBox {
-                        Layout.preferredWidth: Kirigami.Units.gridUnit * 10
-                        from: 0; to: 9999
-                        value:    listEditorDialog.editRewatches
-                        editable: true
-                        onValueModified: listEditorDialog.editRewatches = value
-                    }
-                }
-
-                // Notes
-                EditorRow {
-                    label: "Notes"
-                    Controls.TextArea {
-                        Layout.fillWidth: true
-                        Layout.minimumHeight: Kirigami.Units.gridUnit * 4
-                        placeholderText: "Add notes…"
-                        text:            listEditorDialog.editNotes
-                        wrapMode:        TextInput.WordWrap
-                        onTextChanged:   listEditorDialog.editNotes = text
-                    }
-                }
-
-                // Priority
-                EditorRow {
-                    label: "Priority"
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Kirigami.Units.largeSpacing
-                        Controls.Slider {
-                            Layout.fillWidth: true
-                            from: 0; to: 5; stepSize: 1
-                            value: listEditorDialog.editPriority
-                            onMoved: listEditorDialog.editPriority = Math.round(value)
-                        }
-                        Controls.Label {
-                            text:  listEditorDialog.editPriority === 0 ? "None"
-                                   : listEditorDialog.editPriority
-                            color: listEditorDialog.editPriority > 0
-                                   ? Kirigami.Theme.highlightColor
-                                   : Kirigami.Theme.disabledTextColor
-                            font { pixelSize: 13; bold: listEditorDialog.editPriority > 0 }
-                            Layout.minimumWidth: Kirigami.Units.gridUnit * 3
-                            horizontalAlignment: Text.AlignRight
-                        }
-                    }
-                }
-
-                // ── OTHERS ────────────────────────────────────────────────────
-                Item { Layout.preferredHeight: Kirigami.Units.gridUnit * 1.5 }
-                SectionHeader { text: "Others" }
-                Item { Layout.preferredHeight: Kirigami.Units.largeSpacing }
-
-                ToggleRow {
-                    label:     "Hide from status lists"
-                    checked:   listEditorDialog.editHideFromLists
-                    onToggled: listEditorDialog.editHideFromLists = checked
-                }
-
-                ToggleRow {
-                    label:     "Private"
-                    checked:   listEditorDialog.editPrivate
-                    onToggled: listEditorDialog.editPrivate = checked
-                }
-
-                Item { Layout.preferredHeight: Kirigami.Units.gridUnit }
             }
+
+            // Episode
+            EditorRow {
+                label: "Episode"
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.largeSpacing
+                    Controls.SpinBox {
+                        Layout.fillWidth: true
+                        from: 0
+                        to: listEditorDialog.currentTotalEpisodes > 0
+                                ? listEditorDialog.currentTotalEpisodes : 9999
+                        value:    listEditorDialog.editProgress
+                        editable: true
+                        onValueModified: listEditorDialog.editProgress = value
+                    }
+                    Controls.Label {
+                        text:  "/ " + (listEditorDialog.currentTotalEpisodes > 0
+                                       ? listEditorDialog.currentTotalEpisodes : "?")
+                        color: Kirigami.Theme.disabledTextColor
+                        font.pixelSize: 13
+                        Layout.minimumWidth: Kirigami.Units.gridUnit * 3
+                    }
+                }
+            }
+
+            // Start Date
+            EditorRow {
+                label: "Start Date"
+                Controls.Button {
+                    Layout.fillWidth: true
+                    text: listEditorDialog.dateString(
+                        listEditorDialog.editStartYear,
+                        listEditorDialog.editStartMonth,
+                        listEditorDialog.editStartDay)
+                    onClicked: startDateDialog.open()
+                }
+            }
+
+            // Finish Date
+            EditorRow {
+                label: "Finish Date"
+                Controls.Button {
+                    Layout.fillWidth: true
+                    text: listEditorDialog.dateString(
+                        listEditorDialog.editFinishYear,
+                        listEditorDialog.editFinishMonth,
+                        listEditorDialog.editFinishDay)
+                    onClicked: finishDateDialog.open()
+                }
+            }
+
+            // Rewatches
+            EditorRow {
+                label: "Rewatches"
+                Controls.SpinBox {
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                    from: 0; to: 9999
+                    value:    listEditorDialog.editRewatches
+                    editable: true
+                    onValueModified: listEditorDialog.editRewatches = value
+                }
+            }
+
+            // Notes
+            EditorRow {
+                label: "Notes"
+                Controls.TextArea {
+                    Layout.fillWidth: true
+                    Layout.minimumHeight: Kirigami.Units.gridUnit * 4
+                    placeholderText: "Add notes…"
+                    text:            listEditorDialog.editNotes
+                    wrapMode:        TextInput.WordWrap
+                    onTextChanged:   listEditorDialog.editNotes = text
+                }
+            }
+
+            // Priority
+            EditorRow {
+                label: "Priority"
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.largeSpacing
+                    Controls.Slider {
+                        Layout.fillWidth: true
+                        from: 0; to: 5; stepSize: 1
+                        value: listEditorDialog.editPriority
+                        onMoved: listEditorDialog.editPriority = Math.round(value)
+                    }
+                    Controls.Label {
+                        text:  listEditorDialog.editPriority === 0 ? "None"
+                               : listEditorDialog.editPriority
+                        color: listEditorDialog.editPriority > 0
+                               ? Kirigami.Theme.highlightColor
+                               : Kirigami.Theme.disabledTextColor
+                        font { pixelSize: 13; bold: listEditorDialog.editPriority > 0 }
+                        Layout.minimumWidth: Kirigami.Units.gridUnit * 3
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+            }
+
+            // ── OTHERS ────────────────────────────────────────────────────────
+            Item { Layout.preferredHeight: Kirigami.Units.gridUnit * 1.5 }
+            SectionHeader { text: "Others" }
+            Item { Layout.preferredHeight: Kirigami.Units.largeSpacing }
+
+            ToggleRow {
+                label:     "Hide from status lists"
+                checked:   listEditorDialog.editHideFromLists
+                onToggled: listEditorDialog.editHideFromLists = checked
+            }
+
+            ToggleRow {
+                label:     "Private"
+                checked:   listEditorDialog.editPrivate
+                onToggled: listEditorDialog.editPrivate = checked
+            }
+
+            Item { Layout.preferredHeight: Kirigami.Units.gridUnit }
         }
     }
 
@@ -557,9 +551,11 @@ Kirigami.Dialog {
             text:  label
             color: Kirigami.Theme.textColor
             font.pixelSize: 13
-            Layout.minimumWidth: Kirigami.Units.gridUnit * 9
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 9
-            Layout.alignment: Qt.AlignVCenter
+            // Fixed label column width — wide enough for "Hide from status lists"
+            Layout.minimumWidth: Kirigami.Units.gridUnit * 8
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 8
+            Layout.alignment:    Qt.AlignVCenter
+            wrapMode:            Text.WordWrap
         }
     }
 
