@@ -17,6 +17,7 @@ Kirigami.AbstractCard {
     property string coverSource
 
     signal addEpisode()
+    signal cardClicked()   // ← new: emitted when the card body is clicked
 
     // Helpers
     readonly property bool  knownTotal:    totalEpisodes > 0
@@ -32,6 +33,14 @@ Kirigami.AbstractCard {
     rightPadding:  0
     topPadding:    0
     bottomPadding: 0
+
+    // Make the whole card clickable (except the +1 EP button, handled separately)
+    MouseArea {
+        anchors.fill: parent
+        z: 0
+        cursorShape: Qt.PointingHandCursor
+        onClicked: animeCard.cardClicked()
+    }
 
     contentItem: RowLayout {
         anchors {
@@ -125,7 +134,9 @@ Kirigami.AbstractCard {
                     font.pixelSize: 13
                 }
 
+                // +1 EP button — z raised so it captures clicks above the card MouseArea
                 Rectangle {
+                    z:      1
                     width:  68; height: 28
                     radius: Kirigami.Units.smallSpacing
                     color:  "transparent"
@@ -152,7 +163,10 @@ Kirigami.AbstractCard {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape:  Qt.PointingHandCursor
-                        onClicked:    animeCard.addEpisode()
+                        onClicked:    (mouse) => {
+                            mouse.accepted = true   // stop propagation to card MouseArea
+                            animeCard.addEpisode()
+                        }
                     }
                 }
             }
@@ -176,7 +190,6 @@ Kirigami.AbstractCard {
             color:  Kirigami.Theme.positiveTextColor
 
             Behavior on width {
-                // Only animate when the total is known; skip the jump to 50%
                 enabled: animeCard.knownTotal
                 NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
             }

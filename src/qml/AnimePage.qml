@@ -9,7 +9,7 @@ Kirigami.Page {
     title: "Anime List"
     padding: 0
 
-    // ── Status filters (AniList enum strings) ─────────────────────────────────
+    // ── Status filters ────────────────────────────────────────────────────────
     readonly property var statusFilters: [
         { id: "ALL",       label: "All",       icon: "view-list-symbolic"            },
         { id: "CURRENT",   label: "Watching",  icon: "media-playback-start-symbolic" },
@@ -20,11 +20,8 @@ Kirigami.Page {
     ]
 
     property string selectedStatus: "ALL"
+    property var    animeData:      []
 
-    // ── Master data (set by onAnimeLoaded; stays a mutable JS array) ──────────
-    property var animeData: []
-
-    // ── Filtered display model ────────────────────────────────────────────────
     ListModel { id: displayModel }
 
     function rebuildModel() {
@@ -44,7 +41,6 @@ Kirigami.Page {
         return n
     }
 
-    // Optimistic local increment; API call persists it in the background.
     function incrementProgress(anilistId) {
         let newProgress = 0
         let newStatus   = ""
@@ -54,7 +50,7 @@ Kirigami.Page {
             if (item.episodes > 0 && item.progress >= item.episodes) return
 
             item.progress++
-            item.updatedAt = Math.floor(Date.now() / 1000)   // seconds, like AniList
+            item.updatedAt = Math.floor(Date.now() / 1000)
             newProgress    = item.progress
 
             if (item.episodes > 0 && item.progress === item.episodes) {
@@ -66,26 +62,68 @@ Kirigami.Page {
             }
             break
         }
-
-        // Re-sort so the just-updated show rises to the top
         animeData.sort((a, b) => b.updatedAt - a.updatedAt)
         rebuildModel()
-
         if (newProgress > 0)
             anilistService.saveProgress(anilistId, newProgress, newStatus)
     }
 
-    // ── Receive live data from Python ─────────────────────────────────────────
+    // ── Open List Editor dialog ───────────────────────────────────────────────
+    function openEditor(anilistId) {
+        let entry = null
+        for (let i = 0; i < animeData.length; i++) {
+            if (animeData[i].anilistId === anilistId) { entry = animeData[i]; break }
+        }
+        if (!entry) return
+
+        function parsePart(dateStr, part) {
+            if (!dateStr || dateStr.length < 10) return 0
+            const p = dateStr.split("-")
+            if (part === "y") return parseInt(p[0]) || 0
+            if (part === "m") return parseInt(p[1]) || 0
+            if (part === "d") return parseInt(p[2]) || 0
+            return 0
+        }
+        const sd = entry.startedAt   || ""
+        const fd = entry.completedAt || ""
+
+        listEditor.anilistId            = entry.anilistId
+        listEditor.animeTitle           = entry.title
+        listEditor.currentStatus        = entry.status
+        listEditor.currentScore         = entry.score
+        listEditor.currentProgress      = entry.progress
+        listEditor.currentTotalEpisodes = entry.episodes
+        listEditor.currentStartYear     = parsePart(sd, "y")
+        listEditor.currentStartMonth    = parsePart(sd, "m")
+        listEditor.currentStartDay      = parsePart(sd, "d")
+        listEditor.currentFinishYear    = parsePart(fd, "y")
+        listEditor.currentFinishMonth   = parsePart(fd, "m")
+        listEditor.currentFinishDay     = parsePart(fd, "d")
+        listEditor.currentRewatches     = entry.rewatches  || 0
+        listEditor.currentNotes         = entry.notes      || ""
+        listEditor.currentPriority      = entry.priority   || 0
+        listEditor.currentHideFromLists = entry.hiddenFromStatusLists || false
+        listEditor.currentPrivate       = entry.isPrivate  || false
+
+        listEditor.open()
+    }
+
+    // ── List Editor dialog instance ───────────────────────────────────────────
+    ListEditorDialog {
+        id: listEditor
+        onEntrySaved:   anilistService.fetchAll()
+        onEntryRemoved: anilistService.fetchAll()
+    }
+
+    // ── Live data ─────────────────────────────────────────────────────────────
     Connections {
         target: anilistService
-
         function onAnimeLoaded(data) {
             animePage.animeData = data
             animePage.rebuildModel()
         }
     }
 
-    // Trigger fetch if already logged in when page loads
     Component.onCompleted: {
         if (authManager.isLoggedIn && animeData.length === 0)
             anilistService.fetchAll()
@@ -94,7 +132,7 @@ Kirigami.Page {
     onSelectedStatusChanged: rebuildModel()
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // Layout: sidebar | separator | list
+    // Layout
     // ═══════════════════════════════════════════════════════════════════════════
     RowLayout {
         anchors.fill: parent
@@ -102,7 +140,7 @@ Kirigami.Page {
 
         // ── Sidebar ───────────────────────────────────────────────────────────
         Rectangle {
-            id:   sidebar
+            id: sidebar
             Layout.fillHeight:     true
             Layout.preferredWidth: Kirigami.Units.gridUnit * 11
             color: Kirigami.Theme.backgroundColor
@@ -111,15 +149,14 @@ Kirigami.Page {
 
             ColumnLayout {
                 anchors {
-                    fill:        parent
-                    topMargin:   Kirigami.Units.smallSpacing
+                    fill:         parent
+                    topMargin:    Kirigami.Units.smallSpacing
                     bottomMargin: Kirigami.Units.smallSpacing
                 }
                 spacing: 2
 
                 Repeater {
                     model: animePage.statusFilters
-
                     delegate: Controls.ItemDelegate {
                         id: navItem
                         Layout.fillWidth: true
@@ -136,7 +173,6 @@ Kirigami.Page {
                                        ? Kirigami.Theme.highlightedTextColor
                                        : Kirigami.Theme.textColor
                             }
-
                             Controls.Label {
                                 Layout.fillWidth: true
                                 text:  modelData.label
@@ -146,21 +182,17 @@ Kirigami.Page {
                                 font.weight: navItem.highlighted ? Font.DemiBold : Font.Normal
                                 elide: Text.ElideRight
                             }
-
-                            // Count badge
                             Rectangle {
                                 readonly property int count: animePage.countForStatus(modelData.id)
                                 visible: count > 0
                                 width:  Math.max(
                                     Kirigami.Units.gridUnit * 1.4,
-                                    badgeLabel.implicitWidth + Kirigami.Units.smallSpacing * 2
-                                )
+                                    badgeLabel.implicitWidth + Kirigami.Units.smallSpacing * 2)
                                 height: Kirigami.Units.gridUnit * 1.1
                                 radius: height / 2
                                 color:  navItem.highlighted
-                                        ? Qt.rgba(1, 1, 1, 0.25)
+                                        ? Qt.rgba(1,1,1,0.25)
                                         : Kirigami.Theme.highlightColor
-
                                 Controls.Label {
                                     id:               badgeLabel
                                     anchors.centerIn: parent
@@ -195,7 +227,6 @@ Kirigami.Page {
 
                 Item { Layout.fillHeight: true }
 
-                // Sync button at the bottom of the sidebar
                 Controls.ToolButton {
                     Layout.fillWidth:    true
                     Layout.leftMargin:   Kirigami.Units.smallSpacing
@@ -217,7 +248,6 @@ Kirigami.Page {
             Layout.fillWidth:  true
             Layout.fillHeight: true
 
-            // Loading overlay
             Controls.BusyIndicator {
                 anchors.centerIn: parent
                 running: anilistService.loading && displayModel.count === 0
@@ -225,17 +255,15 @@ Kirigami.Page {
                 z: 1
             }
 
-            // Login prompt
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
                 visible: !authManager.isLoggedIn && !anilistService.loading
                 width:   parent.width - Kirigami.Units.gridUnit * 4
-                icon.name: "im-user-symbolic"
-                text:      "Not logged in"
+                icon.name:   "im-user-symbolic"
+                text:        "Not logged in"
                 explanation: "Log in to AniList from the Settings page to see your anime list."
             }
 
-            // Empty list (logged in but no results for this filter)
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
                 visible: authManager.isLoggedIn
@@ -247,8 +275,8 @@ Kirigami.Page {
             }
 
             Controls.ScrollView {
-                anchors.fill:  parent
-                contentWidth:  availableWidth
+                anchors.fill: parent
+                contentWidth: availableWidth
 
                 ListView {
                     id:           animeListView
@@ -272,7 +300,8 @@ Kirigami.Page {
                         totalEpisodes:   model.episodes
                         coverSource:     model.cover
 
-                        onAddEpisode: animePage.incrementProgress(model.anilistId)
+                        onAddEpisode:  animePage.incrementProgress(model.anilistId)
+                        onCardClicked: animePage.openEditor(model.anilistId)
                     }
                 }
             }

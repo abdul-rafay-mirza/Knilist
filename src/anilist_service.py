@@ -2,6 +2,7 @@
 anilist_service.py — AniList GraphQL client exposed as a QML context property.
 """
 
+import json
 import threading
 import requests
 from PySide6.QtCore import QObject, Signal, Slot, Property
@@ -27,6 +28,13 @@ query ($userId: Int) {
         status
         score
         progress
+        repeat
+        notes
+        priority
+        hiddenFromStatusLists
+        private
+        startedAt  { year month day }
+        completedAt { year month day }
         updatedAt
         media {
           id
@@ -45,12 +53,46 @@ query ($userId: Int) {
 }
 """
 
+# Full mutation — every editable field
 _SAVE_ENTRY_MUTATION = """
-mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
-  SaveMediaListEntry(mediaId: $mediaId, progress: $progress, status: $status) {
+mutation (
+  $mediaId:              Int,
+  $status:               MediaListStatus,
+  $score:                Float,
+  $progress:             Int,
+  $repeat:               Int,
+  $notes:                String,
+  $priority:             Int,
+  $hiddenFromStatusLists: Boolean,
+  $private:              Boolean,
+  $startedAt:            FuzzyDateInput,
+  $completedAt:          FuzzyDateInput
+) {
+  SaveMediaListEntry(
+    mediaId:              $mediaId,
+    status:               $status,
+    score:                $score,
+    progress:             $progress,
+    repeat:               $repeat,
+    notes:                $notes,
+    priority:             $priority,
+    hiddenFromStatusLists: $hiddenFromStatusLists,
+    private:              $private,
+    startedAt:            $startedAt,
+    completedAt:          $completedAt
+  ) {
     id
     progress
     status
+    score
+  }
+}
+"""
+
+_DELETE_ENTRY_MUTATION = """
+mutation ($id: Int) {
+  DeleteMediaListEntry(id: $id) {
+    deleted
   }
 }
 """
@@ -62,9 +104,6 @@ def _next_ep_text(status: str, next_airing: dict | None,
         return "Finished"
 
     if not next_airing:
-        # No next airing episode — two possible reasons:
-        # 1. total_episodes known  → show finished airing, user hasn't caught up
-        # 2. total_episodes unknown → genuinely no schedule info yet
         if total_episodes > 0:
             behind = total_episodes - progress
             if behind == 1:
@@ -95,6 +134,23 @@ def _next_ep_text(status: str, next_airing: dict | None,
     return time_str
 
 
+def _fuzzy_date(d: dict | None) -> dict | None:
+    """Convert an AniList FuzzyDate dict, returning None if empty."""
+    if not d:
+        return None
+    y = d.get("year") or 0
+    if y == 0:
+        return None
+    return {"year": y, "month": d.get("month") or 1, "day": d.get("day") or 1}
+
+
+def _date_str(d: dict | None) -> str:
+    """Format a FuzzyDate dict as 'YYYY-MM-DD', or '' if absent."""
+    if not d or not d.get("year"):
+        return ""
+    return f"{d['year']:04d}-{d.get('month', 1):02d}-{d.get('day', 1):02d}"
+
+
 def _normalise(entry: dict) -> dict:
     media          = entry.get("media") or {}
     status         = entry.get("status", "CURRENT")
@@ -102,17 +158,25 @@ def _normalise(entry: dict) -> dict:
     progress       = entry.get("progress", 0)
     total_episodes = media.get("episodes") or 0
     return {
-        "entryId":    entry.get("id", 0),
-        "anilistId":  media.get("id", 0),
-        "title":      (media.get("title") or {}).get("userPreferred", "Unknown"),
-        "mediaType":  media.get("format", "TV"),
-        "cover":      (media.get("coverImage") or {}).get("large", ""),
-        "nextEpText": _next_ep_text(status, next_airing, progress, total_episodes),
-        "status":     status,
-        "score":      entry.get("score", 0),
-        "progress":   progress,
-        "episodes":   total_episodes,
-        "updatedAt":  entry.get("updatedAt", 0),   # Unix timestamp; 0 = never updated
+        "entryId":              entry.get("id", 0),
+        "anilistId":            media.get("id", 0),
+        "title":                (media.get("title") or {}).get("userPreferred", "Unknown"),
+        "mediaType":            media.get("format", "TV"),
+        "cover":                (media.get("coverImage") or {}).get("large", ""),
+        "nextEpText":           _next_ep_text(status, next_airing, progress, total_episodes),
+        "status":               status,
+        "score":                entry.get("score", 0),
+        "progress":             progress,
+        "episodes":             total_episodes,
+        "updatedAt":            entry.get("updatedAt", 0),
+        # Extra fields for the List Editor
+        "rewatches":            entry.get("repeat", 0),
+        "notes":                entry.get("notes", "") or "",
+        "priority":             entry.get("priority", 0),
+        "hiddenFromStatusLists": entry.get("hiddenFromStatusLists", False),
+        "isPrivate":            entry.get("private", False),
+        "startedAt":            _date_str(_fuzzy_date(entry.get("startedAt"))),
+        "completedAt":          _date_str(_fuzzy_date(entry.get("completedAt"))),
     }
 
 
@@ -121,11 +185,15 @@ class AniListService(QObject):
     userInfoReady  = Signal()
     loadingChanged = Signal(bool)
     errorOccurred  = Signal(str)
+    entrySaved     = Signal()
+    entryDeleted   = Signal()
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
         self._auth    = auth_manager
         self._loading = False
+        # Map anilistId (media id) → entryId, populated on fetchAll
+        self._entry_id_map: dict[int, int] = {}
 
     @Property(bool, notify=loadingChanged)
     def loading(self) -> bool:
@@ -169,6 +237,10 @@ class AniListService(QObject):
                     for e in (lst.get("entries") or [])
                 ]
                 entries.sort(key=lambda e: e["updatedAt"], reverse=True)
+
+                # Rebuild the entryId map
+                self._entry_id_map = {e["anilistId"]: e["entryId"] for e in entries}
+
                 self.animeLoaded.emit(entries)
 
             except Exception as exc:
@@ -179,6 +251,7 @@ class AniListService(QObject):
 
         threading.Thread(target=_run, daemon=True).start()
 
+    # ── Quick +1 progress (called from the card button) ───────────────────────
     @Slot(int, int, str)
     def saveProgress(self, media_id: int, progress: int, status: str) -> None:
         def _run():
@@ -187,4 +260,75 @@ class AniListService(QObject):
                           {"mediaId": media_id, "progress": progress, "status": status})
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
+        threading.Thread(target=_run, daemon=True).start()
+
+    # ── Full save from the List Editor ────────────────────────────────────────
+    @Slot(int, int, str, int, str, str, int, str, int, bool, bool)
+    def saveEntry(
+        self,
+        media_id:         int,
+        progress:         int,
+        status:           str,
+        score:            int,   # 0–100 (AniList internal)
+        started_at_json:  str,   # JSON "{year,month,day}" or ""
+        completed_at_json: str,  # JSON "{year,month,day}" or ""
+        rewatches:        int,
+        notes:            str,
+        priority:         int,
+        hidden:           bool,
+        private:          bool,
+    ) -> None:
+        def _parse_date(s: str) -> dict | None:
+            if not s:
+                return None
+            try:
+                d = json.loads(s)
+                return {"year": d.get("year", 0),
+                        "month": d.get("month", 1),
+                        "day":   d.get("day", 1)}
+            except Exception:
+                return None
+
+        variables = {
+            "mediaId":              media_id,
+            "status":               status,
+            "score":                score,          # AniList accepts 0-100
+            "progress":             progress,
+            "repeat":               rewatches,
+            "notes":                notes,
+            "priority":             priority,
+            "hiddenFromStatusLists": hidden,
+            "private":              private,
+            "startedAt":            _parse_date(started_at_json),
+            "completedAt":          _parse_date(completed_at_json),
+        }
+
+        def _run():
+            try:
+                self._gql(_SAVE_ENTRY_MUTATION, variables)
+                self.entrySaved.emit()
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    # ── Remove entry from list ────────────────────────────────────────────────
+    @Slot(int)
+    def removeEntry(self, media_id: int) -> None:
+        entry_id = self._entry_id_map.get(media_id)
+        if not entry_id:
+            self.errorOccurred.emit(
+                f"Cannot remove: entry ID not found for media {media_id}. "
+                "Try syncing first."
+            )
+            return
+
+        def _run():
+            try:
+                self._gql(_DELETE_ENTRY_MUTATION, {"id": entry_id})
+                self._entry_id_map.pop(media_id, None)
+                self.entryDeleted.emit()
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+
         threading.Thread(target=_run, daemon=True).start()
