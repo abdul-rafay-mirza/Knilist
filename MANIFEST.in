@@ -1,1 +1,1 @@
-include src/qml/*.qml
+recursive-include src/qml *.qml

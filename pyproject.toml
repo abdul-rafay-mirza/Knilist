@@ -3,9 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-
 name = "knilist"
-
 version = "0.1"
 authors = [
     {name = "Abdul Rafay", email = "abdulrafayaneesmirza@gmail.com"}
@@ -20,17 +18,15 @@ classifiers = [
 ]
 
 [project.scripts]
-
 knilist = "knilist.app:main"
 
-
 [tool.setuptools]
-
 packages = ["knilist"]
-
 package-dir = {knilist = "src"}
-
 include-package-data = true
+
+[tool.setuptools.package-data]
+knilist = ["qml/*.qml", "qml/components/*.qml"]
 
 [tool.setuptools.data-files]
 "share/applications" = ["com.github.abdul-rafay-mirza.knilist.desktop"]
