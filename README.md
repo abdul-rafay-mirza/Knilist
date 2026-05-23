@@ -15,8 +15,10 @@ you need to make a .env file in `~/.config/knilist/`
 `touch .env`
 and then add the following in the .env file, replacing the strings with your Anilist Api Client ID and Secret:
 
+```
 ANILIST_CLIENT_ID=""
 ANILIST_CLIENT_SECRET=""
+```
 
 
 Then run `pipx install --force --system-site-packages ~/Projects/Knilist` to build it.
