@@ -290,12 +290,19 @@ class AniListService(QObject):
 
     @Slot(int, int, str)
     def saveProgress(self, media_id: int, progress: int, status: str) -> None:
+        # Set loading immediately on the calling (QML) thread so the overlay
+        # appears the instant the button is clicked, before the thread starts.
+        self._loading = True
+        self.loadingChanged.emit(True)
+
         def _run():
             try:
                 self._gql(_SAVE_ENTRY_MUTATION,
                           {"mediaId": media_id, "progress": progress, "status": status})
                 self.entrySaved.emit()   # triggers fetchAll in AnimePage
             except Exception as exc:
+                self._loading = False
+                self.loadingChanged.emit(False)
                 self.errorOccurred.emit(str(exc))
         threading.Thread(target=_run, daemon=True).start()
 
