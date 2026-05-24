@@ -248,11 +248,25 @@ Kirigami.Page {
             Layout.fillWidth:  true
             Layout.fillHeight: true
 
-            Controls.BusyIndicator {
-                anchors.centerIn: parent
-                running: anilistService.loading && displayModel.count === 0
-                visible: running
-                z: 1
+            // Dimming overlay — shown during any loading, not just the first.
+            // Covers the list and blocks all mouse interaction beneath it.
+            Rectangle {
+                anchors.fill: parent
+                visible:      anilistService.loading
+                color:        Kirigami.Theme.backgroundColor
+                opacity:      0.6
+                z:            2   // above the ScrollView and PlaceholderMessages
+
+                // Swallow all mouse/touch events so cards beneath are not clickable
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true   // also blocks hover state changes on cards
+                }
+
+                Controls.BusyIndicator {
+                    anchors.centerIn: parent
+                    running:  true
+                }
             }
 
             Kirigami.PlaceholderMessage {

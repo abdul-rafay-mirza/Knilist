@@ -1,4 +1,4 @@
-# Local overrides (if you ever move client ID out of config.py)
+# Local overrides
 .env
 
 # Python cache
@@ -11,3 +11,5 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+
+EXPLAIN_PROJECT.md
