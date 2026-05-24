@@ -2,8 +2,17 @@
 
 > ⚠️ **Warning:** The app is still in active development, so expect missing features and bugs.
 
-Clone the repository to your local machine.
+Clone the repository to your local machine in `~/Projects`.
 
+```
+cd ~/Projects
+```
+```
+git clone https://github.com/abdul-rafay-mirza/Knilist.git
+```
+```
+cd ~/Projects/Knilist
+```
 Copy the `.desktop` file to `~/.local/share/applications` so it appears in your launcher:
 
 ```
