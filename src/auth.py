@@ -1,74 +1,70 @@
 """
-auth.py — AniList OAuth 2.0 (implicit grant) + KWallet / Secret Service storage.
+auth.py — AniList OAuth 2.0 (Authorization Code flow).
+
+Token persistence: stored in ~/.config/knilist/.env alongside the API
+credentials, using python-dotenv's set_key() to write individual keys.
+The file is chmod 600 on creation so only the owning user can read it.
+This follows the XDG config directory convention for user-private data.
 """
 
+import os
+import stat
 import threading
 import webbrowser
-from http.server    import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse   import urlparse, parse_qs
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from pathlib    import Path
+from urllib.parse import urlparse, parse_qs
 
+from dotenv import load_dotenv, set_key, unset_key
 from PySide6.QtCore import QObject, Signal, Slot, Property
-
-try:
-    import keyring
-    import keyring.errors
-    # Probe for a working backend at import time.
-    # get_password() on a dummy key is the only reliable way to detect
-    # the "no backend" case before we actually need to store a secret.
-    try:
-        keyring.get_password("_knilist_probe", "_knilist_probe")
-        _KEYRING_OK = True
-    except keyring.errors.NoKeyringError:
-        _KEYRING_OK = False
-except ImportError:
-    _KEYRING_OK = False
 
 from .config import (
     ANILIST_CLIENT_ID,
     ANILIST_CLIENT_SECRET,
     OAUTH_REDIRECT_PORT,
     OAUTH_TOKEN_URL,
-    KEYRING_SERVICE,
-    KEYRING_TOKEN_KEY,
-    KEYRING_USERID_KEY,
-    KEYRING_USERNAME_KEY,
 )
 
-# ── Keyring helpers ───────────────────────────────────────────────────────────
+# ── XDG config file used for all persistent state ─────────────────────────────
+_CONFIG_DIR  = Path.home() / ".config" / "knilist"
+_CONFIG_FILE = _CONFIG_DIR / ".env"
 
-_mem: dict[str, str] = {}
+# Keys written into the .env file
+_KEY_TOKEN    = "KNILIST_TOKEN"
+_KEY_USER_ID  = "KNILIST_USER_ID"
+_KEY_USERNAME = "KNILIST_USERNAME"
+
+
+def _ensure_config_file() -> None:
+    """Create the config dir + file if absent, and lock down permissions."""
+    _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    if not _CONFIG_FILE.exists():
+        _CONFIG_FILE.touch()
+    # chmod 600 — owner read/write only
+    _CONFIG_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)
+
 
 def _store(key: str, value: str) -> None:
-    if _KEYRING_OK:
-        try:
-            keyring.set_password(KEYRING_SERVICE, key, value)
-            return
-        except Exception:
-            pass
-    _mem[key] = value
+    _ensure_config_file()
+    set_key(str(_CONFIG_FILE), key, value, quote_mode="never")
+
 
 def _load(key: str) -> str | None:
-    if _KEYRING_OK:
-        try:
-            return keyring.get_password(KEYRING_SERVICE, key)
-        except Exception:
-            pass
-    return _mem.get(key)
+    _ensure_config_file()
+    # Re-read the file each time so we always get the latest value.
+    # override=False would skip keys already in os.environ (the API creds);
+    # we use a fresh dict instead to avoid polluting os.environ.
+    from dotenv import dotenv_values
+    values = dotenv_values(str(_CONFIG_FILE))
+    return values.get(key) or None
+
 
 def _delete(key: str) -> None:
-    if _KEYRING_OK:
-        try:
-            keyring.delete_password(KEYRING_SERVICE, key)
-        except Exception:
-            pass
-    _mem.pop(key, None)
+    _ensure_config_file()
+    unset_key(str(_CONFIG_FILE), key)
 
 
-# ── Callback page ─────────────────────────────────────────────────────────────
-
-# ── Callback page ─────────────────────────────────────────────────────────────
-# The code arrives as a plain query parameter (?code=XXX), so no JS tricks
-# needed — the server reads it directly.
+# ── Callback HTML pages ───────────────────────────────────────────────────────
 
 _SUCCESS_HTML = b"""<!DOCTYPE html>
 <html>
@@ -114,9 +110,10 @@ class AuthManager(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._token    = _load(KEYRING_TOKEN_KEY)
-        self._user_id  = _load(KEYRING_USERID_KEY)   or ""
-        self._username = _load(KEYRING_USERNAME_KEY) or ""
+        # Load persisted values from ~/.config/knilist/.env on startup
+        self._token    = _load(_KEY_TOKEN)
+        self._user_id  = _load(_KEY_USER_ID)  or ""
+        self._username = _load(_KEY_USERNAME) or ""
 
     @Property(bool, notify=loginStateChanged)
     def isLoggedIn(self) -> bool:
@@ -136,8 +133,8 @@ class AuthManager(QObject):
     def setUserInfo(self, user_id: str, username: str) -> None:
         self._user_id  = user_id
         self._username = username
-        _store(KEYRING_USERID_KEY,   user_id)
-        _store(KEYRING_USERNAME_KEY, username)
+        _store(_KEY_USER_ID,  user_id)
+        _store(_KEY_USERNAME, username)
         self.loginStateChanged.emit()
 
     @Slot()
@@ -145,18 +142,16 @@ class AuthManager(QObject):
         if not ANILIST_CLIENT_ID or not ANILIST_CLIENT_SECRET:
             self.loginFailed.emit(
                 "ANILIST_CLIENT_ID or ANILIST_CLIENT_SECRET is empty.\n"
-                "Edit src/config.py with your AniList app credentials."
+                "Add them to ~/.config/knilist/.env"
             )
             return
 
         redirect_uri = f"http://localhost:{OAUTH_REDIRECT_PORT}"
-
-        # Step 1 — send the user to AniList to approve access
         auth_url = (
             "https://anilist.co/api/v2/oauth/authorize"
             f"?client_id={ANILIST_CLIENT_ID}"
             f"&redirect_uri={redirect_uri}"
-            "&response_type=code"          # Authorization Code flow
+            "&response_type=code"
         )
 
         def _run_server():
@@ -179,8 +174,6 @@ class AuthManager(QObject):
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
                     self.wfile.write(body)
-
-                    # Shut down after the first request (success or failure)
                     threading.Thread(target=srv.shutdown, daemon=True).start()
 
                 def log_message(self, *_):
@@ -194,7 +187,7 @@ class AuthManager(QObject):
                 self.loginFailed.emit("Authentication cancelled or timed out.")
                 return
 
-            # Step 2 — exchange the authorisation code for an access token
+            # Exchange code for access token
             try:
                 import requests as _req
                 resp = _req.post(
@@ -217,7 +210,7 @@ class AuthManager(QObject):
                 return
 
             if token:
-                _store(KEYRING_TOKEN_KEY, token)
+                _store(_KEY_TOKEN, token)
                 self._token = token
                 self.loginSuccess.emit()
                 self.loginStateChanged.emit()
@@ -229,9 +222,9 @@ class AuthManager(QObject):
 
     @Slot()
     def logout(self) -> None:
-        _delete(KEYRING_TOKEN_KEY)
-        _delete(KEYRING_USERID_KEY)
-        _delete(KEYRING_USERNAME_KEY)
+        _delete(_KEY_TOKEN)
+        _delete(_KEY_USER_ID)
+        _delete(_KEY_USERNAME)
         self._token    = None
         self._user_id  = ""
         self._username = ""
