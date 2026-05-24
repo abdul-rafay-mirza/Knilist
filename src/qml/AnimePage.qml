@@ -66,6 +66,7 @@ Kirigami.Page {
         rebuildModel()
         if (newProgress > 0)
             anilistService.saveProgress(anilistId, newProgress, newStatus)
+            // fetchAll is triggered by onEntrySaved below once AniList confirms
     }
 
     // ── Open List Editor dialog ───────────────────────────────────────────────
@@ -121,6 +122,11 @@ Kirigami.Page {
         function onAnimeLoaded(data) {
             animePage.animeData = data
             animePage.rebuildModel()
+        }
+        // Fired by both saveProgress (+1 EP) and saveEntry (List Editor) —
+        // re-sync so the overlay appears and data is confirmed from AniList.
+        function onEntrySaved() {
+            anilistService.fetchAll()
         }
     }
 
@@ -260,6 +266,7 @@ Kirigami.Page {
                 // Swallow all mouse/touch events so cards beneath are not clickable
                 MouseArea {
                     anchors.fill: parent
+                    enabled:      anilistService.loading   // only block when overlay is visible
                     hoverEnabled: true   // also blocks hover state changes on cards
                 }
 

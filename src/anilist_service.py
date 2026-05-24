@@ -294,6 +294,7 @@ class AniListService(QObject):
             try:
                 self._gql(_SAVE_ENTRY_MUTATION,
                           {"mediaId": media_id, "progress": progress, "status": status})
+                self.entrySaved.emit()   # triggers fetchAll in AnimePage
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
         threading.Thread(target=_run, daemon=True).start()

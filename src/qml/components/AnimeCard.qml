@@ -36,11 +36,15 @@ Kirigami.AbstractCard {
     topPadding:    0
     bottomPadding: 0
 
-    MouseArea {
-        anchors.fill: parent
-        z: 0
+    // TapHandler fires on the card body. Because the +1 EP button's MouseArea
+    // has propagateComposedEvents: false, it consumes the tap first and this
+    // handler is never reached when the button is clicked.
+    TapHandler {
+        onTapped: animeCard.cardClicked()
+    }
+
+    HoverHandler {
         cursorShape: Qt.PointingHandCursor
-        onClicked: animeCard.cardClicked()
     }
 
     contentItem: RowLayout {
@@ -171,6 +175,9 @@ Kirigami.AbstractCard {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape:  Qt.PointingHandCursor
+                        // Do NOT propagate — prevents the card-level MouseArea
+                        // from also firing cardClicked() on the same tap.
+                        propagateComposedEvents: false
                         onClicked: (mouse) => {
                             mouse.accepted = true
                             animeCard.addEpisode()
