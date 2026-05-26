@@ -30,7 +30,7 @@ Kirigami.AbstractCard {
 
     // Geometry
     width:           440
-    implicitHeight:  Math.max(110, contentItem.implicitHeight + 10)
+    implicitHeight:  Math.max(150, contentItem.implicitHeight + 10)
     leftPadding:   0
     rightPadding:  0
     topPadding:    0
