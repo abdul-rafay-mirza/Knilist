@@ -47,7 +47,7 @@ query ($userId: Int) {
         updatedAt
         media {
           id
-          title { userPreferred }
+          title { userPreferred romaji }
           format
           episodes
           coverImage { large }
@@ -188,6 +188,7 @@ def _normalise(entry: dict) -> dict:
         "entryId":               entry.get("id", 0),
         "anilistId":             media.get("id", 0),
         "title":                 (media.get("title") or {}).get("userPreferred", "Unknown"),
+        "titleRomaji":           (media.get("title") or {}).get("romaji", ""),
         "mediaType":             media.get("format", "TV"),
         "cover":                 (media.get("coverImage") or {}).get("large", ""),
         "nextEpText":            _next_ep_text(status, next_airing, progress, total_episodes),

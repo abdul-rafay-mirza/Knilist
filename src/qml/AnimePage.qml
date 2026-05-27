@@ -24,15 +24,21 @@ Kirigami.Page {
     }
 
     property string selectedStatus: "ALL"
+    property string searchQuery:    ""
     property var    animeData:      []
 
     ListModel { id: displayModel }
 
     function rebuildModel() {
         displayModel.clear()
+        const q = searchQuery.toLowerCase().trim()
         for (let i = 0; i < animeData.length; i++) {
             const item = animeData[i]
-            if (selectedStatus === "ALL" || item.status === selectedStatus)
+            const statusMatch = selectedStatus === "ALL" || item.status === selectedStatus
+            const searchMatch = q === ""
+                || item.title.toLowerCase().includes(q)
+                || (item.titleRomaji && item.titleRomaji.toLowerCase().includes(q))
+            if (statusMatch && searchMatch)
                 displayModel.append(item)
         }
     }
@@ -140,6 +146,7 @@ Kirigami.Page {
     }
 
     onSelectedStatusChanged: rebuildModel()
+    onSearchQueryChanged:    rebuildModel()
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Layout
@@ -254,9 +261,29 @@ Kirigami.Page {
         Kirigami.Separator { Layout.fillHeight: true }
 
         // ── Anime list ────────────────────────────────────────────────────────
-        Item {
+        ColumnLayout {
             Layout.fillWidth:  true
             Layout.fillHeight: true
+            spacing: 0
+
+            // Search bar
+            Kirigami.SearchField {
+                id: searchField
+                Layout.fillWidth:   true
+                Layout.leftMargin:  Kirigami.Units.largeSpacing
+                Layout.rightMargin: Kirigami.Units.largeSpacing
+                Layout.topMargin:   Kirigami.Units.smallSpacing
+                Layout.bottomMargin: Kirigami.Units.smallSpacing
+                placeholderText: "Search anime…"
+                onTextChanged: animePage.searchQuery = text
+            }
+
+            Kirigami.Separator { Layout.fillWidth: true }
+
+            // Content area
+            Item {
+                Layout.fillWidth:  true
+                Layout.fillHeight: true
 
             // Dimming overlay — shown during any loading, not just the first.
             // Covers the list and blocks all mouse interaction beneath it.
@@ -338,6 +365,7 @@ Kirigami.Page {
                     }
                 }
             }
-        }
+        }   // Item (content area)
+        }   // ColumnLayout (anime list column)
     }
 }
