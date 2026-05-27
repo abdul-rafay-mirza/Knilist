@@ -14,9 +14,11 @@ Kirigami.AbstractCard {
     property int    watchedEpisodes
     property int    totalEpisodes   // 0 = still airing / unknown
     property string coverSource
+    property int    anilistId
 
     signal addEpisode()
     signal cardClicked()
+    signal scoreClicked()
 
     // Helpers
     readonly property bool  knownTotal:    totalEpisodes > 0
@@ -118,6 +120,11 @@ Kirigami.AbstractCard {
                 // Score — always visible; shows "—" when unrated
                 RowLayout {
                     spacing: 4
+
+                    TapHandler {
+                        gesturePolicy: TapHandler.WithinBounds
+                        onTapped: animeCard.scoreClicked()    // ← emit signal
+                    }
 
                     Kirigami.Icon {
                         source: "starred-symbolic"

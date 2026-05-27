@@ -19,6 +19,10 @@ Kirigami.Page {
         { id: "PLANNING",  label: "Planning",  icon: "appointment-new-symbolic"      },
     ]
 
+    ScoreDialog {
+        id: scoreDialog
+    }
+
     property string selectedStatus: "ALL"
     property var    animeData:      []
 
@@ -323,9 +327,15 @@ Kirigami.Page {
                     watchedEpisodes: model.progress
                     totalEpisodes:   model.episodes
                     coverSource:     model.cover
+                    anilistId:       model.anilistId
 
                     onAddEpisode:  animePage.incrementProgress(model.anilistId)
                     onCardClicked: animePage.openEditor(model.anilistId)
+                    onScoreClicked: {
+                        scoreDialog.anilistId    = model.anilistId
+                        scoreDialog.currentScore = model.score
+                        scoreDialog.open()
+                    }
                 }
             }
         }

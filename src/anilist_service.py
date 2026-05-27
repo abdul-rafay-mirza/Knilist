@@ -376,6 +376,19 @@ class AniListService(QObject):
 
         threading.Thread(target=_run, daemon=True).start()
 
+    @Slot(int, float)
+    def saveScore(self, media_id: int, score: float) -> None:
+        def _run():
+            try:
+                self._gql(_SAVE_ENTRY_MUTATION, {
+                    "mediaId": media_id,
+                    "score":   score,
+                })
+                self.entrySaved.emit()
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+        threading.Thread(target=_run, daemon=True).start()
+
     # ── QML-callable helpers ──────────────────────────────────────────────────
 
     @Slot(float, result=str)
