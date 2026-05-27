@@ -295,35 +295,37 @@ Kirigami.Page {
                 text:      "No anime here yet"
             }
 
-            Controls.ScrollView {
+            ListView {
+                id:           animeListView
                 anchors.fill: parent
-                contentWidth: availableWidth
+                model:        displayModel
+                spacing:      Kirigami.Units.largeSpacing
+                topMargin:    Kirigami.Units.largeSpacing
+                bottomMargin: Kirigami.Units.largeSpacing
+                leftMargin:   Kirigami.Units.largeSpacing
+                rightMargin:  Kirigami.Units.largeSpacing
+                clip:         true
 
-                ListView {
-                    id:           animeListView
-                    model:        displayModel
-                    spacing:      Kirigami.Units.largeSpacing
-                    topMargin:    Kirigami.Units.largeSpacing
-                    bottomMargin: Kirigami.Units.largeSpacing
-                    leftMargin:   Kirigami.Units.largeSpacing
-                    rightMargin:  Kirigami.Units.largeSpacing
+                Controls.ScrollBar.vertical: Controls.ScrollBar {
+                    policy: Controls.ScrollBar.AsNeeded    // only shows when content overflows
+                    minimumSize: 0.05             // keeps the handle from getting too tiny
+                }
 
-                    delegate: AnimeCard {
-                        width: ListView.view.width
-                               - animeListView.leftMargin
-                               - animeListView.rightMargin
+                delegate: AnimeCard {
+                    width: ListView.view.width
+                        - animeListView.leftMargin
+                        - animeListView.rightMargin
 
-                        title:           model.title
-                        mediaType:       model.mediaType
-                        nextEpisodeText: model.nextEpText
-                        rating:          model.score
-                        watchedEpisodes: model.progress
-                        totalEpisodes:   model.episodes
-                        coverSource:     model.cover
+                    title:           model.title
+                    mediaType:       model.mediaType
+                    nextEpisodeText: model.nextEpText
+                    rating:          model.score
+                    watchedEpisodes: model.progress
+                    totalEpisodes:   model.episodes
+                    coverSource:     model.cover
 
-                        onAddEpisode:  animePage.incrementProgress(model.anilistId)
-                        onCardClicked: animePage.openEditor(model.anilistId)
-                    }
+                    onAddEpisode:  animePage.incrementProgress(model.anilistId)
+                    onCardClicked: animePage.openEditor(model.anilistId)
                 }
             }
         }
