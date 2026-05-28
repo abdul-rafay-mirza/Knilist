@@ -120,7 +120,7 @@ Kirigami.Page {
     }
 
     // ── List Editor dialog instance ───────────────────────────────────────────
-    ListEditorDialog {
+    AnimeListEditorDialog {
         id: listEditor
         onEntrySaved:   anilistService.fetchAll()
         onEntryRemoved: anilistService.fetchAll()

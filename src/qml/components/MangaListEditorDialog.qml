@@ -4,22 +4,24 @@ import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 
 Kirigami.Dialog {
-    id: listEditorDialog
+    id: mangaListEditorDialog
 
     // ── Public API ────────────────────────────────────────────────────────────
     property int    anilistId
-    property string animeTitle
+    property string mangaTitle
     property string currentStatus
     property real   currentScore
-    property int    currentProgress
-    property int    currentTotalEpisodes
+    property int    currentChapters        // progress (chapters read)
+    property int    currentVolumes         // progressVolumes
+    property int    currentTotalChapters   // media.chapters
+    property int    currentTotalVolumes    // media.volumes
     property int    currentStartYear
     property int    currentStartMonth
     property int    currentStartDay
     property int    currentFinishYear
     property int    currentFinishMonth
     property int    currentFinishDay
-    property int    currentRewatches
+    property int    currentRereads
     property string currentNotes
     property int    currentPriority
     property bool   currentHideFromLists
@@ -31,14 +33,15 @@ Kirigami.Dialog {
     // ── Editable state ────────────────────────────────────────────────────────
     property string editStatus:        currentStatus
     property real   editScore:         0
-    property int    editProgress:      currentProgress
+    property int    editChapters:      currentChapters
+    property int    editVolumes:       currentVolumes
     property int    editStartYear:     currentStartYear
     property int    editStartMonth:    currentStartMonth
     property int    editStartDay:      currentStartDay
     property int    editFinishYear:    currentFinishYear
     property int    editFinishMonth:   currentFinishMonth
     property int    editFinishDay:     currentFinishDay
-    property int    editRewatches:     currentRewatches
+    property int    editRereads:       currentRereads
     property string editNotes:         currentNotes
     property int    editPriority:      currentPriority
     property bool   editHideFromLists: currentHideFromLists
@@ -49,14 +52,15 @@ Kirigami.Dialog {
     onOpened: {
         editStatus        = currentStatus
         editScore         = currentScore
-        editProgress      = currentProgress
+        editChapters      = currentChapters
+        editVolumes       = currentVolumes
         editStartYear     = currentStartYear
         editStartMonth    = currentStartMonth
         editStartDay      = currentStartDay
         editFinishYear    = currentFinishYear
         editFinishMonth   = currentFinishMonth
         editFinishDay     = currentFinishDay
-        editRewatches     = currentRewatches
+        editRereads       = currentRereads
         editNotes         = currentNotes
         editPriority      = currentPriority
         editHideFromLists = currentHideFromLists
@@ -67,11 +71,9 @@ Kirigami.Dialog {
     title:           ""
     standardButtons: Kirigami.Dialog.NoButton
 
-    // Set width/height directly — preferredWidth is only advisory in Kirigami
-    // and gets overridden by overlay constraints
     width:  Math.min(Kirigami.Units.gridUnit * 46,
                      applicationWindow().width  * 0.9)
-    height: Math.min(Kirigami.Units.gridUnit * 42,
+    height: Math.min(Kirigami.Units.gridUnit * 46,
                      applicationWindow().height * 0.9)
 
     customFooterActions: [
@@ -89,8 +91,8 @@ Kirigami.Dialog {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     readonly property var statusOptions: [
-        { id: "CURRENT",   label: "Watching"   },
-        { id: "REPEATING", label: "Rewatching" },
+        { id: "CURRENT",   label: "Reading"    },
+        { id: "REPEATING", label: "Rereading"  },
         { id: "COMPLETED", label: "Completed"  },
         { id: "PAUSED",    label: "Paused"     },
         { id: "DROPPED",   label: "Dropped"    },
@@ -124,27 +126,34 @@ Kirigami.Dialog {
         const completedAt = editFinishYear > 0
             ? { year: editFinishYear, month: editFinishMonth, day: editFinishDay } : null
 
-        anilistService.saveEntry(
-            anilistId, editProgress, editStatus, editScore,
+        anilistService.saveMangaEntry(
+            anilistId,
+            editChapters,
+            editVolumes,
+            editStatus,
+            editScore,
             startedAt   ? JSON.stringify(startedAt)   : "",
             completedAt ? JSON.stringify(completedAt) : "",
-            editRewatches, editNotes, editPriority,
-            editHideFromLists, editPrivate
+            editRereads,
+            editNotes,
+            editPriority,
+            editHideFromLists,
+            editPrivate
         )
-        listEditorDialog.entrySaved()
-        listEditorDialog.close()
+        mangaListEditorDialog.entrySaved()
+        mangaListEditorDialog.close()
     }
 
     // ── Sub-dialogs ───────────────────────────────────────────────────────────
     Kirigami.PromptDialog {
         id:       removeDialog
         title:    "Remove from list"
-        subtitle: "Remove '" + listEditorDialog.animeTitle + "' from your list? This cannot be undone."
+        subtitle: "Remove '" + mangaListEditorDialog.mangaTitle + "' from your list? This cannot be undone."
         standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
         onAccepted: {
-            anilistService.removeEntry(listEditorDialog.anilistId)
-            listEditorDialog.entryRemoved()
-            listEditorDialog.close()
+            anilistService.removeEntry(mangaListEditorDialog.anilistId)
+            mangaListEditorDialog.entryRemoved()
+            mangaListEditorDialog.close()
         }
     }
 
@@ -157,13 +166,13 @@ Kirigami.Dialog {
         ColumnLayout {
             spacing: 0
             Repeater {
-                model: listEditorDialog.statusOptions
+                model: mangaListEditorDialog.statusOptions
                 delegate: Controls.ItemDelegate {
                     Layout.fillWidth: true
                     text:        modelData.label
-                    highlighted: listEditorDialog.editStatus === modelData.id
+                    highlighted: mangaListEditorDialog.editStatus === modelData.id
                     onClicked: {
-                        listEditorDialog.editStatus = modelData.id
+                        mangaListEditorDialog.editStatus = modelData.id
                         statusSheet.close()
                     }
                 }
@@ -244,21 +253,21 @@ Kirigami.Dialog {
     DatePickerDialog {
         id: startDateDialog
         isStart:   true
-        editYear:  listEditorDialog.editStartYear
-        editMonth: listEditorDialog.editStartMonth > 0 ? listEditorDialog.editStartMonth : 1
-        editDay:   listEditorDialog.editStartDay   > 0 ? listEditorDialog.editStartDay   : 1
-        onDatePicked:  (y, m, d) => { listEditorDialog.editStartYear = y; listEditorDialog.editStartMonth = m; listEditorDialog.editStartDay = d }
-        onDateCleared: { listEditorDialog.editStartYear = 0; listEditorDialog.editStartMonth = 0; listEditorDialog.editStartDay = 0 }
+        editYear:  mangaListEditorDialog.editStartYear
+        editMonth: mangaListEditorDialog.editStartMonth > 0 ? mangaListEditorDialog.editStartMonth : 1
+        editDay:   mangaListEditorDialog.editStartDay   > 0 ? mangaListEditorDialog.editStartDay   : 1
+        onDatePicked:  (y, m, d) => { mangaListEditorDialog.editStartYear = y; mangaListEditorDialog.editStartMonth = m; mangaListEditorDialog.editStartDay = d }
+        onDateCleared: { mangaListEditorDialog.editStartYear = 0; mangaListEditorDialog.editStartMonth = 0; mangaListEditorDialog.editStartDay = 0 }
     }
 
     DatePickerDialog {
         id: finishDateDialog
         isStart:   false
-        editYear:  listEditorDialog.editFinishYear
-        editMonth: listEditorDialog.editFinishMonth > 0 ? listEditorDialog.editFinishMonth : 1
-        editDay:   listEditorDialog.editFinishDay   > 0 ? listEditorDialog.editFinishDay   : 1
-        onDatePicked:  (y, m, d) => { listEditorDialog.editFinishYear = y; listEditorDialog.editFinishMonth = m; listEditorDialog.editFinishDay = d }
-        onDateCleared: { listEditorDialog.editFinishYear = 0; listEditorDialog.editFinishMonth = 0; listEditorDialog.editFinishDay = 0 }
+        editYear:  mangaListEditorDialog.editFinishYear
+        editMonth: mangaListEditorDialog.editFinishMonth > 0 ? mangaListEditorDialog.editFinishMonth : 1
+        editDay:   mangaListEditorDialog.editFinishDay   > 0 ? mangaListEditorDialog.editFinishDay   : 1
+        onDatePicked:  (y, m, d) => { mangaListEditorDialog.editFinishYear = y; mangaListEditorDialog.editFinishMonth = m; mangaListEditorDialog.editFinishDay = d }
+        onDateCleared: { mangaListEditorDialog.editFinishYear = 0; mangaListEditorDialog.editFinishMonth = 0; mangaListEditorDialog.editFinishDay = 0 }
     }
 
     IntValidator    { id: intValidator;    bottom: 0; top: 100 }
@@ -273,11 +282,9 @@ Kirigami.Dialog {
         clip: true
 
         ColumnLayout {
-            // Bind to the dialog's own width minus its padding so we never
-            // measure against an unconstrained ScrollView content size
-            width: listEditorDialog.width
-                   - listEditorDialog.leftPadding
-                   - listEditorDialog.rightPadding
+            width: mangaListEditorDialog.width
+                   - mangaListEditorDialog.leftPadding
+                   - mangaListEditorDialog.rightPadding
             spacing: 0
 
             // ── Title ─────────────────────────────────────────────────────────
@@ -287,7 +294,7 @@ Kirigami.Dialog {
                 Layout.rightMargin:  Kirigami.Units.gridUnit
                 Layout.topMargin:    Kirigami.Units.gridUnit
                 Layout.bottomMargin: Kirigami.Units.largeSpacing
-                text:     listEditorDialog.animeTitle
+                text:     mangaListEditorDialog.mangaTitle
                 wrapMode: Text.WordWrap
                 font { pixelSize: 18; bold: true }
                 color: Kirigami.Theme.textColor
@@ -302,7 +309,7 @@ Kirigami.Dialog {
                 label: "Status"
                 Controls.Button {
                     Layout.fillWidth: true
-                    text: listEditorDialog.statusLabel(listEditorDialog.editStatus)
+                    text: mangaListEditorDialog.statusLabel(mangaListEditorDialog.editStatus)
                     onClicked: statusSheet.open()
                 }
             }
@@ -321,13 +328,13 @@ Kirigami.Dialog {
 
                     Row {
                         id: starRow
-                        visible: listEditorDialog.scoreFmt === "POINT_5"
+                        visible: mangaListEditorDialog.scoreFmt === "POINT_5"
                         spacing: 4
                         Repeater {
                             model: 5
                             delegate: Controls.AbstractButton {
                                 readonly property int  starValue: modelData + 1
-                                readonly property bool filled: listEditorDialog.editScore >= starValue
+                                readonly property bool filled: mangaListEditorDialog.editScore >= starValue
                                 implicitWidth:  Kirigami.Units.gridUnit * 2
                                 implicitHeight: Kirigami.Units.gridUnit * 2
                                 contentItem: Controls.Label {
@@ -338,13 +345,13 @@ Kirigami.Dialog {
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment:   Text.AlignVCenter
                                 }
-                                onClicked: listEditorDialog.editScore =
-                                    (listEditorDialog.editScore === starValue) ? 0 : starValue
+                                onClicked: mangaListEditorDialog.editScore =
+                                    (mangaListEditorDialog.editScore === starValue) ? 0 : starValue
                             }
                         }
                         Controls.Label {
-                            visible: listEditorDialog.editScore > 0
-                            text:    "(" + listEditorDialog.editScore + " / 5)"
+                            visible: mangaListEditorDialog.editScore > 0
+                            text:    "(" + mangaListEditorDialog.editScore + " / 5)"
                             color:   Kirigami.Theme.disabledTextColor
                             font.pixelSize: 12
                             anchors.verticalCenter: parent.verticalCenter
@@ -353,7 +360,7 @@ Kirigami.Dialog {
 
                     Row {
                         id: smileyRow
-                        visible: listEditorDialog.scoreFmt === "POINT_3"
+                        visible: mangaListEditorDialog.scoreFmt === "POINT_3"
                         spacing: Kirigami.Units.largeSpacing
                         Repeater {
                             model: [
@@ -362,17 +369,17 @@ Kirigami.Dialog {
                                 { val: 3, face: ":)", tip: "Good" },
                             ]
                             delegate: Controls.Button {
-                                readonly property bool active: listEditorDialog.editScore === modelData.val
+                                readonly property bool active: mangaListEditorDialog.editScore === modelData.val
                                 text:        modelData.face
                                 highlighted: active
                                 font.pixelSize: 18
                                 Controls.ToolTip.visible: hovered
                                 Controls.ToolTip.text:    modelData.tip
-                                onClicked: listEditorDialog.editScore = active ? 0 : modelData.val
+                                onClicked: mangaListEditorDialog.editScore = active ? 0 : modelData.val
                             }
                         }
                         Controls.Label {
-                            visible: listEditorDialog.editScore === 0
+                            visible: mangaListEditorDialog.editScore === 0
                             text:    "Not rated"
                             color:   Kirigami.Theme.disabledTextColor
                             font.pixelSize: 12
@@ -382,8 +389,8 @@ Kirigami.Dialog {
 
                     Row {
                         id: numericRow
-                        visible: listEditorDialog.scoreFmt !== "POINT_5"
-                              && listEditorDialog.scoreFmt !== "POINT_3"
+                        visible: mangaListEditorDialog.scoreFmt !== "POINT_5"
+                              && mangaListEditorDialog.scoreFmt !== "POINT_3"
                         spacing: Kirigami.Units.smallSpacing
                         Controls.TextField {
                             id: scoreField
@@ -391,22 +398,22 @@ Kirigami.Dialog {
                             placeholderText: "0"
                             horizontalAlignment: Text.AlignHCenter
                             inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            validator: listEditorDialog.scoreFmt === "POINT_10_DECIMAL"
+                            validator: mangaListEditorDialog.scoreFmt === "POINT_10_DECIMAL"
                                        ? doubleValidator : intValidator
-                            text: listEditorDialog.editScore > 0
-                                  ? (listEditorDialog.scoreFmt === "POINT_10_DECIMAL"
-                                     ? listEditorDialog.editScore.toFixed(1)
-                                     : String(Math.round(listEditorDialog.editScore)))
+                            text: mangaListEditorDialog.editScore > 0
+                                  ? (mangaListEditorDialog.scoreFmt === "POINT_10_DECIMAL"
+                                     ? mangaListEditorDialog.editScore.toFixed(1)
+                                     : String(Math.round(mangaListEditorDialog.editScore)))
                                   : ""
                             onEditingFinished: {
                                 const v   = parseFloat(text)
                                 const max = anilistService.scoreMax()
-                                listEditorDialog.editScore =
+                                mangaListEditorDialog.editScore =
                                     (!isNaN(v) && v >= 0 && v <= max) ? v : 0
                             }
                         }
                         Controls.Label {
-                            text:  listEditorDialog.scoreSuffix[listEditorDialog.scoreFmt] ?? ""
+                            text:  mangaListEditorDialog.scoreSuffix[mangaListEditorDialog.scoreFmt] ?? ""
                             color: Kirigami.Theme.disabledTextColor
                             font.pixelSize: 13
                             anchors.verticalCenter: parent.verticalCenter
@@ -415,24 +422,49 @@ Kirigami.Dialog {
                 }
             }
 
-            // Episode
+            // Chapter
             EditorRow {
-                label: "Episode"
+                label: "Chapter"
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Kirigami.Units.largeSpacing
                     Controls.SpinBox {
                         Layout.fillWidth: true
                         from: 0
-                        to: listEditorDialog.currentTotalEpisodes > 0
-                                ? listEditorDialog.currentTotalEpisodes : 9999
-                        value:    listEditorDialog.editProgress
+                        to: mangaListEditorDialog.currentTotalChapters > 0
+                                ? mangaListEditorDialog.currentTotalChapters : 99999
+                        value:    mangaListEditorDialog.editChapters
                         editable: true
-                        onValueModified: listEditorDialog.editProgress = value
+                        onValueModified: mangaListEditorDialog.editChapters = value
                     }
                     Controls.Label {
-                        text:  "/ " + (listEditorDialog.currentTotalEpisodes > 0
-                                       ? listEditorDialog.currentTotalEpisodes : "?")
+                        text:  "/ " + (mangaListEditorDialog.currentTotalChapters > 0
+                                       ? mangaListEditorDialog.currentTotalChapters : "?")
+                        color: Kirigami.Theme.disabledTextColor
+                        font.pixelSize: 13
+                        Layout.minimumWidth: Kirigami.Units.gridUnit * 3
+                    }
+                }
+            }
+
+            // Volume
+            EditorRow {
+                label: "Volume"
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.largeSpacing
+                    Controls.SpinBox {
+                        Layout.fillWidth: true
+                        from: 0
+                        to: mangaListEditorDialog.currentTotalVolumes > 0
+                                ? mangaListEditorDialog.currentTotalVolumes : 9999
+                        value:    mangaListEditorDialog.editVolumes
+                        editable: true
+                        onValueModified: mangaListEditorDialog.editVolumes = value
+                    }
+                    Controls.Label {
+                        text:  "/ " + (mangaListEditorDialog.currentTotalVolumes > 0
+                                       ? mangaListEditorDialog.currentTotalVolumes : "?")
                         color: Kirigami.Theme.disabledTextColor
                         font.pixelSize: 13
                         Layout.minimumWidth: Kirigami.Units.gridUnit * 3
@@ -445,10 +477,10 @@ Kirigami.Dialog {
                 label: "Start Date"
                 Controls.Button {
                     Layout.fillWidth: true
-                    text: listEditorDialog.dateString(
-                        listEditorDialog.editStartYear,
-                        listEditorDialog.editStartMonth,
-                        listEditorDialog.editStartDay)
+                    text: mangaListEditorDialog.dateString(
+                        mangaListEditorDialog.editStartYear,
+                        mangaListEditorDialog.editStartMonth,
+                        mangaListEditorDialog.editStartDay)
                     onClicked: startDateDialog.open()
                 }
             }
@@ -458,23 +490,23 @@ Kirigami.Dialog {
                 label: "Finish Date"
                 Controls.Button {
                     Layout.fillWidth: true
-                    text: listEditorDialog.dateString(
-                        listEditorDialog.editFinishYear,
-                        listEditorDialog.editFinishMonth,
-                        listEditorDialog.editFinishDay)
+                    text: mangaListEditorDialog.dateString(
+                        mangaListEditorDialog.editFinishYear,
+                        mangaListEditorDialog.editFinishMonth,
+                        mangaListEditorDialog.editFinishDay)
                     onClicked: finishDateDialog.open()
                 }
             }
 
-            // Rewatches
+            // Total Rereads
             EditorRow {
-                label: "Rewatches"
+                label: "Total Rereads"
                 Controls.SpinBox {
                     Layout.preferredWidth: Kirigami.Units.gridUnit * 10
                     from: 0; to: 9999
-                    value:    listEditorDialog.editRewatches
+                    value:    mangaListEditorDialog.editRereads
                     editable: true
-                    onValueModified: listEditorDialog.editRewatches = value
+                    onValueModified: mangaListEditorDialog.editRereads = value
                 }
             }
 
@@ -485,9 +517,9 @@ Kirigami.Dialog {
                     Layout.fillWidth: true
                     Layout.minimumHeight: Kirigami.Units.gridUnit * 4
                     placeholderText: "Add notes…"
-                    text:            listEditorDialog.editNotes
+                    text:            mangaListEditorDialog.editNotes
                     wrapMode:        TextInput.WordWrap
-                    onTextChanged:   listEditorDialog.editNotes = text
+                    onTextChanged:   mangaListEditorDialog.editNotes = text
                 }
             }
 
@@ -500,16 +532,16 @@ Kirigami.Dialog {
                     Controls.Slider {
                         Layout.fillWidth: true
                         from: 0; to: 5; stepSize: 1
-                        value: listEditorDialog.editPriority
-                        onMoved: listEditorDialog.editPriority = Math.round(value)
+                        value: mangaListEditorDialog.editPriority
+                        onMoved: mangaListEditorDialog.editPriority = Math.round(value)
                     }
                     Controls.Label {
-                        text:  listEditorDialog.editPriority === 0 ? "None"
-                               : listEditorDialog.editPriority
-                        color: listEditorDialog.editPriority > 0
+                        text:  mangaListEditorDialog.editPriority === 0 ? "None"
+                               : mangaListEditorDialog.editPriority
+                        color: mangaListEditorDialog.editPriority > 0
                                ? Kirigami.Theme.highlightColor
                                : Kirigami.Theme.disabledTextColor
-                        font { pixelSize: 13; bold: listEditorDialog.editPriority > 0 }
+                        font { pixelSize: 13; bold: mangaListEditorDialog.editPriority > 0 }
                         Layout.minimumWidth: Kirigami.Units.gridUnit * 3
                         horizontalAlignment: Text.AlignRight
                     }
@@ -523,21 +555,21 @@ Kirigami.Dialog {
 
             ToggleRow {
                 label:     "Hide from status lists"
-                checked:   listEditorDialog.editHideFromLists
-                onToggled: listEditorDialog.editHideFromLists = checked
+                checked:   mangaListEditorDialog.editHideFromLists
+                onToggled: mangaListEditorDialog.editHideFromLists = checked
             }
 
             ToggleRow {
                 label:     "Private"
-                checked:   listEditorDialog.editPrivate
-                onToggled: listEditorDialog.editPrivate = checked
+                checked:   mangaListEditorDialog.editPrivate
+                onToggled: mangaListEditorDialog.editPrivate = checked
             }
 
             Item { Layout.preferredHeight: Kirigami.Units.gridUnit }
         }
     }
 
-    // ── Inline components ─────────────────────────────────────────────────────
+    // ── Inline components — identical to AnimeListEditorDialog ────────────────
     component EditorRow: RowLayout {
         property string label: ""
         Layout.fillWidth:    true
@@ -551,7 +583,6 @@ Kirigami.Dialog {
             text:  label
             color: Kirigami.Theme.textColor
             font.pixelSize: 13
-            // Fixed label column width — wide enough for "Hide from status lists"
             Layout.minimumWidth: Kirigami.Units.gridUnit * 8
             Layout.maximumWidth: Kirigami.Units.gridUnit * 8
             Layout.alignment:    Qt.AlignVCenter

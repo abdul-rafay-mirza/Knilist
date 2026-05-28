@@ -15,6 +15,8 @@ from PySide6.QtCore import QObject, Signal, Slot, Property
 
 from .config import GRAPHQL_URL
 
+# ── GraphQL queries ───────────────────────────────────────────────────────────
+
 _VIEWER_QUERY = """
 query {
   Viewer {
@@ -62,6 +64,38 @@ query ($userId: Int) {
 }
 """
 
+_MANGA_LIST_QUERY = """
+query ($userId: Int) {
+  MediaListCollection(userId: $userId, type: MANGA) {
+    lists {
+      entries {
+        id
+        status
+        score
+        progress
+        progressVolumes
+        repeat
+        notes
+        priority
+        hiddenFromStatusLists
+        private
+        startedAt  { year month day }
+        completedAt { year month day }
+        updatedAt
+        media {
+          id
+          title { userPreferred romaji }
+          format
+          chapters
+          volumes
+          coverImage { large }
+        }
+      }
+    }
+  }
+}
+"""
+
 _SAVE_ENTRY_MUTATION = """
 mutation (
   $mediaId:              Int,
@@ -97,6 +131,44 @@ mutation (
 }
 """
 
+_SAVE_MANGA_ENTRY_MUTATION = """
+mutation (
+  $mediaId:              Int,
+  $status:               MediaListStatus,
+  $score:                Float,
+  $progress:             Int,
+  $progressVolumes:      Int,
+  $repeat:               Int,
+  $notes:                String,
+  $priority:             Int,
+  $hiddenFromStatusLists: Boolean,
+  $private:              Boolean,
+  $startedAt:            FuzzyDateInput,
+  $completedAt:          FuzzyDateInput
+) {
+  SaveMediaListEntry(
+    mediaId:              $mediaId,
+    status:               $status,
+    score:                $score,
+    progress:             $progress,
+    progressVolumes:      $progressVolumes,
+    repeat:               $repeat,
+    notes:                $notes,
+    priority:             $priority,
+    hiddenFromStatusLists: $hiddenFromStatusLists,
+    private:              $private,
+    startedAt:            $startedAt,
+    completedAt:          $completedAt
+  ) {
+    id
+    progress
+    progressVolumes
+    status
+    score
+  }
+}
+"""
+
 _DELETE_ENTRY_MUTATION = """
 mutation ($id: Int) {
   DeleteMediaListEntry(id: $id) {
@@ -105,19 +177,14 @@ mutation ($id: Int) {
 }
 """
 
+# ── Helper functions ──────────────────────────────────────────────────────────
 
 def _format_score(score: float, fmt: str) -> str:
-    """
-    Return a display string for a score value that is already in the user's
-    chosen format (i.e. straight from the AniList API, no conversion needed).
-    Returns "" when score is 0 (unrated).
-    """
     if score == 0:
         return ""
     if fmt == "POINT_100":
         return str(int(score))
     if fmt == "POINT_10_DECIMAL":
-        # Show one decimal only when there is a fractional part
         return f"{score:.1f}" if score != int(score) else str(int(score))
     if fmt == "POINT_10":
         return str(int(score))
@@ -178,6 +245,18 @@ def _date_str(d: dict | None) -> str:
     return f"{d['year']:04d}-{d.get('month', 1):02d}-{d.get('day', 1):02d}"
 
 
+def _parse_date(s: str) -> dict | None:
+    if not s:
+        return None
+    try:
+        d = json.loads(s)
+        return {"year": d.get("year", 0),
+                "month": d.get("month", 1),
+                "day":   d.get("day", 1)}
+    except Exception:
+        return None
+
+
 def _normalise(entry: dict) -> dict:
     media          = entry.get("media") or {}
     status         = entry.get("status", "CURRENT")
@@ -193,7 +272,6 @@ def _normalise(entry: dict) -> dict:
         "cover":                 (media.get("coverImage") or {}).get("large", ""),
         "nextEpText":            _next_ep_text(status, next_airing, progress, total_episodes),
         "status":                status,
-        # score is stored exactly as AniList returns it (already in display format)
         "score":                 entry.get("score", 0),
         "progress":              progress,
         "episodes":              total_episodes,
@@ -208,21 +286,56 @@ def _normalise(entry: dict) -> dict:
     }
 
 
+def _normalise_manga(entry: dict) -> dict:
+    media  = entry.get("media") or {}
+    status = entry.get("status", "CURRENT")
+    return {
+        "entryId":               entry.get("id", 0),
+        "anilistId":             media.get("id", 0),
+        "title":                 (media.get("title") or {}).get("userPreferred", "Unknown"),
+        "titleRomaji":           (media.get("title") or {}).get("romaji", ""),
+        "mediaType":             media.get("format", "MANGA"),
+        "cover":                 (media.get("coverImage") or {}).get("large", ""),
+        "status":                status,
+        "score":                 entry.get("score", 0),
+        "progress":              entry.get("progress", 0),
+        "progressVolumes":       entry.get("progressVolumes", 0),
+        "chapters":              media.get("chapters") or 0,
+        "volumes":               media.get("volumes") or 0,
+        "updatedAt":             entry.get("updatedAt", 0),
+        "rewatches":             entry.get("repeat", 0),
+        "notes":                 entry.get("notes", "") or "",
+        "priority":              entry.get("priority", 0),
+        "hiddenFromStatusLists": entry.get("hiddenFromStatusLists", False),
+        "isPrivate":             entry.get("private", False),
+        "startedAt":             _date_str(_fuzzy_date(entry.get("startedAt"))),
+        "completedAt":           _date_str(_fuzzy_date(entry.get("completedAt"))),
+    }
+
+
+# ── Service class ─────────────────────────────────────────────────────────────
+
 class AniListService(QObject):
+
     animeLoaded        = Signal(list)
+    mangaLoaded        = Signal(list)
     userInfoReady      = Signal()
     loadingChanged     = Signal(bool)
     errorOccurred      = Signal(str)
-    entrySaved         = Signal()
+    entrySaved         = Signal()   # anime saves
+    mangaEntrySaved    = Signal()   # manga saves
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
-        self._auth         = auth_manager
-        self._loading      = False
-        self._score_format = "POINT_10"          # safe default until login
-        self._entry_id_map: dict[int, int] = {}
+        self._auth                  = auth_manager
+        self._loading               = False
+        self._score_format          = "POINT_10"
+        self._entry_id_map:         dict[int, int] = {}
+        self._manga_entry_id_map:   dict[int, int] = {}
+
+    # ── Properties ────────────────────────────────────────────────────────────
 
     @Property(bool, notify=loadingChanged)
     def loading(self) -> bool:
@@ -231,6 +344,8 @@ class AniListService(QObject):
     @Property(str, notify=scoreFormatChanged)
     def scoreFormat(self) -> str:
         return self._score_format
+
+    # ── Internal ──────────────────────────────────────────────────────────────
 
     def _gql(self, query: str, variables: dict | None = None) -> dict:
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
@@ -249,27 +364,28 @@ class AniListService(QObject):
             raise RuntimeError(body["errors"][0]["message"])
         return body["data"]
 
+    def _fetch_viewer(self) -> tuple[str, str]:
+        """Fetch viewer info, update score format, return (uid, name)."""
+        viewer = self._gql(_VIEWER_QUERY).get("Viewer") or {}
+        uid    = str(viewer.get("id", ""))
+        name   = viewer.get("name", "")
+        self._auth.setUserInfo(uid, name)
+        self.userInfoReady.emit()
+        fmt = ((viewer.get("mediaListOptions") or {}).get("scoreFormat", "POINT_10"))
+        if fmt != self._score_format:
+            self._score_format = fmt
+            self.scoreFormatChanged.emit(fmt)
+        return uid, name
+
+    # ── Anime slots ───────────────────────────────────────────────────────────
+
     @Slot()
     def fetchAll(self) -> None:
         def _run():
             try:
                 self._loading = True
                 self.loadingChanged.emit(True)
-
-                viewer = self._gql(_VIEWER_QUERY).get("Viewer") or {}
-                uid    = str(viewer.get("id", ""))
-                name   = viewer.get("name", "")
-                self._auth.setUserInfo(uid, name)
-                self.userInfoReady.emit()
-
-                fmt = (
-                    (viewer.get("mediaListOptions") or {})
-                    .get("scoreFormat", "POINT_10")
-                )
-                if fmt != self._score_format:
-                    self._score_format = fmt
-                    self.scoreFormatChanged.emit(fmt)
-
+                uid, _ = self._fetch_viewer()
                 data    = self._gql(_ANIME_LIST_QUERY, {"userId": int(uid)})
                 lists   = (data.get("MediaListCollection") or {}).get("lists", [])
                 entries = [
@@ -280,7 +396,6 @@ class AniListService(QObject):
                 entries.sort(key=lambda e: e["updatedAt"], reverse=True)
                 self._entry_id_map = {e["anilistId"]: e["entryId"] for e in entries}
                 self.animeLoaded.emit(entries)
-
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
             finally:
@@ -291,8 +406,6 @@ class AniListService(QObject):
 
     @Slot(int, int, str)
     def saveProgress(self, media_id: int, progress: int, status: str) -> None:
-        # Set loading immediately on the calling (QML) thread so the overlay
-        # appears the instant the button is clicked, before the thread starts.
         self._loading = True
         self.loadingChanged.emit(True)
 
@@ -300,21 +413,20 @@ class AniListService(QObject):
             try:
                 self._gql(_SAVE_ENTRY_MUTATION,
                           {"mediaId": media_id, "progress": progress, "status": status})
-                self.entrySaved.emit()   # triggers fetchAll in AnimePage
+                self.entrySaved.emit()
             except Exception as exc:
                 self._loading = False
                 self.loadingChanged.emit(False)
                 self.errorOccurred.emit(str(exc))
         threading.Thread(target=_run, daemon=True).start()
 
-    # score is passed as-is in the user's format — AniList handles it directly.
     @Slot(int, int, str, float, str, str, int, str, int, bool, bool)
     def saveEntry(
         self,
         media_id:          int,
         progress:          int,
         status:            str,
-        score:             float,   # in user's display format, sent straight to AniList
+        score:             float,
         started_at_json:   str,
         completed_at_json: str,
         rewatches:         int,
@@ -323,21 +435,10 @@ class AniListService(QObject):
         hidden:            bool,
         private:           bool,
     ) -> None:
-        def _parse_date(s: str) -> dict | None:
-            if not s:
-                return None
-            try:
-                d = json.loads(s)
-                return {"year": d.get("year", 0),
-                        "month": d.get("month", 1),
-                        "day":   d.get("day", 1)}
-            except Exception:
-                return None
-
         variables = {
             "mediaId":               media_id,
             "status":                status,
-            "score":                 score,      # no conversion — AniList format passthrough
+            "score":                 score,
             "progress":              progress,
             "repeat":                rewatches,
             "notes":                 notes,
@@ -354,7 +455,6 @@ class AniListService(QObject):
                 self.entrySaved.emit()
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
-
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int)
@@ -374,7 +474,6 @@ class AniListService(QObject):
                 self.entryDeleted.emit()
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
-
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int, float)
@@ -390,16 +489,131 @@ class AniListService(QObject):
                 self.errorOccurred.emit(str(exc))
         threading.Thread(target=_run, daemon=True).start()
 
+    # ── Manga slots ───────────────────────────────────────────────────────────
+
+    @Slot()
+    def fetchManga(self) -> None:
+        def _run():
+            try:
+                self._loading = True
+                self.loadingChanged.emit(True)
+                uid, _ = self._fetch_viewer()
+                data    = self._gql(_MANGA_LIST_QUERY, {"userId": int(uid)})
+                lists   = (data.get("MediaListCollection") or {}).get("lists", [])
+                entries = [
+                    _normalise_manga(e)
+                    for lst in lists
+                    for e in (lst.get("entries") or [])
+                ]
+                entries.sort(key=lambda e: e["updatedAt"], reverse=True)
+                self._manga_entry_id_map = {e["anilistId"]: e["entryId"] for e in entries}
+                self.mangaLoaded.emit(entries)
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+            finally:
+                self._loading = False
+                self.loadingChanged.emit(False)
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, int, str)
+    def saveMangaProgress(self, media_id: int, chapters: int, status: str) -> None:
+        self._loading = True
+        self.loadingChanged.emit(True)
+
+        def _run():
+            try:
+                self._gql(_SAVE_MANGA_ENTRY_MUTATION,
+                          {"mediaId": media_id, "progress": chapters, "status": status})
+                self.mangaEntrySaved.emit()
+            except Exception as exc:
+                self._loading = False
+                self.loadingChanged.emit(False)
+                self.errorOccurred.emit(str(exc))
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, int)
+    def saveMangaVolumeProgress(self, media_id: int, volumes: int) -> None:
+        self._loading = True
+        self.loadingChanged.emit(True)
+
+        def _run():
+            try:
+                self._gql(_SAVE_MANGA_ENTRY_MUTATION,
+                          {"mediaId": media_id, "progressVolumes": volumes})
+                self.mangaEntrySaved.emit()
+            except Exception as exc:
+                self._loading = False
+                self.loadingChanged.emit(False)
+                self.errorOccurred.emit(str(exc))
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, int, int, str, float, str, str, int, str, int, bool, bool)
+    def saveMangaEntry(
+        self,
+        media_id:          int,
+        chapters:          int,
+        volumes:           int,
+        status:            str,
+        score:             float,
+        started_at_json:   str,
+        completed_at_json: str,
+        rereads:           int,
+        notes:             str,
+        priority:          int,
+        hidden:            bool,
+        private:           bool,
+    ) -> None:
+        variables = {
+            "mediaId":               media_id,
+            "status":                status,
+            "score":                 score,
+            "progress":              chapters,
+            "progressVolumes":       volumes,
+            "repeat":                rereads,
+            "notes":                 notes,
+            "priority":              priority,
+            "hiddenFromStatusLists": hidden,
+            "private":               private,
+            "startedAt":             _parse_date(started_at_json),
+            "completedAt":           _parse_date(completed_at_json),
+        }
+
+        def _run():
+            try:
+                self._gql(_SAVE_MANGA_ENTRY_MUTATION, variables)
+                self.mangaEntrySaved.emit()
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def removeMangaEntry(self, media_id: int) -> None:
+        entry_id = self._manga_entry_id_map.get(media_id)
+        if not entry_id:
+            self.errorOccurred.emit(
+                f"Cannot remove: manga entry ID not found for media {media_id}. "
+                "Try syncing first."
+            )
+            return
+
+        def _run():
+            try:
+                self._gql(_DELETE_ENTRY_MUTATION, {"id": entry_id})
+                self._manga_entry_id_map.pop(media_id, None)
+                self.entryDeleted.emit()
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+        threading.Thread(target=_run, daemon=True).start()
+
     # ── QML-callable helpers ──────────────────────────────────────────────────
 
     @Slot(float, result=str)
     def formatScore(self, score: float) -> str:
-        """Format a score value (already in the user's format) for display."""
         return _format_score(score, self._score_format)
 
     @Slot(result=float)
     def scoreMax(self) -> float:
-        """Return the maximum valid score value for the current format."""
         return {
             "POINT_100":        100.0,
             "POINT_10_DECIMAL": 10.0,
