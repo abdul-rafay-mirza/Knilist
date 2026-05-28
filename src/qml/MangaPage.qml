@@ -155,6 +155,9 @@ Kirigami.Page {
         function onMangaEntrySaved() {
             anilistService.fetchManga()
         }
+        function onEntrySaved() {
+            anilistService.fetchManga()
+        }
     }
 
     Component.onCompleted: {
