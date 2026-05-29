@@ -57,7 +57,7 @@ Kirigami.ApplicationWindow {
             },
             Kirigami.PagePoolAction {
                 text: "Anime"
-                icon.name: "view-pages-single-symbolic"
+                icon.name: "video-television-symbolic"
                 pagePool: appPagePool
                 page: Qt.resolvedUrl("AnimePage.qml")
                 pageStack: root.pageStack
