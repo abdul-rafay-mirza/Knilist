@@ -76,7 +76,7 @@ Kirigami.Page {
         rebuildModel()
         if (newProgress > 0)
             anilistService.saveProgress(anilistId, newProgress, newStatus)
-            // fetchAll is triggered by onEntrySaved below once AniList confirms
+            // fetchAnime is triggered by onEntrySaved below once AniList confirms
     }
 
     // ── Open List Editor dialog ───────────────────────────────────────────────
@@ -122,8 +122,8 @@ Kirigami.Page {
     // ── List Editor dialog instance ───────────────────────────────────────────
     AnimeListEditorDialog {
         id: listEditor
-        onEntrySaved:   anilistService.fetchAll()
-        onEntryRemoved: anilistService.fetchAll()
+        onEntrySaved:   anilistService.fetchAnime()
+        onEntryRemoved: anilistService.fetchAnime()
     }
 
     // ── Live data ─────────────────────────────────────────────────────────────
@@ -136,13 +136,13 @@ Kirigami.Page {
         // Fired by both saveProgress (+1 EP) and saveEntry (List Editor) —
         // re-sync so the overlay appears and data is confirmed from AniList.
         function onEntrySaved() {
-            anilistService.fetchAll()
+            anilistService.fetchAnime()
         }
     }
 
     Component.onCompleted: {
         if (authManager.isLoggedIn && animeData.length === 0)
-            anilistService.fetchAll()
+            anilistService.fetchAnime()
     }
 
     onSelectedStatusChanged: rebuildModel()
@@ -253,7 +253,7 @@ Kirigami.Page {
                     text:      "Sync"
                     visible:   authManager.isLoggedIn
                     enabled:   !anilistService.loading
-                    onClicked: anilistService.fetchAll()
+                    onClicked: anilistService.fetchAnime()
                 }
             }
         }

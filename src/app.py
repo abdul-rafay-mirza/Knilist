@@ -24,7 +24,7 @@ def main():
 
     auth    = AuthManager()
     service = AniListService(auth)
-    auth.loginSuccess.connect(service.fetchAll)
+    auth.loginSuccess.connect(service.fetchAnime)
 
     engine.rootContext().setContextProperty("authManager",    auth)
     engine.rootContext().setContextProperty("anilistService", service)
@@ -36,7 +36,7 @@ def main():
         sys.exit(-1)
 
     if auth.isLoggedIn:
-        service.fetchAll()
+        service.fetchAnime()
 
     sys.exit(app.exec())
 

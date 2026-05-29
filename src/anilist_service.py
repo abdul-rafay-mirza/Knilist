@@ -380,7 +380,7 @@ class AniListService(QObject):
     # ── Anime slots ───────────────────────────────────────────────────────────
 
     @Slot()
-    def fetchAll(self) -> None:
+    def fetchAnime(self) -> None:
         def _run():
             try:
                 self._loading = True

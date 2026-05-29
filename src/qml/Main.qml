@@ -39,7 +39,7 @@ Kirigami.ApplicationWindow {
                 }
 
                 Controls.Label {
-                    text: "Menu"
+                    text: "Menu Test"
                     visible: !globalDrawer.collapsed
                 }
             }
