@@ -31,7 +31,7 @@ Kirigami.ScrollablePage {
         }
         function onLoginSuccess() {
             statusBar.type    = Kirigami.MessageType.Positive
-            statusBar.text    = "Fetching your anime list…"
+            statusBar.text    = "Fetching your anime and manga list…"
             statusBar.visible = true
         }
         function onLogoutDone() {
