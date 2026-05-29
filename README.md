@@ -1,5 +1,7 @@
 # Knilist
 
+![Knilist Screenshot](screenshots/knilist_screenshot.jpg)
+
 > ⚠️ **Warning:** The app is still in active development, so expect missing features and bugs.
 
 Knilist is an Anilist client for Arch Linux written in QML Kirigami + Python. It is designed run best under KDE Plasma.
