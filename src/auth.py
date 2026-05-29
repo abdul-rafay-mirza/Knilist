@@ -1,12 +1,3 @@
-"""
-auth.py — AniList OAuth 2.0 (Authorization Code flow).
-
-Token persistence: stored in ~/.config/knilist/.env alongside the API
-credentials, using python-dotenv's set_key() to write individual keys.
-The file is chmod 600 on creation so only the owning user can read it.
-This follows the XDG config directory convention for user-private data.
-"""
-
 import os
 import stat
 import threading
@@ -15,7 +6,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib    import Path
 from urllib.parse import urlparse, parse_qs
 
-from dotenv import load_dotenv, set_key, unset_key
+import keyring
 from PySide6.QtCore import QObject, Signal, Slot, Property
 
 from .config import (
@@ -25,43 +16,27 @@ from .config import (
     OAUTH_TOKEN_URL,
 )
 
-# ── XDG config file used for all persistent state ─────────────────────────────
-_CONFIG_DIR  = Path.home() / ".config" / "knilist"
-_CONFIG_FILE = _CONFIG_DIR / ".env"
+# ── Keyring service name ───────────────────────────────────────────────────────
+_SERVICE = "knilist"
 
-# Keys written into the .env file
-_KEY_TOKEN    = "KNILIST_TOKEN"
-_KEY_USER_ID  = "KNILIST_USER_ID"
-_KEY_USERNAME = "KNILIST_USERNAME"
-
-
-def _ensure_config_file() -> None:
-    """Create the config dir + file if absent, and lock down permissions."""
-    _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    if not _CONFIG_FILE.exists():
-        _CONFIG_FILE.touch()
-    # chmod 600 — owner read/write only
-    _CONFIG_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)
+_KEY_TOKEN    = "token"
+_KEY_USER_ID  = "user_id"
+_KEY_USERNAME = "username"
 
 
 def _store(key: str, value: str) -> None:
-    _ensure_config_file()
-    set_key(str(_CONFIG_FILE), key, value, quote_mode="never")
+    keyring.set_password(_SERVICE, key, value)
 
 
 def _load(key: str) -> str | None:
-    _ensure_config_file()
-    # Re-read the file each time so we always get the latest value.
-    # override=False would skip keys already in os.environ (the API creds);
-    # we use a fresh dict instead to avoid polluting os.environ.
-    from dotenv import dotenv_values
-    values = dotenv_values(str(_CONFIG_FILE))
-    return values.get(key) or None
+    return keyring.get_password(_SERVICE, key) or None
 
 
 def _delete(key: str) -> None:
-    _ensure_config_file()
-    unset_key(str(_CONFIG_FILE), key)
+    try:
+        keyring.delete_password(_SERVICE, key)
+    except keyring.errors.PasswordDeleteError:
+        pass
 
 
 # ── Callback HTML pages ───────────────────────────────────────────────────────

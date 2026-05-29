@@ -19,29 +19,6 @@ Copy the `.desktop` file to `~/.local/share/applications` so it appears in your 
 cp ~/Projects/Knilist/com.github.abdul-rafay-mirza.knilist.desktop ~/.local/share/applications
 ```
 
-You also need to generate an AniList API Client using the link [https://anilist.co/settings/developer](https://anilist.co/settings/developer). Set the Redirect URL to `http://localhost:8765` and name it `knilist`.
-
-You need to make a `.env` file in `~/.config/knilist/`:
-
-```
-mkdir ~/.config/knilist/
-```
-
-```
-cd ~/.config/knilist/
-```
-
-```
-touch .env
-```
-
-Open the `.env` file and add the following, replacing the empty strings with your actual AniList API Client ID and Secret:
-
-```
-ANILIST_CLIENT_ID="<add_here>"
-ANILIST_CLIENT_SECRET="<add_here>"
-```
-
 Then run the following command to build and install it using `pipx`:
 
 ```
