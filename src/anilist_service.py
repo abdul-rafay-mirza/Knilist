@@ -331,9 +331,23 @@ class AniListService(QObject):
         super().__init__(parent)
         self._auth                  = auth_manager
         self._loading               = False
+        self._loading_count = 0
         self._score_format          = "POINT_10"
         self._entry_id_map:         dict[int, int] = {}
         self._manga_entry_id_map:   dict[int, int] = {}
+
+    def _begin_loading(self):
+        self._loading_count += 1
+        if not self._loading:
+            self._loading = True
+            self.loadingChanged.emit(True)
+
+    def _end_loading(self):
+        self._loading_count -= 1
+        if self._loading_count <= 0:
+            self._loading_count = 0
+            self._loading = False
+            self.loadingChanged.emit(False)
 
     # ── Properties ────────────────────────────────────────────────────────────
 
@@ -383,8 +397,7 @@ class AniListService(QObject):
     def fetchAnime(self) -> None:
         def _run():
             try:
-                self._loading = True
-                self.loadingChanged.emit(True)
+                self._begin_loading()
                 uid, _ = self._fetch_viewer()
                 data    = self._gql(_ANIME_LIST_QUERY, {"userId": int(uid)})
                 lists   = (data.get("MediaListCollection") or {}).get("lists", [])
@@ -399,8 +412,7 @@ class AniListService(QObject):
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
             finally:
-                self._loading = False
-                self.loadingChanged.emit(False)
+                self._end_loading()
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -495,8 +507,7 @@ class AniListService(QObject):
     def fetchManga(self) -> None:
         def _run():
             try:
-                self._loading = True
-                self.loadingChanged.emit(True)
+                self._begin_loading()
                 uid, _ = self._fetch_viewer()
                 data    = self._gql(_MANGA_LIST_QUERY, {"userId": int(uid)})
                 lists   = (data.get("MediaListCollection") or {}).get("lists", [])
@@ -511,8 +522,7 @@ class AniListService(QObject):
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
             finally:
-                self._loading = False
-                self.loadingChanged.emit(False)
+                self._end_loading()
 
         threading.Thread(target=_run, daemon=True).start()
 

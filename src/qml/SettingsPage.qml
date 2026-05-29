@@ -157,7 +157,10 @@ Kirigami.ScrollablePage {
                         icon.name: "view-refresh-symbolic"
                         Layout.alignment: Qt.AlignVCenter
                         enabled:  !anilistService.loading
-                        onClicked: anilistService.fetchAll()
+                        onClicked: {
+                            anilistService.fetchAnime()
+                            anilistService.fetchManga()
+                        }
                     }
 
                     Controls.Button {
