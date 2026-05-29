@@ -7,7 +7,7 @@ Kirigami.ApplicationWindow {
     id: root
     width: 800
     height: 600
-    title: "Knilist"
+    title: "Knilist Beta"
 
     Kirigami.PagePool {
         id: appPagePool
@@ -39,7 +39,7 @@ Kirigami.ApplicationWindow {
                 }
 
                 Controls.Label {
-                    text: "Menu test 2"
+                    text: "Menu"
                     visible: !globalDrawer.collapsed
                 }
             }
