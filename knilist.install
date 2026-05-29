@@ -1,0 +1,18 @@
+post_remove() {
+    # Remove KWallet credentials for all users who have them
+    for home in /home/*; do
+        username=$(basename "$home")
+        if id "$username" &>/dev/null; then
+            runuser -l "$username" -c "
+                python -c \"
+import keyring
+for key in ['token', 'user_id', 'username']:
+    try:
+        keyring.delete_password('knilist', key)
+    except:
+        pass
+\" 2>/dev/null
+            " 2>/dev/null || true
+        fi
+    done
+}
