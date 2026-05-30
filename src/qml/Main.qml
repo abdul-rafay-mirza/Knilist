@@ -66,7 +66,7 @@ Kirigami.ApplicationWindow {
                 text: "Manga"
                 icon.name: "accessories-dictionary-symbolic"
                 pagePool: appPagePool
-                page: Qt.resolvedUrl("MangaPage.qml")
+                page: Qt.resolvedUrl("MangaListPage.qml")
                 pageStack: root.pageStack
             },
             Kirigami.PagePoolAction {

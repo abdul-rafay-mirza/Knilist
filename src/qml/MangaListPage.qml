@@ -5,7 +5,7 @@ import org.kde.kirigami as Kirigami
 import "components"
 
 Kirigami.Page {
-    id: mangaPage
+    id: mangaListPage
     title: "Manga List"
     padding: 0
 
@@ -149,8 +149,8 @@ Kirigami.Page {
     Connections {
         target: anilistService
         function onMangaLoaded(data) {
-            mangaPage.mangaData = data
-            mangaPage.rebuildModel()
+            mangaListPage.mangaData = data
+            mangaListPage.rebuildModel()
         }
         function onMangaEntrySaved() {
             anilistService.fetchManga()
@@ -193,11 +193,11 @@ Kirigami.Page {
                 spacing: 2
 
                 Repeater {
-                    model: mangaPage.statusFilters
+                    model: mangaListPage.statusFilters
                     delegate: Controls.ItemDelegate {
                         id: navItem
                         Layout.fillWidth: true
-                        highlighted: mangaPage.selectedStatus === modelData.id
+                        highlighted: mangaListPage.selectedStatus === modelData.id
 
                         contentItem: RowLayout {
                             spacing: Kirigami.Units.smallSpacing
@@ -220,7 +220,7 @@ Kirigami.Page {
                                 elide: Text.ElideRight
                             }
                             Rectangle {
-                                readonly property int count: mangaPage.countForStatus(modelData.id)
+                                readonly property int count: mangaListPage.countForStatus(modelData.id)
                                 visible: count > 0
                                 width:  Math.max(
                                     Kirigami.Units.gridUnit * 1.4,
@@ -258,7 +258,7 @@ Kirigami.Page {
                             }
                         }
 
-                        onClicked: mangaPage.selectedStatus = modelData.id
+                        onClicked: mangaListPage.selectedStatus = modelData.id
                     }
                 }
 
@@ -295,7 +295,7 @@ Kirigami.Page {
                 Layout.topMargin:    Kirigami.Units.smallSpacing
                 Layout.bottomMargin: Kirigami.Units.smallSpacing
                 placeholderText: "Search manga…"
-                onTextChanged: mangaPage.searchQuery = text
+                onTextChanged: mangaListPage.searchQuery = text
             }
 
             Kirigami.Separator { Layout.fillWidth: true }
@@ -375,9 +375,9 @@ Kirigami.Page {
                         coverSource:   model.cover
                         anilistId:     model.anilistId
 
-                        onAddChapter:  mangaPage.incrementChapter(model.anilistId)
-                        onAddVolume:   mangaPage.incrementVolume(model.anilistId)
-                        onCardClicked: mangaPage.openEditor(model.anilistId)
+                        onAddChapter:  mangaListPage.incrementChapter(model.anilistId)
+                        onAddVolume:   mangaListPage.incrementVolume(model.anilistId)
+                        onCardClicked: mangaListPage.openEditor(model.anilistId)
                         onScoreClicked: {
                             scoreDialog.anilistId    = model.anilistId
                             scoreDialog.currentScore = model.score
