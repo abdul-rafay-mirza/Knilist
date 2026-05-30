@@ -285,88 +285,88 @@ Kirigami.Page {
                 Layout.fillWidth:  true
                 Layout.fillHeight: true
 
-            // Dimming overlay — shown during any loading, not just the first.
-            // Covers the list and blocks all mouse interaction beneath it.
-            Rectangle {
-                anchors.fill: parent
-                visible:      anilistService.loading
-                color:        Kirigami.Theme.backgroundColor
-                opacity:      0.6
-                z:            2   // above the ScrollView and PlaceholderMessages
-
-                // Swallow all mouse/touch events so cards beneath are not clickable
-                MouseArea {
+                // Dimming overlay — shown during any loading, not just the first.
+                // Covers the list and blocks all mouse interaction beneath it.
+                Rectangle {
                     anchors.fill: parent
-                    enabled:      anilistService.loading   // only block when overlay is visible
-                    hoverEnabled: true   // also blocks hover state changes on cards
-                }
+                    visible:      anilistService.loading
+                    color:        Kirigami.Theme.backgroundColor
+                    opacity:      0.6
+                    z:            2   // above the ScrollView and PlaceholderMessages
 
-                Controls.BusyIndicator {
-                    anchors.centerIn: parent
-                    running:  true
-                }
-            }
-
-            Kirigami.PlaceholderMessage {
-                anchors.centerIn: parent
-                visible: !authManager.isLoggedIn && !anilistService.loading
-                width:   parent.width - Kirigami.Units.gridUnit * 4
-                icon.name:   "im-user-symbolic"
-                text:        "Not logged in"
-                explanation: "Log in to AniList from the Settings page to see your anime list."
-            }
-
-            Kirigami.PlaceholderMessage {
-                anchors.centerIn: parent
-                visible: authManager.isLoggedIn
-                         && !anilistService.loading
-                         && displayModel.count === 0
-                width:   parent.width - Kirigami.Units.gridUnit * 4
-                icon.name: "view-list-symbolic"
-                text:      "No anime here yet"
-            }
-
-            ListView {
-                id:           animeListView
-                anchors.fill: parent
-                model:        displayModel
-                spacing:      Kirigami.Units.largeSpacing
-                topMargin:    Kirigami.Units.largeSpacing
-                bottomMargin: Kirigami.Units.largeSpacing
-                leftMargin:   Kirigami.Units.largeSpacing
-                rightMargin:  Kirigami.Units.largeSpacing
-                clip:         true
-
-                Controls.ScrollBar.vertical: Controls.ScrollBar {
-                    policy: Controls.ScrollBar.AsNeeded    // only shows when content overflows
-                    minimumSize: 0.05             // keeps the handle from getting too tiny
-                }
-
-                delegate: AnimeCard {
-                    width: ListView.view.width
-                        - animeListView.leftMargin
-                        - animeListView.rightMargin
-
-                    title:           model.title
-                    mediaType:       model.mediaType
-                    nextEpisodeText: model.nextEpText
-                    rating:          model.score
-                    watchedEpisodes: model.progress
-                    totalEpisodes:   model.episodes
-                    coverSource:     model.cover
-                    anilistId:       model.anilistId
-
-                    onAddEpisode:  animeListPage.incrementProgress(model.anilistId)
-                    onCardClicked: animeListPage.openEditor(model.anilistId)
-                    onScoreClicked: {
-                        scoreDialog.anilistId    = model.anilistId
-                        scoreDialog.currentScore = model.score
-                        scoreDialog.open()
+                    // Swallow all mouse/touch events so cards beneath are not clickable
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled:      anilistService.loading   // only block when overlay is visible
+                        hoverEnabled: true   // also blocks hover state changes on cards
                     }
-                    onImageClicked: console.log("Image Clicked!")
+
+                    Controls.BusyIndicator {
+                        anchors.centerIn: parent
+                        running:  true
+                    }
                 }
-            }
-        }   // Item (content area)
+
+                Kirigami.PlaceholderMessage {
+                    anchors.centerIn: parent
+                    visible: !authManager.isLoggedIn && !anilistService.loading
+                    width:   parent.width - Kirigami.Units.gridUnit * 4
+                    icon.name:   "im-user-symbolic"
+                    text:        "Not logged in"
+                    explanation: "Log in to AniList from the Settings page to see your anime list."
+                }
+
+                Kirigami.PlaceholderMessage {
+                    anchors.centerIn: parent
+                    visible: authManager.isLoggedIn
+                            && !anilistService.loading
+                            && displayModel.count === 0
+                    width:   parent.width - Kirigami.Units.gridUnit * 4
+                    icon.name: "view-list-symbolic"
+                    text:      "No anime here yet"
+                }
+
+                ListView {
+                    id:           animeListView
+                    anchors.fill: parent
+                    model:        displayModel
+                    spacing:      Kirigami.Units.largeSpacing
+                    topMargin:    Kirigami.Units.largeSpacing
+                    bottomMargin: Kirigami.Units.largeSpacing
+                    leftMargin:   Kirigami.Units.largeSpacing
+                    rightMargin:  Kirigami.Units.largeSpacing
+                    clip:         true
+
+                    Controls.ScrollBar.vertical: Controls.ScrollBar {
+                        policy: Controls.ScrollBar.AsNeeded    // only shows when content overflows
+                        minimumSize: 0.05             // keeps the handle from getting too tiny
+                    }
+
+                    delegate: AnimeCard {
+                        width: ListView.view.width
+                            - animeListView.leftMargin
+                            - animeListView.rightMargin
+
+                        title:           model.title
+                        mediaType:       model.mediaType
+                        nextEpisodeText: model.nextEpText
+                        rating:          model.score
+                        watchedEpisodes: model.progress
+                        totalEpisodes:   model.episodes
+                        coverSource:     model.cover
+                        anilistId:       model.anilistId
+
+                        onAddEpisode:  animeListPage.incrementProgress(model.anilistId)
+                        onCardClicked: animeListPage.openEditor(model.anilistId)
+                        onScoreClicked: {
+                            scoreDialog.anilistId    = model.anilistId
+                            scoreDialog.currentScore = model.score
+                            scoreDialog.open()
+                        }
+                        onImageClicked: console.log("Image Clicked!")
+                    }
+                }
+            }   // Item (content area)
         }   // ColumnLayout (anime list column)
     }
 }
