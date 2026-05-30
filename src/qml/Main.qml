@@ -19,8 +19,20 @@ Kirigami.ApplicationWindow {
         pageStack.push(appPagePool.loadPage(Qt.resolvedUrl("HomePage.qml")))
     }
 
+    Connections {
+        target: pageStack.layers
+        function onDepthChanged() {
+            if (pageStack.layers.depth > 1) {
+                globalDrawer.drawerOpen = false
+            } else {
+                globalDrawer.drawerOpen = true
+            }
+        }
+    }
+
     globalDrawer: Kirigami.GlobalDrawer {
         id: globalDrawer
+        handleVisible: false
         modal: false
         collapsible: true
         collapsed: false
