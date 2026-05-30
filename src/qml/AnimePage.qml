@@ -5,7 +5,7 @@ import org.kde.kirigami as Kirigami
 import "components"
 
 Kirigami.Page {
-    id: animePage
+    id: animeListPage
     title: "Anime List"
     padding: 0
 
@@ -130,8 +130,8 @@ Kirigami.Page {
     Connections {
         target: anilistService
         function onAnimeLoaded(data) {
-            animePage.animeData = data
-            animePage.rebuildModel()
+            animeListPage.animeData = data
+            animeListPage.rebuildModel()
         }
         // Fired by both saveProgress (+1 EP) and saveEntry (List Editor) —
         // re-sync so the overlay appears and data is confirmed from AniList.
@@ -173,11 +173,11 @@ Kirigami.Page {
                 spacing: 2
 
                 Repeater {
-                    model: animePage.statusFilters
+                    model: animeListPage.statusFilters
                     delegate: Controls.ItemDelegate {
                         id: navItem
                         Layout.fillWidth: true
-                        highlighted: animePage.selectedStatus === modelData.id
+                        highlighted: animeListPage.selectedStatus === modelData.id
 
                         contentItem: RowLayout {
                             spacing: Kirigami.Units.smallSpacing
@@ -200,7 +200,7 @@ Kirigami.Page {
                                 elide: Text.ElideRight
                             }
                             Rectangle {
-                                readonly property int count: animePage.countForStatus(modelData.id)
+                                readonly property int count: animeListPage.countForStatus(modelData.id)
                                 visible: count > 0
                                 width:  Math.max(
                                     Kirigami.Units.gridUnit * 1.4,
@@ -238,7 +238,7 @@ Kirigami.Page {
                             }
                         }
 
-                        onClicked: animePage.selectedStatus = modelData.id
+                        onClicked: animeListPage.selectedStatus = modelData.id
                     }
                 }
 
@@ -275,7 +275,7 @@ Kirigami.Page {
                 Layout.topMargin:   Kirigami.Units.smallSpacing
                 Layout.bottomMargin: Kirigami.Units.smallSpacing
                 placeholderText: "Search anime…"
-                onTextChanged: animePage.searchQuery = text
+                onTextChanged: animeListPage.searchQuery = text
             }
 
             Kirigami.Separator { Layout.fillWidth: true }
@@ -356,13 +356,14 @@ Kirigami.Page {
                     coverSource:     model.cover
                     anilistId:       model.anilistId
 
-                    onAddEpisode:  animePage.incrementProgress(model.anilistId)
-                    onCardClicked: animePage.openEditor(model.anilistId)
+                    onAddEpisode:  animeListPage.incrementProgress(model.anilistId)
+                    onCardClicked: animeListPage.openEditor(model.anilistId)
                     onScoreClicked: {
                         scoreDialog.anilistId    = model.anilistId
                         scoreDialog.currentScore = model.score
                         scoreDialog.open()
                     }
+                    onImageClicked: console.log("Image Clicked!")
                 }
             }
         }   // Item (content area)

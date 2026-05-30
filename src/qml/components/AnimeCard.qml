@@ -19,6 +19,7 @@ Kirigami.AbstractCard {
     signal addEpisode()
     signal cardClicked()
     signal scoreClicked()
+    signal imageClicked()
 
     // Helpers
     readonly property bool  knownTotal:    totalEpisodes > 0
@@ -65,6 +66,11 @@ Kirigami.AbstractCard {
                        Kirigami.Theme.textColor,
                        0.05)
             clip: true
+
+            TapHandler {
+                gesturePolicy: TapHandler.WithinBounds
+                onTapped: animeCard.imageClicked()
+            }
 
             Image {
                 anchors.fill: parent
