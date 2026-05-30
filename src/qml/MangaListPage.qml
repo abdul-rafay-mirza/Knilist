@@ -391,6 +391,7 @@ Kirigami.Page {
                             scoreDialog.currentScore = model.score
                             scoreDialog.open()
                         }
+                        onImageClicked: console.log("Image Clicked!")
                     }
                 }
             }   // Item (content area)

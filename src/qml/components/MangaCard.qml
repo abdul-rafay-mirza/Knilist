@@ -21,6 +21,7 @@ Kirigami.AbstractCard {
     signal addVolume()
     signal cardClicked()
     signal scoreClicked()
+    signal imageClicked()
 
     // Helpers
     readonly property bool  knownChapters:    totalChapters > 0
@@ -61,6 +62,11 @@ Kirigami.AbstractCard {
                        Kirigami.Theme.textColor,
                        0.05)
             clip: true
+
+            TapHandler {
+                gesturePolicy: TapHandler.WithinBounds
+                onTapped: mangaCard.imageClicked()
+            }
 
             Image {
                 anchors.fill: parent
