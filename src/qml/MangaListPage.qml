@@ -160,6 +160,14 @@ Kirigami.Page {
         }
     }
 
+    Connections {
+        target: authManager
+        function onLogoutDone() {
+            mangaListPage.mangaData = []
+            mangaListPage.rebuildModel()
+        }
+    }
+
     Component.onCompleted: {
         if (authManager.isLoggedIn && mangaData.length === 0)
             anilistService.fetchManga()

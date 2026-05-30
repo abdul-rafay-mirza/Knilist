@@ -140,6 +140,14 @@ Kirigami.Page {
         }
     }
 
+    Connections {
+        target: authManager
+        function onLogoutDone() {
+            animeListPage.animeData = []
+            animeListPage.rebuildModel()
+        }
+    }
+
     Component.onCompleted: {
         if (authManager.isLoggedIn && animeData.length === 0)
             anilistService.fetchAnime()
