@@ -7,7 +7,7 @@ Kirigami.ApplicationWindow {
     id: root
     width: 800
     height: 600
-    title: "Knilist Beta"
+    title: "Knilist"
 
     Kirigami.PagePool {
         id: appPagePool

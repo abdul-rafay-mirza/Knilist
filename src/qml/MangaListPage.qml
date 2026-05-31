@@ -391,7 +391,12 @@ Kirigami.Page {
                             scoreDialog.currentScore = model.score
                             scoreDialog.open()
                         }
-                        onImageClicked: console.log("Image Clicked!")
+                        onImageClicked: { 
+                            applicationWindow().pageStack.layers.push(
+                                Qt.resolvedUrl("MediaPage.qml"),
+                                { anilistId: model.anilistId }
+                            )
+                        }
                     }
                 }
             }   // Item (content area)
