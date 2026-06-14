@@ -177,6 +177,128 @@ mutation ($id: Int) {
 }
 """
 
+_ANIME_PAGE_QUERY = """
+query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    id
+    title {
+      romaji
+      english
+      native
+    }
+    nextAiringEpisode {
+      airingAt
+      timeUntilAiring
+      episode
+    }
+    format
+    episodes
+    duration
+    status
+    startDate {
+      day
+      month
+      year
+    }
+    endDate {
+      day
+      month
+      year
+    }
+    averageScore
+    meanScore
+    popularity
+    favourites
+    studios {
+      nodes {
+        name
+        isAnimationStudio
+      }
+    }
+    source
+    hashtag
+    genres
+    synonyms
+    tags {
+      name
+      rank
+      isMediaSpoiler
+    }
+    externalLinks {
+      site
+      url
+    }
+    bannerImage
+    coverImage {
+      large
+    }
+    description
+    relations {
+      edges {
+        relationType(version: 2)
+        node {
+          id
+          type
+          format
+          title {
+            romaji
+            english
+          }
+          coverImage {
+            large
+          }
+          status
+        }
+      }
+    }
+    characters(sort: [FAVOURITES_DESC, ROLE], perPage: 6) {
+      edges {
+        role
+        node {
+          id
+          name {
+            full
+            native
+          }
+          image {
+            large
+          }
+        }
+      }
+    }
+    staff(sort: [FAVOURITES_DESC, ROLE], perPage: 6) {
+      edges {
+        role
+        node {
+          id
+          name {
+            full
+            native
+          }
+          image {
+            large
+          }
+        }
+      }
+    }
+    recommendations(sort: [RATING_DESC], perPage: 7) {
+      nodes {
+        mediaRecommendation {
+          title {
+            english
+            native
+            romaji
+          }
+          coverImage {
+            large
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
 # ── Helper functions ──────────────────────────────────────────────────────────
 
 def _format_score(score: float, fmt: str) -> str:
