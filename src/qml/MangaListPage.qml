@@ -393,7 +393,7 @@ Kirigami.Page {
                         }
                         onImageClicked: { 
                             applicationWindow().pageStack.layers.push(
-                                Qt.resolvedUrl("MediaPage.qml"),
+                                Qt.resolvedUrl("MangaPage.qml"),
                                 { anilistId: model.anilistId }
                             )
                         }

@@ -4,16 +4,13 @@ import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 import "components"
 
-// MediaPage.qml
-// A generic page which shows media details
-
 Kirigami.Page {
     id: mediaPage
-    title: "Media Page"
+    title: "Anime Page"
 
     property var anilistId
 
     Controls.Label {
-        text: "Media ID: " + anilistId
+        text: "Anime ID: " + anilistId
     }
 }
