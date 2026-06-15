@@ -24,17 +24,30 @@ Kirigami.Page {
         }
     }
 
-    ColumnLayout {
+    Flickable {
         anchors.fill: parent
+        contentWidth: parent.width
+        contentHeight: mainColumn.implicitHeight
+        clip: true
 
-        Header {
-            Layout.fillWidth: true
-            title:       animePage.animeTitle
-            bannerImage: animePage.animeBannerImage
-            coverImage:  animePage.animeCoverImage
-            description: animePage.animeDescription
+        flickableDirection: Flickable.VerticalFlick
+        interactive: true
+
+        Controls.ScrollBar.vertical: Controls.ScrollBar {
+            policy: Controls.ScrollBar.AsNeeded
         }
 
-        Item { Layout.fillHeight: true }
+        ColumnLayout {
+            id:    mainColumn
+            width: parent.width
+            
+            Header {
+                Layout.fillWidth: true
+                title:       animePage.animeTitle
+                bannerImage: animePage.animeBannerImage
+                coverImage:  animePage.animeCoverImage
+                description: animePage.animeDescription
+            }
+        }
     }
 }
