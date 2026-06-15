@@ -5,7 +5,7 @@ import org.kde.kirigami as Kirigami
 import "components"
 
 Kirigami.Page {
-    id: mediaPage
+    id: mangaPage
     title: "Manga Page"
 
     property var anilistId
