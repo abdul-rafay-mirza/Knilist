@@ -448,7 +448,7 @@ class AniListService(QObject):
     mangaEntrySaved    = Signal()   # manga saves
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
-    animePageLoaded = Signal(str, str, str, str)
+    animePageLoaded = Signal(str, str, str, str, str)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -552,7 +552,23 @@ class AniListService(QObject):
                 cover       = (media.get("coverImage") or {}).get("large", "")
                 description = media.get("description") or ""
 
-                self.animePageLoaded.emit(title, banner, cover, description)
+                raw_relations = (media.get("relations") or {}).get("edges") or []
+                relations = [
+                    {
+                        "mediaId":      edge["node"].get("id", 0),
+                        "relationType": edge.get("relationType", ""),
+                        "mediaType":    edge["node"].get("type", ""),
+                        "format":       edge["node"].get("format", ""),
+                        "title":        (edge["node"].get("title") or {}).get("english")
+                                        or (edge["node"].get("title") or {}).get("romaji", ""),
+                        "coverImage":   (edge["node"].get("coverImage") or {}).get("large", ""),
+                        "status":       edge["node"].get("status", ""),
+                    }
+                    for edge in raw_relations
+                    if edge.get("node")
+                ]
+
+                self.animePageLoaded.emit(title, banner, cover, description, json.dumps(relations))
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
             finally:
