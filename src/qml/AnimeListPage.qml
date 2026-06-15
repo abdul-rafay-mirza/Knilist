@@ -372,10 +372,8 @@ Kirigami.Page {
                             scoreDialog.open()
                         }
                         onImageClicked: { 
-                            applicationWindow().pageStack.layers.push(
-                                Qt.resolvedUrl("AnimePage.qml"),
-                                { anilistId: model.anilistId }
-                            )
+                            applicationWindow().pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"))
+                            anilistService.fetchAnimePage(model.anilistId)
                         }
                     }
                 }

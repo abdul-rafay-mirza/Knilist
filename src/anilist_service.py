@@ -448,6 +448,7 @@ class AniListService(QObject):
     mangaEntrySaved    = Signal()   # manga saves
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
+    animePageLoaded = Signal(str, str, str, str)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -531,6 +532,27 @@ class AniListService(QObject):
                 entries.sort(key=lambda e: e["updatedAt"], reverse=True)
                 self._entry_id_map = {e["anilistId"]: e["entryId"] for e in entries}
                 self.animeLoaded.emit(entries)
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def fetchAnimePage(self, anilist_id: int) -> None:
+        def _run():
+            try:
+                self._begin_loading()
+                data  = self._gql(_ANIME_PAGE_QUERY, {"id": anilist_id})
+                media = data.get("Media") or {}
+
+                title       = (media.get("title") or {}).get("romaji", "")
+                banner      = media.get("bannerImage") or ""
+                cover       = (media.get("coverImage") or {}).get("large", "")
+                description = media.get("description") or ""
+
+                self.animePageLoaded.emit(title, banner, cover, description)
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
             finally:
