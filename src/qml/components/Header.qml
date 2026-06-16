@@ -10,81 +10,123 @@ ColumnLayout {
     property var bannerImage
     property var coverImage
     property var description
+    property var entry:         null   // JS object from animeEntryLoaded, or null
+    property int totalEpisodes: 0
+
+    signal editRequested()
+    signal favouriteToggled()
 
     spacing: 0
 
-    // Banner
+    // ── Status label helper ───────────────────────────────────────────────────
+    readonly property var _statusLabels: ({
+        "CURRENT":   "Watching",
+        "COMPLETED": "Completed",
+        "PAUSED":    "Paused",
+        "DROPPED":   "Dropped",
+        "PLANNING":  "Planning",
+        "REPEATING": "Rewatching",
+    })
+
+    readonly property string _statusText: {
+        if (!root.entry || !root.entry.onList) return "Add to List"
+        return root._statusLabels[root.entry.status] || "Add to List"
+    }
+
+    // ── Banner ────────────────────────────────────────────────────────────────
     Rectangle {
         id: banner
-        Layout.fillWidth: true
-        Layout.preferredHeight: Kirigami.Units.gridUnit * 14
-        clip: true
+        Layout.fillWidth:        true
+        Layout.preferredHeight:  Kirigami.Units.gridUnit * 14
+        clip:  true
         color: Kirigami.Theme.alternateBackgroundColor
 
         Image {
             anchors.fill: parent
-            source: bannerImage || ""
-            fillMode: Image.PreserveAspectCrop
+            source:       bannerImage || ""
+            fillMode:     Image.PreserveAspectCrop
             asynchronous: true
-            mipmap: true
+            mipmap:       true
         }
 
-        // Fade the banner into the page background instead of
-        // cutting off sharply into the content below
+        // Fade banner into page background
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.0; color: "transparent"                  }
                 GradientStop { position: 1.0; color: Kirigami.Theme.backgroundColor }
             }
         }
     }
 
+    // ── Cover + info row ──────────────────────────────────────────────────────
     RowLayout {
         Layout.fillWidth: true
-        Layout.margins: Kirigami.Units.largeSpacing
-        spacing: Kirigami.Units.largeSpacing
+        Layout.margins:   Kirigami.Units.largeSpacing
+        spacing:          Kirigami.Units.largeSpacing
 
-        Kirigami.ShadowedImage {
-            id: cover
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 12
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 17
+        // ── Cover image + action buttons ──────────────────────────────────────
+        ColumnLayout {
             Layout.alignment: Qt.AlignTop
+            spacing:          Kirigami.Units.smallSpacing
 
-            source: coverImage || ""
-            fillMode: Image.PreserveAspectCrop // Prevents image distortion
-            color: Kirigami.Theme.alternateBackgroundColor
+            Kirigami.ShadowedImage {
+                id: cover
+                Layout.preferredWidth:  Kirigami.Units.gridUnit * 12
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 17
 
-            radius: Kirigami.Units.smallSpacing
-            border.width: 1
-            border.color: Kirigami.Theme.separatorColor
+                source:   coverImage || ""
+                fillMode: Image.PreserveAspectCrop
+                color:    Kirigami.Theme.alternateBackgroundColor
 
-            shadow.size: Kirigami.Units.largeSpacing
-            shadow.yOffset: 2
-            shadow.color: Qt.rgba(0, 0, 0, 0.4)
+                radius:       Kirigami.Units.smallSpacing
+                border.width: 1
+                border.color: Kirigami.Theme.separatorColor
+
+                shadow.size:    Kirigami.Units.largeSpacing
+                shadow.yOffset: 2
+                shadow.color:   Qt.rgba(0, 0, 0, 0.4)
+            }
+
+            // Status + favourite buttons
+            RowLayout {
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 12
+                spacing:               Kirigami.Units.smallSpacing
+
+                Controls.Button {
+                    Layout.fillWidth: true
+                    text:             root._statusText
+                    onClicked:        root.editRequested()
+                }
+
+                Controls.Button {
+                    icon.name: "love"
+                    onClicked: root.favouriteToggled()
+                }
+            }
         }
 
+        // ── Title + description ───────────────────────────────────────────────
         ColumnLayout {
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignTop
-            spacing: Kirigami.Units.smallSpacing
+            Layout.fillWidth:  true
+            Layout.alignment:  Qt.AlignTop
+            spacing:           Kirigami.Units.smallSpacing
 
             Kirigami.Heading {
-                id: titleLabel
                 Layout.fillWidth: true
-                level: 1
-                text: title || "Loading..."
-                wrapMode: Text.WordWrap
+                level:            1
+                text:             title || "Loading..."
+                wrapMode:         Text.WordWrap
                 maximumLineCount: 2
-                elide: Text.ElideRight
+                elide:            Text.ElideRight
             }
 
             Controls.Label {
-                id: descriptionLabel
                 Layout.fillWidth: true
-                text: description || "Loading..."
-                wrapMode: Text.WordWrap
-                color: Kirigami.Theme.disabledTextColor
+                text:             description || "Loading..."
+                wrapMode:         Text.WordWrap
+                color:            Kirigami.Theme.disabledTextColor
+                textFormat:       Text.RichText
             }
         }
     }

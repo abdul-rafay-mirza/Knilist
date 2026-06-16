@@ -177,6 +177,16 @@ mutation ($id: Int) {
 }
 """
 
+_TOGGLE_FAVOURITE_MUTATION = """
+mutation ($animeId: Int) {
+  ToggleFavourite(animeId: $animeId) {
+    anime {
+      nodes { id }
+    }
+  }
+}
+"""
+
 _ANIME_PAGE_QUERY = """
 query ($id: Int) {
   Media(id: $id, type: ANIME) {
@@ -444,20 +454,23 @@ class AniListService(QObject):
     userInfoReady      = Signal()
     loadingChanged     = Signal(bool)
     errorOccurred      = Signal(str)
-    entrySaved         = Signal()   # anime saves
-    mangaEntrySaved    = Signal()   # manga saves
+    entrySaved         = Signal()
+    mangaEntrySaved    = Signal()
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
-    animePageLoaded = Signal(str, str, str, str, str)
+    animePageLoaded    = Signal(str, str, str, str, str)
+    animeEntryLoaded   = Signal(str)   # JSON of entry fields, or {"onList": false}
+    favouriteToggled   = Signal(bool)  # new favourite state (always True for now)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
         self._auth                  = auth_manager
         self._loading               = False
-        self._loading_count = 0
+        self._loading_count         = 0
         self._score_format          = "POINT_10"
-        self._entry_id_map:         dict[int, int] = {}
-        self._manga_entry_id_map:   dict[int, int] = {}
+        self._entry_id_map:         dict[int, int]  = {}
+        self._manga_entry_id_map:   dict[int, int]  = {}
+        self._anime_entry_cache:    dict[int, dict] = {}  # anilistId → full normalised entry
 
     def _begin_loading(self):
         self._loading_count += 1
@@ -530,7 +543,8 @@ class AniListService(QObject):
                     for e in (lst.get("entries") or [])
                 ]
                 entries.sort(key=lambda e: e["updatedAt"], reverse=True)
-                self._entry_id_map = {e["anilistId"]: e["entryId"] for e in entries}
+                self._entry_id_map       = {e["anilistId"]: e["entryId"] for e in entries}
+                self._anime_entry_cache  = {e["anilistId"]: e for e in entries}
                 self.animeLoaded.emit(entries)
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
@@ -575,6 +589,17 @@ class AniListService(QObject):
                 self._end_loading()
 
         threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def fetchAnimeEntry(self, anilist_id: int) -> None:
+        """Emit the cached list entry for this anime, or {"onList": false} if not on list."""
+        entry = self._anime_entry_cache.get(anilist_id)
+        if not entry:
+            self.animeEntryLoaded.emit(json.dumps({"onList": False}))
+            return
+        payload = dict(entry)
+        payload["onList"] = True
+        self.animeEntryLoaded.emit(json.dumps(payload))
 
     @Slot(int, int, str)
     def saveProgress(self, media_id: int, progress: int, status: str) -> None:
@@ -643,6 +668,7 @@ class AniListService(QObject):
             try:
                 self._gql(_DELETE_ENTRY_MUTATION, {"id": entry_id})
                 self._entry_id_map.pop(media_id, None)
+                self._anime_entry_cache.pop(media_id, None)
                 self.entryDeleted.emit()
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
@@ -657,6 +683,16 @@ class AniListService(QObject):
                     "score":   score,
                 })
                 self.entrySaved.emit()
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def toggleFavourite(self, anilist_id: int) -> None:
+        def _run():
+            try:
+                self._gql(_TOGGLE_FAVOURITE_MUTATION, {"animeId": anilist_id})
+                self.favouriteToggled.emit(True)
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
         threading.Thread(target=_run, daemon=True).start()

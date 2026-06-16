@@ -76,7 +76,6 @@ Kirigami.Page {
         rebuildModel()
         if (newProgress > 0)
             anilistService.saveProgress(anilistId, newProgress, newStatus)
-            // fetchAnime is triggered by onEntrySaved below once AniList confirms
     }
 
     // ── Open List Editor dialog ───────────────────────────────────────────────
@@ -133,8 +132,6 @@ Kirigami.Page {
             animeListPage.animeData = data
             animeListPage.rebuildModel()
         }
-        // Fired by both saveProgress (+1 EP) and saveEntry (List Editor) —
-        // re-sync so the overlay appears and data is confirmed from AniList.
         function onEntrySaved() {
             anilistService.fetchAnime()
         }
@@ -274,13 +271,12 @@ Kirigami.Page {
             Layout.fillHeight: true
             spacing: 0
 
-            // Search bar
             Kirigami.SearchField {
                 id: searchField
-                Layout.fillWidth:   true
-                Layout.leftMargin:  Kirigami.Units.largeSpacing
-                Layout.rightMargin: Kirigami.Units.largeSpacing
-                Layout.topMargin:   Kirigami.Units.smallSpacing
+                Layout.fillWidth:    true
+                Layout.leftMargin:   Kirigami.Units.largeSpacing
+                Layout.rightMargin:  Kirigami.Units.largeSpacing
+                Layout.topMargin:    Kirigami.Units.smallSpacing
                 Layout.bottomMargin: Kirigami.Units.smallSpacing
                 placeholderText: "Search anime…"
                 onTextChanged: animeListPage.searchQuery = text
@@ -288,25 +284,21 @@ Kirigami.Page {
 
             Kirigami.Separator { Layout.fillWidth: true }
 
-            // Content area
             Item {
                 Layout.fillWidth:  true
                 Layout.fillHeight: true
 
-                // Dimming overlay — shown during any loading, not just the first.
-                // Covers the list and blocks all mouse interaction beneath it.
                 Rectangle {
                     anchors.fill: parent
                     visible:      anilistService.loading
                     color:        Kirigami.Theme.backgroundColor
                     opacity:      0.6
-                    z:            2   // above the ScrollView and PlaceholderMessages
+                    z:            2
 
-                    // Swallow all mouse/touch events so cards beneath are not clickable
                     MouseArea {
                         anchors.fill: parent
-                        enabled:      anilistService.loading   // only block when overlay is visible
-                        hoverEnabled: true   // also blocks hover state changes on cards
+                        enabled:      anilistService.loading
+                        hoverEnabled: true
                     }
 
                     Controls.BusyIndicator {
@@ -346,8 +338,8 @@ Kirigami.Page {
                     clip:         true
 
                     Controls.ScrollBar.vertical: Controls.ScrollBar {
-                        policy: Controls.ScrollBar.AsNeeded    // only shows when content overflows
-                        minimumSize: 0.05             // keeps the handle from getting too tiny
+                        policy:      Controls.ScrollBar.AsNeeded
+                        minimumSize: 0.05
                     }
 
                     delegate: AnimeCard {
@@ -371,13 +363,17 @@ Kirigami.Page {
                             scoreDialog.currentScore = model.score
                             scoreDialog.open()
                         }
-                        onImageClicked: { 
-                            applicationWindow().pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"))
+                        onImageClicked: {
+                            applicationWindow().pageStack.layers.push(
+                                Qt.resolvedUrl("AnimePage.qml"),
+                                { animeId: model.anilistId }
+                            )
                             anilistService.fetchAnimePage(model.anilistId)
+                            anilistService.fetchAnimeEntry(model.anilistId)
                         }
                     }
                 }
-            }   // Item (content area)
-        }   // ColumnLayout (anime list column)
+            }
+        }
     }
 }
