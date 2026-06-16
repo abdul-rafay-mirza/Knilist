@@ -219,6 +219,7 @@ query ($id: Int) {
     meanScore
     popularity
     favourites
+    isFavourite
     studios {
       nodes {
         name
@@ -458,9 +459,9 @@ class AniListService(QObject):
     mangaEntrySaved    = Signal()
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
-    animePageLoaded    = Signal(str, str, str, str, str)
+    animePageLoaded    = Signal(str, str, str, str, str, bool)  # added isFavourite bool
     animeEntryLoaded   = Signal(str)   # JSON of entry fields, or {"onList": false}
-    favouriteToggled   = Signal(bool)  # new favourite state (always True for now)
+    favouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -561,10 +562,11 @@ class AniListService(QObject):
                 data  = self._gql(_ANIME_PAGE_QUERY, {"id": anilist_id})
                 media = data.get("Media") or {}
 
-                title       = (media.get("title") or {}).get("romaji", "")
-                banner      = media.get("bannerImage") or ""
-                cover       = (media.get("coverImage") or {}).get("large", "")
-                description = media.get("description") or ""
+                title        = (media.get("title") or {}).get("romaji", "")
+                banner       = media.get("bannerImage") or ""
+                cover        = (media.get("coverImage") or {}).get("large", "")
+                description  = media.get("description") or ""
+                is_favourite = media.get("isFavourite", False)
 
                 raw_relations = (media.get("relations") or {}).get("edges") or []
                 relations = [
@@ -582,7 +584,10 @@ class AniListService(QObject):
                     if edge.get("node")
                 ]
 
-                self.animePageLoaded.emit(title, banner, cover, description, json.dumps(relations))
+                self.animePageLoaded.emit(
+                    title, banner, cover, description,
+                    json.dumps(relations), is_favourite
+                )
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
             finally:
@@ -687,14 +692,17 @@ class AniListService(QObject):
                 self.errorOccurred.emit(str(exc))
         threading.Thread(target=_run, daemon=True).start()
 
-    @Slot(int)
-    def toggleFavourite(self, anilist_id: int) -> None:
+    @Slot(int, bool)
+    def toggleFavourite(self, anilist_id: int, currently_favourite: bool) -> None:
         def _run():
             try:
+                self._begin_loading()
                 self._gql(_TOGGLE_FAVOURITE_MUTATION, {"animeId": anilist_id})
-                self.favouriteToggled.emit(True)
+                self.favouriteToggled.emit(anilist_id, not currently_favourite)
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
         threading.Thread(target=_run, daemon=True).start()
 
     # ── Manga slots ───────────────────────────────────────────────────────────

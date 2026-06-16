@@ -9,14 +9,15 @@ Kirigami.Page {
     title: "Anime Page"
 
     // ── Public properties ─────────────────────────────────────────────────────
-    property int animeId:           0
-    property var animeEntry:        null   // null until onAnimeEntryLoaded fires
+    property int animeId:            0
+    property var animeEntry:         null   // null until onAnimeEntryLoaded fires
     property var animeTitle
     property var animeBannerImage
     property var animeCoverImage
     property var animeDescription
-    property var animeRelations:    []
+    property var animeRelations:     []
     property int animeTotalEpisodes: 0
+    property bool animeIsFavourite:  false
 
     // ── List editor ───────────────────────────────────────────────────────────
     AnimeListEditorDialog {
@@ -75,12 +76,14 @@ Kirigami.Page {
     Connections {
         target: anilistService
 
-        function onAnimePageLoaded(_title, _bannerImage, _coverImage, _description, _relationsJson) {
+        function onAnimePageLoaded(_title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite) {
             animePage.animeTitle       = _title
             animePage.animeBannerImage = _bannerImage
             animePage.animeCoverImage  = _coverImage
             animePage.animeDescription = _description
             animePage.animeRelations   = JSON.parse(_relationsJson)
+            animePage.animeIsFavourite = _isFavourite
+            console.log("animePageLoaded isFavourite:", _isFavourite)
         }
 
         function onAnimeEntryLoaded(_entryJson) {
@@ -96,6 +99,15 @@ Kirigami.Page {
         function onAnimeLoaded() {
             // Cache is now fresh — re-emit entry for this page
             anilistService.fetchAnimeEntry(animePage.animeId)
+        }
+
+        function onFavouriteToggled(anilistId, newState) {
+            if (anilistId === animePage.animeId) {
+                animePage.animeIsFavourite = newState
+                applicationWindow().showPassiveNotification(
+                    newState ? "Added to Favorites" : "Removed from Favorites"
+                )
+            }
         }
     }
 
@@ -128,9 +140,12 @@ Kirigami.Page {
                     description:   animePage.animeDescription
                     entry:         animePage.animeEntry
                     totalEpisodes: animePage.animeTotalEpisodes
+                    isFavourite:   animePage.animeIsFavourite
+
+                    onIsFavouriteChanged: console.log("Header isFavourite changed:", isFavourite)
 
                     onEditRequested:    animePage.openEditor()
-                    onFavouriteToggled: anilistService.toggleFavourite(animePage.animeId)
+                    onFavouriteToggled: anilistService.toggleFavourite(animePage.animeId, animePage.animeIsFavourite)
                 }
 
                 RelationsSection {

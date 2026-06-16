@@ -12,6 +12,7 @@ ColumnLayout {
     property var description
     property var entry:         null   // JS object from animeEntryLoaded, or null
     property int totalEpisodes: 0
+    property bool isFavourite:  false
 
     signal editRequested()
     signal favouriteToggled()
@@ -100,8 +101,20 @@ ColumnLayout {
                 }
 
                 Controls.Button {
-                    icon.name: "love"
-                    onClicked: root.favouriteToggled()
+                    onClicked: {
+                        console.log("Favorites Clicked!")
+                        root.favouriteToggled()
+                    }
+
+                    contentItem: Kirigami.Icon {
+                        source:         "love"
+                        isMask:         true
+                        color:          root.isFavourite ? "#e05562" : Kirigami.Theme.textColor
+                        implicitWidth:  Kirigami.Units.iconSizes.small
+                        implicitHeight: Kirigami.Units.iconSizes.small
+
+                        onColorChanged: console.log("icon color changed:", color)
+                    }
                 }
             }
         }
