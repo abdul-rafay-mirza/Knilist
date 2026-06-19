@@ -11,7 +11,7 @@ ColumnLayout {
     property var coverImage
     property var description
     property var entry:         null   // JS object from animeEntryLoaded, or null
-    property int totalEpisodes: 0
+    property int totalProgress: 0
     property bool isFavourite:  false
 
     signal editRequested()
@@ -20,18 +20,18 @@ ColumnLayout {
     spacing: 0
 
     // ── Status label helper ───────────────────────────────────────────────────
-    readonly property var _statusLabels: ({
-        "CURRENT":   "Watching",
-        "COMPLETED": "Completed",
-        "PAUSED":    "Paused",
-        "DROPPED":   "Dropped",
-        "PLANNING":  "Planning",
-        "REPEATING": "Rewatching",
+    property var statusLabels: ({
+        "CURRENT":   "CURRENT",
+        "COMPLETED": "COMPLETED",
+        "PAUSED":    "PAUSED",
+        "DROPPED":   "DROPPED",
+        "PLANNING":  "PLANNING",
+        "REPEATING": "REPEATING",
     })
 
     readonly property string _statusText: {
         if (!root.entry || !root.entry.onList) return "Add to List"
-        return root._statusLabels[root.entry.status] || "Add to List"
+        return root.statusLabels[root.entry.status] || "Add to List"
     }
 
     // ── Banner ────────────────────────────────────────────────────────────────

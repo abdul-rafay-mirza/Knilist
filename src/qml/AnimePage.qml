@@ -139,10 +139,16 @@ Kirigami.Page {
                     coverImage:    animePage.animeCoverImage
                     description:   animePage.animeDescription
                     entry:         animePage.animeEntry
-                    totalEpisodes: animePage.animeTotalEpisodes
+                    totalProgress: animePage.animeTotalEpisodes
                     isFavourite:   animePage.animeIsFavourite
-
-                    onIsFavouriteChanged: console.log("Header isFavourite changed:", isFavourite)
+                    statusLabels: ({
+                        "CURRENT":   "Watching",
+                        "COMPLETED": "Completed",
+                        "PAUSED":    "Paused",
+                        "DROPPED":   "Dropped",
+                        "PLANNING":  "Planning",
+                        "REPEATING": "Rewatching",
+                    })
 
                     onEditRequested:    animePage.openEditor()
                     onFavouriteToggled: anilistService.toggleFavourite(animePage.animeId, animePage.animeIsFavourite)
