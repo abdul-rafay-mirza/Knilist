@@ -73,7 +73,7 @@ ColumnLayout {
 
             Kirigami.ShadowedImage {
                 id: cover
-                Layout.preferredWidth:  Kirigami.Units.gridUnit * 12
+                Layout.preferredWidth:  Kirigami.Units.gridUnit * 12   // fixed, untouched
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 17
 
                 source:   coverImage || ""
@@ -91,7 +91,8 @@ ColumnLayout {
 
             // Status + favourite buttons
             RowLayout {
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 12
+                Layout.preferredWidth: cover.width   // bound to cover's actual rendered width
+                Layout.maximumWidth:   cover.width   // hard clamp so children can't push it wider
                 spacing:               Kirigami.Units.smallSpacing
 
                 Controls.Button {
