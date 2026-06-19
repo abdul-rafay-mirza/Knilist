@@ -18,6 +18,7 @@ Kirigami.Page {
     property var animeRelations:     []
     property int animeTotalEpisodes: 0
     property bool animeIsFavourite:  false
+    property var animeCharacters: []
 
     // ── List editor ───────────────────────────────────────────────────────────
     AnimeListEditorDialog {
@@ -76,14 +77,14 @@ Kirigami.Page {
     Connections {
         target: anilistService
 
-        function onAnimePageLoaded(_title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite) {
+        function onAnimePageLoaded(_title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite, _charactersJson) {
             animePage.animeTitle       = _title
             animePage.animeBannerImage = _bannerImage
             animePage.animeCoverImage  = _coverImage
             animePage.animeDescription = _description
             animePage.animeRelations   = JSON.parse(_relationsJson)
             animePage.animeIsFavourite = _isFavourite
-            console.log("animePageLoaded isFavourite:", _isFavourite)
+            animePage.animeCharacters  = JSON.parse(_charactersJson)
         }
 
         function onAnimeEntryLoaded(_entryJson) {
@@ -157,6 +158,11 @@ Kirigami.Page {
                 RelationsSection {
                     Layout.fillWidth: true
                     relations: animePage.animeRelations
+                }
+
+                CharactersSection {
+                    Layout.fillWidth: true
+                    characters: animePage.animeCharacters
                 }
 
                 Item {

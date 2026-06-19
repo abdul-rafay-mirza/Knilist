@@ -6,13 +6,13 @@ import org.kde.kirigami as Kirigami
 Item {
     id: root
 
-    property string relationType: "OTHER"
-    property int    mediaId:      0
-    property string mediaType:    "ANIME"
-    property string format:       "MUSIC"
-    property string title:        ""
-    property string coverImage:   ""
-    property string status:       "FINISHED"
+    property string relationType
+    property int mediaId
+    property string mediaType
+    property string format
+    property string title
+    property string coverImage
+    property string status
 
     signal cardClicked(int mediaId)
 

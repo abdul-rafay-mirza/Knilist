@@ -13,6 +13,7 @@ depends=(
     'python-secretstorage'
     'pyside6'
     'kirigami'
+    'kirigami-addons'
     'qt6-declarative'
     'kwallet'
 )

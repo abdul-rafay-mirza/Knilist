@@ -459,7 +459,7 @@ class AniListService(QObject):
     mangaEntrySaved    = Signal()
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
-    animePageLoaded    = Signal(str, str, str, str, str, bool)  # added isFavourite bool
+    animePageLoaded    = Signal(str, str, str, str, str, bool, str)  # added isFavourite bool
     animeEntryLoaded   = Signal(str)   # JSON of entry fields, or {"onList": false}
     favouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
 
@@ -584,9 +584,23 @@ class AniListService(QObject):
                     if edge.get("node")
                 ]
 
+                raw_characters = (media.get("characters") or {}).get("edges") or []
+                characters = [
+                    {
+                        "characterId": edge["node"].get("id", 0),
+                        "name":        (edge["node"].get("name") or {}).get("full", ""),
+                        "nativeName":  (edge["node"].get("name") or {}).get("native", "") or "",
+                        "image":       (edge["node"].get("image") or {}).get("large", ""),
+                        "role":        edge.get("role", ""),
+                    }
+                    for edge in raw_characters
+                    if edge.get("node")
+                ]
+
                 self.animePageLoaded.emit(
                     title, banner, cover, description,
-                    json.dumps(relations), is_favourite
+                    json.dumps(relations), is_favourite,
+                    json.dumps(characters)
                 )
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
