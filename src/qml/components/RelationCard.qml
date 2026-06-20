@@ -14,7 +14,7 @@ Item {
     property string coverImage
     property string status
 
-    signal cardClicked(int mediaId)
+    signal cardClicked(int mediaId, string mediaType)
 
     implicitWidth:  Kirigami.Units.gridUnit * 25
     implicitHeight: Kirigami.Units.gridUnit * 8
@@ -101,7 +101,9 @@ Item {
         MouseArea {
             anchors.fill: parent
             cursorShape:  Qt.PointingHandCursor
-            onClicked:    root.cardClicked(root.mediaId)
+            onClicked: {
+                root.cardClicked(root.mediaId, root.mediaType)
+            }
 
             HoverHandler {}
         }

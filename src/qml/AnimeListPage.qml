@@ -368,8 +368,6 @@ Kirigami.Page {
                                 Qt.resolvedUrl("AnimePage.qml"),
                                 { animeId: model.anilistId }
                             )
-                            anilistService.fetchAnimePage(model.anilistId)
-                            anilistService.fetchAnimeEntry(model.anilistId)
                         }
                     }
                 }

@@ -20,6 +20,24 @@ Kirigami.Page {
     property bool animeIsFavourite:  false
     property var animeCharacters: []
 
+    property bool _ready: false
+
+    Component.onCompleted: {
+        _ready = true
+        _loadAnimeData()
+    }
+
+    onAnimeIdChanged: {
+        if (_ready) _loadAnimeData()
+    }
+
+    function _loadAnimeData() {
+        if (animeId > 0) {
+            anilistService.fetchAnimePage(animeId)
+            anilistService.fetchAnimeEntry(animeId)
+        }
+    }
+
     // ── List editor ───────────────────────────────────────────────────────────
     AnimeListEditorDialog {
         id: listEditor
@@ -77,7 +95,9 @@ Kirigami.Page {
     Connections {
         target: anilistService
 
-        function onAnimePageLoaded(_title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite, _charactersJson) {
+        function onAnimePageLoaded(_id, _title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite, _charactersJson) {
+            if (_id !== animePage.animeId) return
+
             animePage.animeTitle       = _title
             animePage.animeBannerImage = _bannerImage
             animePage.animeCoverImage  = _coverImage
@@ -85,9 +105,15 @@ Kirigami.Page {
             animePage.animeRelations   = JSON.parse(_relationsJson)
             animePage.animeIsFavourite = _isFavourite
             animePage.animeCharacters  = JSON.parse(_charactersJson)
+
+            console.log("depth:", pageStack.layers.depth)
+            console.log("ID of anime:", animePage.animeId)
         }
 
-        function onAnimeEntryLoaded(_entryJson) {
+        function onAnimeEntryLoaded(_id, _entryJson) {
+            console.log("onAnimeEntryLoaded fired — _id:", _id, "animePage.animeId:", animePage.animeId)
+            if (_id !== animePage.animeId) return
+            console.log("entry payload:", _entryJson)
             animePage.animeEntry = JSON.parse(_entryJson)
         }
 
@@ -158,6 +184,14 @@ Kirigami.Page {
                 RelationsSection {
                     Layout.fillWidth: true
                     relations: animePage.animeRelations
+
+                    onCardClicked: (mediaId, mediaType) => {
+                        if (mediaType === "ANIME") {
+                            pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: mediaId })
+                        } else if (mediaType === "MANGA") {
+                            pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: mediaId })
+                        }
+                    }
                 }
 
                 CharactersSection {

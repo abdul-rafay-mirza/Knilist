@@ -459,8 +459,8 @@ class AniListService(QObject):
     mangaEntrySaved    = Signal()
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
-    animePageLoaded    = Signal(str, str, str, str, str, bool, str)
-    animeEntryLoaded   = Signal(str)   # JSON of entry fields, or {"onList": false}
+    animePageLoaded    = Signal(int, str, str, str, str, str, bool, str)
+    animeEntryLoaded   = Signal(int, str)   # JSON of entry fields, or {"onList": false}
     favouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
 
     def __init__(self, auth_manager, parent=None):
@@ -598,7 +598,7 @@ class AniListService(QObject):
                 ]
 
                 self.animePageLoaded.emit(
-                    title, banner, cover, description,
+                    anilist_id, title, banner, cover, description,
                     json.dumps(relations), is_favourite,
                     json.dumps(characters)
                 )
@@ -613,12 +613,13 @@ class AniListService(QObject):
     def fetchAnimeEntry(self, anilist_id: int) -> None:
         """Emit the cached list entry for this anime, or {"onList": false} if not on list."""
         entry = self._anime_entry_cache.get(anilist_id)
+        print("fetchAnimeEntry called for:", anilist_id, "cache hit:", entry is not None)
         if not entry:
-            self.animeEntryLoaded.emit(json.dumps({"onList": False}))
+            self.animeEntryLoaded.emit(anilist_id, json.dumps({"onList": False}))
             return
         payload = dict(entry)
         payload["onList"] = True
-        self.animeEntryLoaded.emit(json.dumps(payload))
+        self.animeEntryLoaded.emit(anilist_id, json.dumps(payload))
 
     @Slot(int, int, str)
     def saveProgress(self, media_id: int, progress: int, status: str) -> None:

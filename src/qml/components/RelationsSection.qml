@@ -7,6 +7,7 @@ ColumnLayout {
     id: root
 
     property var relations: []
+    signal cardClicked(int mediaId, string mediaType)
 
     visible: relations.length > 0
     spacing: 0
@@ -37,6 +38,8 @@ ColumnLayout {
                 title:        modelData.title
                 coverImage:   modelData.coverImage
                 status:       modelData.status
+
+                onCardClicked: (mediaId, mediaType) => root.cardClicked(mediaId, mediaType)
             }
         }
     }
