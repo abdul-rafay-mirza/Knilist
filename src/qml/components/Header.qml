@@ -107,6 +107,8 @@ ColumnLayout {
                         root.favouriteToggled()
                     }
 
+                    flat: true
+
                     contentItem: Kirigami.Icon {
                         source:         "love"
                         isMask:         true

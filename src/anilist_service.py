@@ -459,7 +459,7 @@ class AniListService(QObject):
     mangaEntrySaved    = Signal()
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
-    animePageLoaded    = Signal(str, str, str, str, str, bool, str)  # added isFavourite bool
+    animePageLoaded    = Signal(str, str, str, str, str, bool, str)
     animeEntryLoaded   = Signal(str)   # JSON of entry fields, or {"onList": false}
     favouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
 
