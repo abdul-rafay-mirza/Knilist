@@ -8,6 +8,8 @@ ColumnLayout {
 
     property var characters: []
 
+    signal characterClicked(int characterId, string name, string image, string role)
+
     visible: characters.length > 0
     spacing: 0
 
@@ -34,6 +36,9 @@ ColumnLayout {
                 name:        modelData.name
                 image:       modelData.image
                 role:        modelData.role
+                onCharacterClicked: (id, name) => {
+                    root.characterClicked(characterId, name, image, role)
+                }
             }
         }
     }

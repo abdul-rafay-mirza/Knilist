@@ -12,6 +12,8 @@ Controls.AbstractButton {
     property string image: ""
     property string role: ""
 
+    signal characterClicked(int characterId, string name)
+
     implicitWidth: 96
     implicitHeight: contentColumn.implicitHeight
 
@@ -55,7 +57,6 @@ Controls.AbstractButton {
     }
 
     onClicked: {
-        // e.g. push character detail page
-        // applicationWindow().pageStack.push("CharacterPage.qml", { characterId: root.characterId })
+        root.characterClicked(root.characterId, root.name)
     }
 }
