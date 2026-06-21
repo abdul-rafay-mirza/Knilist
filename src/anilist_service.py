@@ -347,13 +347,17 @@ def _next_ep_text(status: str, next_airing: dict | None,
     next_ep = next_airing.get("episode", 0)
     days    = sec // 86400
     hrs     = (sec % 86400) // 3600
+    mins    = (sec % 3600) // 60
+    secs = sec % 60
 
     if days > 0:
         time_str = f"Ep. {next_ep} in {days}d"
     elif hrs > 0:
         time_str = f"Ep. {next_ep} in {hrs}h"
+    elif mins > 0:
+        time_str = f"Ep. {next_ep} in {mins}m"
     else:
-        time_str = f"Ep. {next_ep} airing soon"
+        time_str = f"Ep. {next_ep} in {secs}s"
 
     behind = (next_ep - 1) - progress
     if behind == 1:
