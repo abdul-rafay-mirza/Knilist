@@ -12,6 +12,7 @@ Kirigami.Page {
 
     // ── Internal ──────────────────────────────────────────────────────────────
     property var  _data:  null
+    property string _revealedIds: ""   // comma-separated; change triggers text re-bind
     property bool _ready: false
 
     Component.onCompleted: {
@@ -24,22 +25,37 @@ Kirigami.Page {
     }
 
     function _loadData() {
-        if (characterId > 0)
+        if (characterId > 0) {
+            _revealedIds = ""
             anilistService.fetchCharacterPage(characterId)
+        }
     }
 
     // Convert AniList's Markdown subset to HTML for Text.RichText.
     // Order matters: bold (**) must be matched before italic (*).
-    function markdownToHtml(src) {
+    function markdownToHtml(src, revealed) {
         if (!src) return ""
         let s = src
-        s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>') // [text](url)
-        s = s.replace(/\*\*([^*]+)\*\*/g,          '<b>$1</b>')           // **bold**
-        s = s.replace(/__([^_]+)__/g,               '<b>$1</b>')           // __bold__
-        s = s.replace(/\*([^*]+)\*/g,               '<i>$1</i>')           // *italic*
-        s = s.replace(/_([^_\s][^_]*)_/g,           '<i>$1</i>')           // _italic_ (guard against lone underscores in words)
-        s = s.replace(/~~([^~]+)~~/g,               '<s>$1</s>')           // ~~strike~~
-        s = s.replace(/\n/g,                         '<br>')                // newlines
+        let count = 0
+        const revList = revealed ? revealed.split(",") : []
+
+        // Spoilers — must run before all other replacements
+        s = s.replace(/~!([^!]+)!~/g, function(match, inner) {
+            const id = "sp" + (count++)
+            if (revList.indexOf(id) >= 0)
+                return inner   // revealed: subsequent passes handle its markdown
+            return '<a href="spoiler://' + id + '" style="text-decoration:none;">'
+                + '<span style="background-color:#555555;color:#555555;'
+                + 'border-radius:3px;padding:1px 4px;">click to reveal spoiler</span></a>'
+        })
+
+        s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+        s = s.replace(/\*\*([^*]+)\*\*/g,          '<b>$1</b>')
+        s = s.replace(/__([^_]+)__/g,               '<b>$1</b>')
+        s = s.replace(/\*([^*]+)\*/g,               '<i>$1</i>')
+        s = s.replace(/_([^_\s][^_]*)_/g,           '<i>$1</i>')
+        s = s.replace(/~~([^~]+)~~/g,               '<s>$1</s>')
+        s = s.replace(/\n/g,                         '<br>')
         return s
     }
 
@@ -215,15 +231,25 @@ Kirigami.Page {
                         // Inline <style> colours links from the system palette so they
                         // look correct in both light and dark Plasma themes.
                         text: {
+                            const _rev = characterPage._revealedIds
                             const raw  = _data ? (_data.description || "") : ""
-                            const body = characterPage.markdownToHtml(raw)
+                            const body = characterPage.markdownToHtml(raw, _rev)
                             return '<style>a { color: %1; text-decoration: underline; }</style>'
                                    .arg(descriptionLabel.palette.link) + body
+                        }
+                        onLinkActivated: function(link) {
+                            if (link.startsWith("spoiler://")) {
+                                const id  = link.slice("spoiler://".length)
+                                const cur = characterPage._revealedIds
+                                if (cur.split(",").indexOf(id) < 0)
+                                    characterPage._revealedIds = cur ? cur + "," + id : id
+                            } else {
+                                Qt.openUrlExternally(link)
+                            }
                         }
                         wrapMode:        Text.WordWrap
                         textFormat:      Text.RichText
                         color:           Kirigami.Theme.textColor
-                        onLinkActivated: link => Qt.openUrlExternally(link)
                     }
                 }
 
