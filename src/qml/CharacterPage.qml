@@ -142,6 +142,37 @@ Kirigami.Page {
                             visible: _data !== null
                         }
 
+                        // Alternative name chips — wraps naturally at any width
+                        Flow {
+                            Layout.fillWidth: true
+                            Layout.topMargin: Kirigami.Units.smallSpacing
+                            spacing:          Kirigami.Units.smallSpacing
+                            visible: Boolean(
+                                _data &&
+                                Array.isArray(_data.nameAlternative) &&
+                                _data.nameAlternative.length > 0
+                            )
+
+                            Repeater {
+                                model: (_data && _data.nameAlternative) ? _data.nameAlternative : []
+
+                                Rectangle {
+                                    implicitHeight: chipLabel.implicitHeight + Kirigami.Units.smallSpacing * 2
+                                    implicitWidth:  chipLabel.implicitWidth  + Kirigami.Units.largeSpacing
+                                    radius: height / 2
+                                    color:  Kirigami.Theme.alternateBackgroundColor
+
+                                    Controls.Label {
+                                        id:               chipLabel
+                                        anchors.centerIn: parent
+                                        text:             modelData
+                                        font.pointSize:   Kirigami.Theme.defaultFont.pointSize * 0.85
+                                        color:            Kirigami.Theme.textColor
+                                    }
+                                }
+                            }
+                        }
+
                         // Only renders rows for fields that actually exist
                         Repeater {
                             model: {
@@ -171,37 +202,6 @@ Kirigami.Page {
                                     color:          Kirigami.Theme.textColor
                                     font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.9
                                     wrapMode:       Text.WordWrap
-                                }
-                            }
-                        }
-
-                        // Alternative name chips — wraps naturally at any width
-                        Flow {
-                            Layout.fillWidth: true
-                            Layout.topMargin: Kirigami.Units.smallSpacing
-                            spacing:          Kirigami.Units.smallSpacing
-                            visible: Boolean(
-                                _data &&
-                                Array.isArray(_data.nameAlternative) &&
-                                _data.nameAlternative.length > 0
-                            )
-
-                            Repeater {
-                                model: (_data && _data.nameAlternative) ? _data.nameAlternative : []
-
-                                Rectangle {
-                                    implicitHeight: chipLabel.implicitHeight + Kirigami.Units.smallSpacing * 2
-                                    implicitWidth:  chipLabel.implicitWidth  + Kirigami.Units.largeSpacing
-                                    radius: height / 2
-                                    color:  Kirigami.Theme.alternateBackgroundColor
-
-                                    Controls.Label {
-                                        id:               chipLabel
-                                        anchors.centerIn: parent
-                                        text:             modelData
-                                        font.pointSize:   Kirigami.Theme.defaultFont.pointSize * 0.85
-                                        color:            Kirigami.Theme.textColor
-                                    }
                                 }
                             }
                         }
