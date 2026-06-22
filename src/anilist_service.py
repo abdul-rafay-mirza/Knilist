@@ -310,6 +310,48 @@ query ($id: Int) {
 }
 """
 
+_CHARACTER_PAGE_QUERY = """
+query ($id: Int) {
+  Character (id: $id) {
+    name {
+      first
+      middle
+      last
+      full
+      native
+      alternative
+      alternativeSpoiler
+      userPreferred
+    }
+    image {
+      large
+    }
+    description
+    age
+    bloodType
+    isFavourite
+    isFavouriteBlocked
+    gender
+    dateOfBirth {
+      day
+      month
+      year
+    }
+    siteUrl
+    media {
+      nodes {
+        id
+        title {
+          english
+          native
+          romaji
+        }
+      }
+    }
+  }
+}
+"""
+
 # ── Helper functions ──────────────────────────────────────────────────────────
 
 def _format_score(score: float, fmt: str) -> str:
