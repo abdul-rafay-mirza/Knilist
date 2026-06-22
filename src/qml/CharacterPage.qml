@@ -280,12 +280,12 @@ Kirigami.Page {
 
                             // Fixed-width column; Flow wraps when it can't fit another
                             ColumnLayout {
-                                width:   Kirigami.Units.gridUnit * 6
+                                width:   Kirigami.Units.gridUnit * 9
                                 spacing: Kirigami.Units.smallSpacing
 
                                 Rectangle {
-                                    Layout.preferredWidth:  Kirigami.Units.gridUnit * 6
-                                    Layout.preferredHeight: Kirigami.Units.gridUnit * 9
+                                    Layout.preferredWidth:  parent.width
+                                    Layout.preferredHeight: Kirigami.Units.gridUnit * 13
                                     radius: Kirigami.Units.cornerRadius
                                     clip:   true
                                     color:  Kirigami.Theme.alternateBackgroundColor
@@ -303,7 +303,7 @@ Kirigami.Page {
                                     Layout.fillWidth:    true
                                     text:               modelData.title || ""
                                     wrapMode:           Text.WordWrap
-                                    maximumLineCount:   2
+                                    maximumLineCount:   3
                                     elide:              Text.ElideRight
                                     font.pointSize:     Kirigami.Theme.defaultFont.pointSize * 0.85
                                     color:              Kirigami.Theme.textColor
