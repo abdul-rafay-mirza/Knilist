@@ -200,10 +200,7 @@ Kirigami.Page {
                     onCharacterClicked: (characterId, name, image, role) => {
                         console.log(name + " Clicked!")
                         pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
-                            characterId: characterId,
-                            name: name,
-                            image: image,
-                            role: role
+                            characterId: characterId
                         })
                     }
                 }

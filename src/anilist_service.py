@@ -346,6 +346,9 @@ query ($id: Int) {
           native
           romaji
         }
+        coverImage {
+          extraLarge
+        }
       }
     }
   }
@@ -508,6 +511,7 @@ class AniListService(QObject):
     animePageLoaded    = Signal(int, str, str, str, str, str, bool, str)
     animeEntryLoaded   = Signal(int, str)   # JSON of entry fields, or {"onList": false}
     favouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
+    characterPageLoaded = Signal(str)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -666,6 +670,71 @@ class AniListService(QObject):
         payload = dict(entry)
         payload["onList"] = True
         self.animeEntryLoaded.emit(anilist_id, json.dumps(payload))
+
+    @Slot(int)
+    def fetchCharacterPage(self, characterId: int) -> None:
+        def _run():
+            try:
+                self._begin_loading()
+                data      = self._gql(_CHARACTER_PAGE_QUERY, {"id": characterId})
+                character = data.get("Character") or {}
+
+                name_dict          = character.get("name") or {}
+                name_full          = name_dict.get("full") or ""
+                name_native        = name_dict.get("native") or ""
+                name_user_preferred = name_dict.get("userPreferred") or ""
+                # alternative is a list — keep it as one, serialise with the rest
+                name_alternative   = name_dict.get("alternative") or []
+
+                image              = (character.get("image") or {}).get("large", "")
+                description        = character.get("description") or ""
+                # age is a plain string on AniList ("17", "17-18", etc.), not an int
+                age                = character.get("age") or ""
+                blood_type         = character.get("bloodType") or ""
+                is_favourite       = character.get("isFavourite", False)
+                is_favourite_blocked = character.get("isFavouriteBlocked", False)
+                gender             = character.get("gender") or ""
+                date_of_birth      = _fuzzy_date(character.get("dateOfBirth"))
+                site_url           = character.get("siteUrl") or ""
+
+                # Media appearances — iterate each node in the list
+                raw_media = (character.get("media") or {}).get("nodes") or []
+                media = [
+                    {
+                        "mediaId": node.get("id", 0),
+                        "title":   (node.get("title") or {}).get("english")
+                                  or (node.get("title") or {}).get("romaji", ""),
+                        "cover":   (node.get("coverImage") or {}).get("extraLarge", ""),
+                    }
+                    for node in raw_media
+                ]
+
+                payload = {
+                    "characterId":        characterId,
+                    "nameFull":           name_full,
+                    "nameNative":         name_native,
+                    "nameUserPreferred":  name_user_preferred,
+                    "nameAlternative":    name_alternative,   # list, serialised below
+                    "image":              image,
+                    "description":        description,
+                    "age":                age,
+                    "bloodType":          blood_type,
+                    "isFavourite":        is_favourite,
+                    "isFavouriteBlocked": is_favourite_blocked,
+                    "gender":             gender,
+                    "dateOfBirth":        _date_str(date_of_birth),
+                    "siteUrl":            site_url,
+                    "media":              media,              # list, serialised below
+                }
+
+                self.characterPageLoaded.emit(json.dumps(payload))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
 
     @Slot(int, int, str)
     def saveProgress(self, media_id: int, progress: int, status: str) -> None:
