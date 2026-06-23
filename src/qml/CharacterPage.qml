@@ -358,6 +358,20 @@ Kirigami.Page {
                                     color:              Kirigami.Theme.textColor
                                     horizontalAlignment: Text.AlignHCenter
                                 }
+
+                                TapHandler {
+                                    onTapped: {
+                                        if (modelData.type === "ANIME") {
+                                            pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
+                                        } else if (modelData.type === "MANGA") {
+                                            pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId })
+                                        }
+                                    }
+                                }
+
+                                HoverHandler {
+                                    cursorShape: Qt.PointingHandCursor
+                                }
                             }
                         }
                     }

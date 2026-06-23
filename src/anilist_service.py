@@ -262,7 +262,7 @@ query ($id: Int) {
         }
       }
     }
-    characters(sort: [FAVOURITES_DESC, ROLE], perPage: 6) {
+    characters(sort: [FAVOURITES_DESC, ROLE], perPage: 24) {
       edges {
         role
         node {
@@ -341,6 +341,7 @@ query ($id: Int) {
     media {
       nodes {
         id
+        type
         title {
           english
           native
@@ -713,6 +714,7 @@ class AniListService(QObject):
                 media = [
                     {
                         "mediaId": node.get("id", 0),
+                        "type": node.get("type") or "",
                         "title":   (node.get("title") or {}).get("english")
                                   or (node.get("title") or {}).get("romaji", ""),
                         "cover":   (node.get("coverImage") or {}).get("extraLarge", ""),
