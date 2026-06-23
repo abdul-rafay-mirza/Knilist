@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
+import "date_picker"
 
 Kirigami.Dialog {
     id: animeListEditorDialog
@@ -107,7 +108,7 @@ Kirigami.Dialog {
 
     function dateString(y, m, d) {
         if (y === 0) return "Not set"
-        return y + "-" + padTwo(m) + "-" + padTwo(d)
+        return padTwo(d) + "/" + padTwo(m) + "/" + y
     }
 
     readonly property var scoreSuffix: ({
@@ -169,96 +170,6 @@ Kirigami.Dialog {
                 }
             }
         }
-    }
-
-    component DatePickerDialog: Kirigami.Dialog {
-        id: dpDialog
-        property int  editYear:  0
-        property int  editMonth: 1
-        property int  editDay:   1
-        property bool isStart:   true
-
-        signal datePicked(int y, int m, int d)
-        signal dateCleared()
-
-        title: isStart ? "Start Date" : "Finish Date"
-        standardButtons: Kirigami.Dialog.NoButton
-        preferredWidth: Kirigami.Units.gridUnit * 24
-
-        ColumnLayout {
-            spacing: Kirigami.Units.largeSpacing
-
-            GridLayout {
-                columns: 2
-                columnSpacing: Kirigami.Units.gridUnit
-                rowSpacing:    Kirigami.Units.largeSpacing
-                Layout.fillWidth: true
-
-                Controls.Label { text: "Year";  font.pixelSize: 13 }
-                Controls.SpinBox {
-                    Layout.fillWidth: true
-                    from: 1900; to: 2100
-                    value: dpDialog.editYear > 0 ? dpDialog.editYear : 2024
-                    editable: true
-                    onValueModified: dpDialog.editYear = value
-                }
-                Controls.Label { text: "Month"; font.pixelSize: 13 }
-                Controls.SpinBox {
-                    Layout.fillWidth: true
-                    from: 1; to: 12
-                    value: dpDialog.editMonth
-                    editable: true
-                    onValueModified: dpDialog.editMonth = value
-                }
-                Controls.Label { text: "Day";   font.pixelSize: 13 }
-                Controls.SpinBox {
-                    Layout.fillWidth: true
-                    from: 1; to: 31
-                    value: dpDialog.editDay
-                    editable: true
-                    onValueModified: dpDialog.editDay = value
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Kirigami.Units.smallSpacing
-                Controls.Button {
-                    text: "Clear"
-                    Layout.fillWidth: true
-                    onClicked: { dpDialog.dateCleared(); dpDialog.close() }
-                }
-                Controls.Button {
-                    text: "Set"
-                    Layout.fillWidth: true
-                    highlighted: true
-                    onClicked: {
-                        dpDialog.datePicked(dpDialog.editYear, dpDialog.editMonth, dpDialog.editDay)
-                        dpDialog.close()
-                    }
-                }
-            }
-        }
-    }
-
-    DatePickerDialog {
-        id: startDateDialog
-        isStart:   true
-        editYear:  animeListEditorDialog.editStartYear
-        editMonth: animeListEditorDialog.editStartMonth > 0 ? animeListEditorDialog.editStartMonth : 1
-        editDay:   animeListEditorDialog.editStartDay   > 0 ? animeListEditorDialog.editStartDay   : 1
-        onDatePicked:  (y, m, d) => { animeListEditorDialog.editStartYear = y; animeListEditorDialog.editStartMonth = m; animeListEditorDialog.editStartDay = d }
-        onDateCleared: { animeListEditorDialog.editStartYear = 0; animeListEditorDialog.editStartMonth = 0; animeListEditorDialog.editStartDay = 0 }
-    }
-
-    DatePickerDialog {
-        id: finishDateDialog
-        isStart:   false
-        editYear:  animeListEditorDialog.editFinishYear
-        editMonth: animeListEditorDialog.editFinishMonth > 0 ? animeListEditorDialog.editFinishMonth : 1
-        editDay:   animeListEditorDialog.editFinishDay   > 0 ? animeListEditorDialog.editFinishDay   : 1
-        onDatePicked:  (y, m, d) => { animeListEditorDialog.editFinishYear = y; animeListEditorDialog.editFinishMonth = m; animeListEditorDialog.editFinishDay = d }
-        onDateCleared: { animeListEditorDialog.editFinishYear = 0; animeListEditorDialog.editFinishMonth = 0; animeListEditorDialog.editFinishDay = 0 }
     }
 
     IntValidator    { id: intValidator;    bottom: 0; top: 100 }
@@ -440,29 +351,95 @@ Kirigami.Dialog {
                 }
             }
 
-            // Start Date
-            EditorRow {
-                label: "Start Date"
-                Controls.Button {
-                    Layout.fillWidth: true
-                    text: animeListEditorDialog.dateString(
-                        animeListEditorDialog.editStartYear,
-                        animeListEditorDialog.editStartMonth,
-                        animeListEditorDialog.editStartDay)
-                    onClicked: startDateDialog.open()
+            DatePopup {
+                id: startDatePopup
+                popupWidth: Kirigami.Units.gridUnit * 24
+                onAccepted: {
+                    animeListEditorDialog.editStartYear  = value.getFullYear()
+                    animeListEditorDialog.editStartMonth = value.getMonth() + 1
+                    animeListEditorDialog.editStartDay   = value.getDate()
                 }
             }
 
-            // Finish Date
+            DatePopup {
+                id: finishDatePopup
+                popupWidth: Kirigami.Units.gridUnit * 24
+                onAccepted: {
+                    animeListEditorDialog.editFinishYear  = value.getFullYear()
+                    animeListEditorDialog.editFinishMonth = value.getMonth() + 1
+                    animeListEditorDialog.editFinishDay   = value.getDate()
+                }
+            }
+
+            // Start Date
+            EditorRow {
+                label: "Start Date"
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing
+                    Controls.Button {
+                        Layout.fillWidth: true
+                        text: animeListEditorDialog.dateString(
+                            animeListEditorDialog.editStartYear,
+                            animeListEditorDialog.editStartMonth,
+                            animeListEditorDialog.editStartDay)
+                        onClicked: {
+                            startDatePopup.value = animeListEditorDialog.editStartYear > 0
+                                ? new Date(animeListEditorDialog.editStartYear,
+                                        animeListEditorDialog.editStartMonth - 1,
+                                        animeListEditorDialog.editStartDay)
+                                : new Date()
+                            startDatePopup.open()
+                            console.log("Start date clicked!")
+                        }
+                    }
+                    Controls.Button {
+                        icon.name: "edit-clear-symbolic"
+                        visible: animeListEditorDialog.editStartYear > 0
+                        Controls.ToolTip.text: "Clear"
+                        Controls.ToolTip.visible: hovered
+                        onClicked: {
+                            animeListEditorDialog.editStartYear  = 0
+                            animeListEditorDialog.editStartMonth = 0
+                            animeListEditorDialog.editStartDay   = 0
+                        }
+                    }
+                }
+            }
+
+            // Finish Date — same pattern
             EditorRow {
                 label: "Finish Date"
-                Controls.Button {
+                RowLayout {
                     Layout.fillWidth: true
-                    text: animeListEditorDialog.dateString(
-                        animeListEditorDialog.editFinishYear,
-                        animeListEditorDialog.editFinishMonth,
-                        animeListEditorDialog.editFinishDay)
-                    onClicked: finishDateDialog.open()
+                    spacing: Kirigami.Units.smallSpacing
+                    Controls.Button {
+                        Layout.fillWidth: true
+                        text: animeListEditorDialog.dateString(
+                            animeListEditorDialog.editFinishYear,
+                            animeListEditorDialog.editFinishMonth,
+                            animeListEditorDialog.editFinishDay)
+                        onClicked: {
+                            finishDatePopup.value = animeListEditorDialog.editFinishYear > 0
+                                ? new Date(animeListEditorDialog.editFinishYear,
+                                        animeListEditorDialog.editFinishMonth - 1,
+                                        animeListEditorDialog.editFinishDay)
+                                : new Date()
+                            finishDatePopup.open()
+                            console.log("finish date clicked!")
+                        }
+                    }
+                    Controls.Button {
+                        icon.name: "edit-clear-symbolic"
+                        visible: animeListEditorDialog.editFinishYear > 0
+                        Controls.ToolTip.text: "Clear"
+                        Controls.ToolTip.visible: hovered
+                        onClicked: {
+                            animeListEditorDialog.editFinishYear  = 0
+                            animeListEditorDialog.editFinishMonth = 0
+                            animeListEditorDialog.editFinishDay   = 0
+                        }
+                    }
                 }
             }
 
