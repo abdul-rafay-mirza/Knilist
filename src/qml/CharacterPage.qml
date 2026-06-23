@@ -244,7 +244,14 @@ Kirigami.Page {
                                 if (cur.split(",").indexOf(id) < 0)
                                     characterPage._revealedIds = cur ? cur + "," + id : id
                             } else {
-                                Qt.openUrlExternally(link)
+                                const charMatch = link.match(/anilist\.co\/character\/(\d+)/)
+                                if (charMatch) {
+                                    pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
+                                        characterId: parseInt(charMatch[1])
+                                    })
+                                } else {
+                                    Qt.openUrlExternally(link)
+                                }
                             }
                         }
                         wrapMode:        Text.WordWrap
