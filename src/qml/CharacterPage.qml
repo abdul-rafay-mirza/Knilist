@@ -67,6 +67,11 @@ Kirigami.Page {
             if (d.characterId !== characterPage.characterId) return
             characterPage._data = d
         }
+
+        function onCharacterFavouriteToggled(charId, newState) {
+            if (charId !== characterPage.characterId) return
+            anilistService.fetchCharacterPage(characterPage.characterId)
+        }
     }
 
     // ── Layout ────────────────────────────────────────────────────────────────
@@ -98,20 +103,57 @@ Kirigami.Page {
                     Layout.bottomMargin: Kirigami.Units.largeSpacing
                     spacing:             Kirigami.Units.largeSpacing
 
-                    Rectangle {
-                        Layout.preferredWidth:  Kirigami.Units.gridUnit * 8
-                        Layout.preferredHeight: Kirigami.Units.gridUnit * 12
-                        Layout.alignment:       Qt.AlignTop
-                        radius: Kirigami.Units.cornerRadius
-                        clip:   true
-                        color:  Kirigami.Theme.alternateBackgroundColor
+                    ColumnLayout {
+                        Layout.alignment: Qt.AlignTop
+                        spacing: Kirigami.Units.smallSpacing
 
-                        Image {
-                            anchors.fill: parent
-                            source:       _data ? (_data.image || "") : ""
-                            fillMode:     Image.PreserveAspectCrop
-                            asynchronous: true
-                            mipmap:       true
+                        Rectangle {
+                            id: portraitRect
+                            Layout.preferredWidth:  Kirigami.Units.gridUnit * 10
+                            Layout.preferredHeight: Kirigami.Units.gridUnit * 14
+                            Layout.alignment:       Qt.AlignTop
+                            radius: Kirigami.Units.cornerRadius
+                            clip:   true
+                            color:  Kirigami.Theme.alternateBackgroundColor
+
+                            Image {
+                                anchors.fill: parent
+                                source:       _data ? (_data.image || "") : ""
+                                fillMode:     Image.PreserveAspectCrop
+                                asynchronous: true
+                                mipmap:       true
+                            }
+                        }
+
+                        Controls.Button {
+                            Layout.preferredWidth: portraitRect.width
+                            Layout.maximumWidth:   portraitRect.width
+                            enabled: _data ? !_data.isFavouriteBlocked : false
+                            onClicked: anilistService.toggleCharacterFavourite(
+                                characterPage.characterId, _data.isFavourite)
+
+                            contentItem: RowLayout {
+                                spacing: Kirigami.Units.smallSpacing
+
+                                Kirigami.Icon {
+                                    source:         "love"
+                                    isMask:         true
+                                    color:          (_data && _data.isFavourite) ? "#e05562" : Kirigami.Theme.textColor
+                                    implicitWidth:  Kirigami.Units.iconSizes.medium
+                                    implicitHeight: Kirigami.Units.iconSizes.medium
+                                    Layout.alignment:  Qt.AlignVCenter
+                                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                                }
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text:             (_data && _data.isFavourite) ? "Favourited" : "Favourite"
+                                    color:            (_data && _data.isFavourite) ? "#e05562" : Kirigami.Theme.textColor
+                                    font:             parent.parent.font
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment:   Text.AlignVCenter
+                                }
+                            }
                         }
                     }
 
