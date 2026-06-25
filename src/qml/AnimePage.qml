@@ -208,30 +208,12 @@ Kirigami.Page {
                     }
                 }
 
-                Kirigami.Heading {
-                    level: 3
-                    text:  "Recommendations"
-                }
-
-                Kirigami.Separator { Layout.fillWidth: true }
-
-                Flow {
+                RecommendationsSection {
                     Layout.fillWidth: true
-                    Layout.topMargin: Kirigami.Units.smallSpacing
-                    spacing:          Kirigami.Units.largeSpacing
+                    recommendations:  animePage.animeRecommendations
 
-                    Repeater {
-                        model: animePage.animeRecommendations
-
-                        MediaCoverCard {
-                            mediaId:  modelData.mediaId
-                            title:    modelData.title || ""
-                            imageURL: modelData.coverImage || ""
-                            onTapped: {
-                                console.log("MediaCoverCard Clicked!")
-                                pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
-                            }
-                        }
+                    onCardClicked: (mediaId, mediaType) => {
+                        pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: mediaId })
                     }
                 }
 
