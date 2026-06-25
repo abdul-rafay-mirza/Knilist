@@ -292,7 +292,7 @@ query ($id: Int) {
         }
       }
     }
-    recommendations(sort: [RATING_DESC], perPage: 20) {
+    recommendations(sort: [RATING_DESC], perPage: 30) {
       nodes {
         mediaRecommendation {
           id

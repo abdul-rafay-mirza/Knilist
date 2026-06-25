@@ -24,32 +24,31 @@ ColumnLayout {
 
     Kirigami.Separator { Layout.fillWidth: true }
 
-    Flickable {
-        Layout.fillWidth:   true
-        implicitHeight:     cardRow.implicitHeight
-        contentWidth:       cardRow.implicitWidth
-        contentHeight:      cardRow.implicitHeight
-        flickableDirection: Flickable.HorizontalFlick
-        clip:               true
+    ListView {
+        id:               recListView
+        Layout.fillWidth: true
+        implicitHeight:   contentItem.childrenRect.height
+        orientation:      ListView.Horizontal
+        spacing:          Kirigami.Units.largeSpacing
+        clip:             true
+        model:            root.recommendations
 
-        Row {
-            id:      cardRow
-            spacing: Kirigami.Units.largeSpacing
+        delegate: MediaCoverCard {
+            required property var modelData
 
-            Repeater {
-                model: root.recommendations
-
-                MediaCoverCard {
-                    mediaId:  modelData.mediaId
-                    title:    modelData.title || ""
-                    imageURL: modelData.coverImage || ""
-                    onTapped: root.cardClicked(modelData.mediaId, modelData.type || "")
-                }
-            }
+            mediaId:  modelData.mediaId
+            title:    modelData.title || ""
+            imageURL: modelData.coverImage || ""
+            onTapped: root.cardClicked(modelData.mediaId, modelData.type || "")
         }
+    }
 
-        Controls.ScrollBar.horizontal: Controls.ScrollBar {
-            policy: Controls.ScrollBar.AsNeeded
-        }
+    Controls.ScrollBar {
+        Layout.fillWidth: true
+        orientation:      Qt.Horizontal
+        policy:           Controls.ScrollBar.AsNeeded
+        size:             recListView.visibleArea.widthRatio
+        position:         recListView.visibleArea.xPosition
+        onPositionChanged: if (pressed) recListView.contentX = position * recListView.contentWidth
     }
 }
