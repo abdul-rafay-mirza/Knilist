@@ -208,6 +208,33 @@ Kirigami.Page {
                     }
                 }
 
+                Kirigami.Heading {
+                    level: 3
+                    text:  "Recommendations"
+                }
+
+                Kirigami.Separator { Layout.fillWidth: true }
+
+                Flow {
+                    Layout.fillWidth: true
+                    Layout.topMargin: Kirigami.Units.smallSpacing
+                    spacing:          Kirigami.Units.largeSpacing
+
+                    Repeater {
+                        model: animePage.animeRecommendations
+
+                        MediaCoverCard {
+                            mediaId:  modelData.mediaId
+                            title:    modelData.title || ""
+                            imageURL: modelData.coverImage || ""
+                            onTapped: {
+                                console.log("MediaCoverCard Clicked!")
+                                pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
+                            }
+                        }
+                    }
+                }
+
                 Item {
                     Layout.fillWidth:       true
                     Layout.preferredHeight: Kirigami.Units.largeSpacing

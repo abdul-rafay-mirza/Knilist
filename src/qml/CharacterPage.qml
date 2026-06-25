@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
+import "components"
 
 Kirigami.Page {
     id: characterPage
@@ -327,50 +328,16 @@ Kirigami.Page {
                         Repeater {
                             model: (_data && _data.media) ? _data.media : []
 
-                            // Fixed-width column; Flow wraps when it can't fit another
-                            ColumnLayout {
-                                width:   Kirigami.Units.gridUnit * 9
-                                spacing: Kirigami.Units.smallSpacing
-
-                                Rectangle {
-                                    Layout.preferredWidth:  parent.width
-                                    Layout.preferredHeight: Kirigami.Units.gridUnit * 13
-                                    radius: Kirigami.Units.cornerRadius
-                                    clip:   true
-                                    color:  Kirigami.Theme.alternateBackgroundColor
-
-                                    Image {
-                                        anchors.fill: parent
-                                        source:       modelData.cover || ""
-                                        fillMode:     Image.PreserveAspectCrop
-                                        asynchronous: true
-                                        mipmap:       true
-                                    }
-                                }
-
-                                Controls.Label {
-                                    Layout.fillWidth:    true
-                                    text:               modelData.title || ""
-                                    wrapMode:           Text.WordWrap
-                                    maximumLineCount:   3
-                                    elide:              Text.ElideRight
-                                    font.pointSize:     Kirigami.Theme.defaultFont.pointSize * 0.85
-                                    color:              Kirigami.Theme.textColor
-                                    horizontalAlignment: Text.AlignHCenter
-                                }
-
-                                TapHandler {
-                                    onTapped: {
-                                        if (modelData.type === "ANIME") {
-                                            pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
-                                        } else if (modelData.type === "MANGA") {
-                                            pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId })
-                                        }
-                                    }
-                                }
-
-                                HoverHandler {
-                                    cursorShape: Qt.PointingHandCursor
+                            MediaCoverCard {
+                                mediaId:  modelData.mediaId
+                                title:    modelData.title || ""
+                                imageURL: modelData.cover || ""
+                                onTapped: {
+                                    console.log("MediaCoverCard Clicked!")
+                                    if (modelData.type === "ANIME")
+                                        pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
+                                    else if (modelData.type === "MANGA")
+                                        pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId })
                                 }
                             }
                         }
