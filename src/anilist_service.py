@@ -295,6 +295,7 @@ query ($id: Int) {
     recommendations(sort: [RATING_DESC], perPage: 7) {
       nodes {
         mediaRecommendation {
+          id
           title {
             english
             native
@@ -519,7 +520,7 @@ class AniListService(QObject):
     mangaEntrySaved    = Signal()
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
-    animePageLoaded    = Signal(int, str, str, str, str, str, bool, str)
+    animePageLoaded    = Signal(int, str, str, str, str, str, bool, str, str)
     animeEntryLoaded   = Signal(int, str)   # JSON of entry fields, or {"onList": false}
     favouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
     characterPageLoaded = Signal(str)
@@ -630,39 +631,52 @@ class AniListService(QObject):
                 description  = media.get("description") or ""
                 is_favourite = media.get("isFavourite", False)
 
-                raw_relations = (media.get("relations") or {}).get("edges") or []
-                relations = [
-                    {
-                        "mediaId":      edge["node"].get("id", 0),
-                        "relationType": edge.get("relationType", ""),
-                        "mediaType":    edge["node"].get("type", ""),
-                        "format":       edge["node"].get("format", ""),
-                        "title":        (edge["node"].get("title") or {}).get("english")
-                                        or (edge["node"].get("title") or {}).get("romaji", ""),
-                        "coverImage":   (edge["node"].get("coverImage") or {}).get("large", ""),
-                        "status":       edge["node"].get("status", ""),
-                    }
-                    for edge in raw_relations
-                    if edge.get("node")
-                ]
+                raw_relations: list = (media.get("relations") or {}).get("edges") or []
+                relations = []
+                for edge in raw_relations:
+                    if edge.get("node") is not None and edge.get("node") != {}:
+                        node = edge["node"]
+                        title_obj = node.get("title") or {}
+                        relations.append({
+                            "mediaId":      node.get("id", 0),
+                            "relationType": edge.get("relationType", ""),
+                            "mediaType":    node.get("type", ""),
+                            "format":       node.get("format", ""),
+                            "title":        title_obj.get("english") or title_obj.get("romaji", ""),
+                            "coverImage":   (node.get("coverImage") or {}).get("large", ""),
+                            "status":       node.get("status", ""),
+                        })
 
                 raw_characters = (media.get("characters") or {}).get("edges") or []
-                characters = [
-                    {
-                        "characterId": edge["node"].get("id", 0),
-                        "name":        (edge["node"].get("name") or {}).get("full", ""),
-                        "nativeName":  (edge["node"].get("name") or {}).get("native", "") or "",
-                        "image":       (edge["node"].get("image") or {}).get("large", ""),
-                        "role":        edge.get("role", ""),
-                    }
-                    for edge in raw_characters
-                    if edge.get("node")
-                ]
+                characters = []
+                for edge in raw_characters:
+                    if edge.get("node") is not None and edge.get("node") != {}:
+                        node = edge["node"]
+                        characters.append({
+                            "characterId": node.get("id", 0),
+                            "name":        (node.get("name") or {}).get("full", ""),
+                            "nativeName":  (node.get("name") or {}).get("native", "") or "",
+                            "image":       (node.get("image") or {}).get("large", ""),
+                            "role":        edge.get("role", ""),
+                        })
+
+                raw_recommendation_nodes = (media.get("recommendations") or {}).get("nodes") or []
+                recommendations = []
+                for node in raw_recommendation_nodes:
+                  if node.get("mediaRecommendation") is not None and node.get("mediaRecommendation") != {}:
+                    media_recommendation = node["mediaRecommendation"]
+                    title_obj = media_recommendation.get("title") or {}
+                    recommendations.append({
+                        "mediaId": media_recommendation.get("id", 0),
+                        "title": title_obj.get("english") or title_obj.get("romaji", ""), 
+                        "coverImage": (media_recommendation.get("coverImage") or {}).get("large", "")
+                    })
 
                 self.animePageLoaded.emit(
                     anilist_id, title, banner, cover, description,
                     json.dumps(relations), is_favourite,
-                    json.dumps(characters)
+                    json.dumps(characters),
+                    json.dumps(recommendations)
                 )
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
