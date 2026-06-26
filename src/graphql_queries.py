@@ -258,7 +258,7 @@ query ($id: Int) {
         }
       }
     }
-    staff(sort: [FAVOURITES_DESC, ROLE], perPage: 6) {
+    staff(sort: [RELEVANCE], perPage: 3) {
       edges {
         role
         node {
