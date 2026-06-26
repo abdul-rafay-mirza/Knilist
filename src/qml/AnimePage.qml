@@ -110,7 +110,7 @@ Kirigami.Page {
 
             console.log("depth:", pageStack.layers.depth)
             console.log("ID of anime:", animePage.animeId)
-            console.log(JSON.stringify(animePage.animeRecommendations, null, 2))
+            // console.log(JSON.stringify(animePage.animeRecommendations, null, 2))
         }
 
         function onAnimeEntryLoaded(_id, _entryJson) {
