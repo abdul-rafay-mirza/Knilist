@@ -114,7 +114,7 @@ Kirigami.Page {
             animePage.animeStaff          = JSON.parse(_staffJson)
             animePage.animeInformation    = JSON.parse(_informationJson)
 
-            console.log(JSON.stringify(animePage.animeInformation, null, 2))
+            // console.log(JSON.stringify(animePage.animeInformation, null, 2))
         }
 
         function onAnimeEntryLoaded(_id, _entryJson) {

@@ -67,6 +67,7 @@ Kirigami.Page {
             const d = JSON.parse(payloadJson)
             if (d.characterId !== characterPage.characterId) return
             characterPage._data = d
+            console.log(JSON.stringify(_data.description, null, 2))
         }
 
         function onCharacterFavouriteToggled(charId, newState) {
@@ -282,19 +283,33 @@ Kirigami.Page {
                         }
                         onLinkActivated: function(link) {
                             if (link.startsWith("spoiler://")) {
-                                const id  = link.slice("spoiler://".length)
+                                const id = link.slice("spoiler://".length)
                                 const cur = characterPage._revealedIds
+
                                 if (cur.split(",").indexOf(id) < 0)
                                     characterPage._revealedIds = cur ? cur + "," + id : id
+
+                                return
+                            }
+
+                            const charMatch  = link.match(/anilist\.co\/character\/(\d+)/)
+                            const animeMatch = link.match(/anilist\.co\/anime\/(\d+)/)
+                            const mangaMatch = link.match(/anilist\.co\/manga\/(\d+)/)
+
+                            if (charMatch) {
+                                pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
+                                    characterId: parseInt(charMatch[1])
+                                })
+                            } else if (animeMatch) {
+                                pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), {
+                                    anilistId: parseInt(animeMatch[1])
+                                })
+                            } else if (mangaMatch) {
+                                pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), {
+                                    anilistId: parseInt(mangaMatch[1])
+                                })
                             } else {
-                                const charMatch = link.match(/anilist\.co\/character\/(\d+)/)
-                                if (charMatch) {
-                                    pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
-                                        characterId: parseInt(charMatch[1])
-                                    })
-                                } else {
-                                    Qt.openUrlExternally(link)
-                                }
+                                Qt.openUrlExternally(link)
                             }
                         }
                         wrapMode:        Text.WordWrap
