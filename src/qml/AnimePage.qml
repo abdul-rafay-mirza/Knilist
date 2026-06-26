@@ -20,6 +20,7 @@ Kirigami.Page {
     property bool animeIsFavourite:  false
     property var animeCharacters: []
     property var animeRecommendations: []
+    property var animeStaff: []
 
     property bool _ready: false
 
@@ -96,7 +97,7 @@ Kirigami.Page {
     Connections {
         target: anilistService
 
-        function onAnimePageLoaded(_id, _title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite, _charactersJson, _recommendationsJson) {
+        function onAnimePageLoaded(_id, _title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite, _charactersJson, _recommendationsJson, _staff) {
             if (_id !== animePage.animeId) return
 
             animePage.animeTitle       = _title
@@ -107,10 +108,11 @@ Kirigami.Page {
             animePage.animeIsFavourite = _isFavourite
             animePage.animeCharacters  = JSON.parse(_charactersJson)
             animePage.animeRecommendations = JSON.parse(_recommendationsJson)
+            animePage.animeStaff = JSON.parse(_staff)
 
             console.log("depth:", pageStack.layers.depth)
             console.log("ID of anime:", animePage.animeId)
-            // console.log(JSON.stringify(animePage.animeRecommendations, null, 2))
+            console.log(JSON.stringify(animePage.animeStaff, null, 2))
         }
 
         function onAnimeEntryLoaded(_id, _entryJson) {

@@ -168,7 +168,7 @@ class AniListService(QObject):
     mangaEntrySaved    = Signal()
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
-    animePageLoaded    = Signal(int, str, str, str, str, str, bool, str, str)
+    animePageLoaded    = Signal(int, str, str, str, str, str, bool, str, str, str)
     animeEntryLoaded   = Signal(int, str)   # JSON of entry fields, or {"onList": false}
     favouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
     characterPageLoaded = Signal(str)
@@ -319,12 +319,26 @@ class AniListService(QObject):
                         "title": title_obj.get("english") or title_obj.get("romaji", ""), 
                         "coverImage": (media_recommendation.get("coverImage") or {}).get("large", "")
                     })
+                
+                raw_staff_edges = (media.get("staff") or {}).get("edges") or []
+                staff = []
+                for edge in raw_staff_edges:
+                  if edge.get("node") is not None and edge.get("node") != {}:
+                    node = edge["node"]
+                    staff.append({
+                      "role": edge.get("role", ""),
+                      "id": node.get("id", 0),
+                      "name": (node.get("name") or {}).get("full") or (node.get("name") or {}).get("native", ""),
+                      "image": (node.get("image") or {}).get("large", "")
+                    })
+                print(staff)
 
                 self.animePageLoaded.emit(
                     anilist_id, title, banner, cover, description,
                     json.dumps(relations), is_favourite,
                     json.dumps(characters),
-                    json.dumps(recommendations)
+                    json.dumps(recommendations),
+                    json.dumps(staff)
                 )
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
