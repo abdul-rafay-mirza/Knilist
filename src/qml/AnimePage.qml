@@ -190,7 +190,7 @@ Kirigami.Page {
                     spacing:          0
 
                     // Left: information sidebar
-                    InformationSection {
+                    AnimeInformationSection {
                         Layout.preferredWidth: Kirigami.Units.gridUnit * 14
                         Layout.alignment:      Qt.AlignTop
                         information:           animePage.animeInformation

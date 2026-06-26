@@ -107,7 +107,7 @@ Item {
             Controls.Label { text: "Studios"; font.weight: Font.DemiBold; color: Kirigami.Theme.textColor }
             Repeater {
                 model: information.studios || []
-                Controls.Label { text: modelData; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
+                Controls.Label { Layout.fillWidth: true; text: modelData; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
             }
         }
 
@@ -119,7 +119,7 @@ Item {
             Controls.Label { text: "Producers"; font.weight: Font.DemiBold; color: Kirigami.Theme.textColor }
             Repeater {
                 model: information.producers || []
-                Controls.Label { text: modelData; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
+                Controls.Label { Layout.fillWidth: true; text: modelData; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
             }
         }
 
@@ -141,7 +141,7 @@ Item {
             Controls.Label { text: "Synonyms"; font.weight: Font.DemiBold; color: Kirigami.Theme.textColor }
             Repeater {
                 model: information.synonyms || []
-                Controls.Label { text: modelData; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
+                Controls.Label { Layout.fillWidth: true; text: modelData; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
             }
         }
 
