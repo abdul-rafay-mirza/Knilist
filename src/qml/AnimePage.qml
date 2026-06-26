@@ -112,7 +112,7 @@ Kirigami.Page {
 
             console.log("depth:", pageStack.layers.depth)
             console.log("ID of anime:", animePage.animeId)
-            console.log(JSON.stringify(animePage.animeStaff, null, 2))
+            // console.log(JSON.stringify(animePage.animeStaff, null, 2))
         }
 
         function onAnimeEntryLoaded(_id, _entryJson) {
@@ -207,6 +207,15 @@ Kirigami.Page {
                         pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
                             characterId: characterId
                         })
+                    }
+                }
+
+                StaffSection {
+                    Layout.fillWidth: true
+                    staff: animePage.animeStaff
+                    onCardClicked: (staffId) => {
+                        // TODO: Implement a StaffPage to push
+                        console.log("Clicked StaffCard")
                     }
                 }
 

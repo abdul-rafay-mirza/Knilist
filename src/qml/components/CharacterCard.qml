@@ -17,6 +17,10 @@ Controls.AbstractButton {
     implicitWidth: 96
     implicitHeight: contentColumn.implicitHeight
 
+    HoverHandler {
+        cursorShape: Qt.PointingHandCursor
+    }
+
     background: Rectangle {
         radius: Kirigami.Units.cornerRadius
         color: root.hovered ? Kirigami.Theme.hoverColor : "transparent"
