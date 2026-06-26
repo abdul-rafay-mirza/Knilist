@@ -10,7 +10,7 @@ Kirigami.Page {
 
     // ── Public properties ─────────────────────────────────────────────────────
     property int animeId:            0
-    property var animeEntry:         null   // null until onAnimeEntryLoaded fires
+    property var animeEntry:         null
     property var animeTitle
     property var animeBannerImage
     property var animeCoverImage
@@ -18,9 +18,10 @@ Kirigami.Page {
     property var animeRelations:     []
     property int animeTotalEpisodes: 0
     property bool animeIsFavourite:  false
-    property var animeCharacters: []
+    property var animeCharacters:    []
     property var animeRecommendations: []
-    property var animeStaff: []
+    property var animeStaff:         []
+    property var animeInformation:   ({})
 
     property bool _ready: false
 
@@ -55,7 +56,7 @@ Kirigami.Page {
         }
     }
 
-    // ── Open editor with current entry data ───────────────────────────────────
+    // ── Open editor ───────────────────────────────────────────────────────────
     function openEditor() {
         const e      = animePage.animeEntry
         const onList = e && e.onList
@@ -97,39 +98,35 @@ Kirigami.Page {
     Connections {
         target: anilistService
 
-        function onAnimePageLoaded(_id, _title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite, _charactersJson, _recommendationsJson, _staff) {
+        function onAnimePageLoaded(_id, _title, _bannerImage, _coverImage, _description,
+                                   _relationsJson, _isFavourite, _charactersJson,
+                                   _recommendationsJson, _staffJson, _informationJson) {
             if (_id !== animePage.animeId) return
 
-            animePage.animeTitle       = _title
-            animePage.animeBannerImage = _bannerImage
-            animePage.animeCoverImage  = _coverImage
-            animePage.animeDescription = _description
-            animePage.animeRelations   = JSON.parse(_relationsJson)
-            animePage.animeIsFavourite = _isFavourite
-            animePage.animeCharacters  = JSON.parse(_charactersJson)
+            animePage.animeTitle          = _title
+            animePage.animeBannerImage    = _bannerImage
+            animePage.animeCoverImage     = _coverImage
+            animePage.animeDescription    = _description
+            animePage.animeRelations      = JSON.parse(_relationsJson)
+            animePage.animeIsFavourite    = _isFavourite
+            animePage.animeCharacters     = JSON.parse(_charactersJson)
             animePage.animeRecommendations = JSON.parse(_recommendationsJson)
-            animePage.animeStaff = JSON.parse(_staff)
+            animePage.animeStaff          = JSON.parse(_staffJson)
+            animePage.animeInformation    = JSON.parse(_informationJson)
 
-            console.log("depth:", pageStack.layers.depth)
-            console.log("ID of anime:", animePage.animeId)
-            // console.log(JSON.stringify(animePage.animeStaff, null, 2))
+            console.log(JSON.stringify(animePage.animeInformation, null, 2))
         }
 
         function onAnimeEntryLoaded(_id, _entryJson) {
-            console.log("onAnimeEntryLoaded fired — _id:", _id, "animePage.animeId:", animePage.animeId)
             if (_id !== animePage.animeId) return
-            console.log("entry payload:", _entryJson)
             animePage.animeEntry = JSON.parse(_entryJson)
         }
 
-        // After a save, fetchAnime re-populates the cache; fetchAnimeEntry
-        // then re-emits the updated entry so the button label refreshes.
         function onEntrySaved() {
             anilistService.fetchAnime()
         }
 
         function onAnimeLoaded() {
-            // Cache is now fresh — re-emit entry for this page
             anilistService.fetchAnimeEntry(animePage.animeId)
         }
 
@@ -161,9 +158,11 @@ Kirigami.Page {
             }
 
             ColumnLayout {
-                id:    mainColumn
-                width: parent.width
+                id:      mainColumn
+                width:   parent.width
+                spacing: 0
 
+                // ── Full-width header ─────────────────────────────────────────
                 Header {
                     Layout.fillWidth: true
                     title:         animePage.animeTitle
@@ -181,48 +180,68 @@ Kirigami.Page {
                         "PLANNING":  "Planning",
                         "REPEATING": "Rewatching",
                     })
-
                     onEditRequested:    animePage.openEditor()
                     onFavouriteToggled: anilistService.toggleFavourite(animePage.animeId, animePage.animeIsFavourite)
                 }
 
-                RelationsSection {
+                // ── Two-column body ───────────────────────────────────────────
+                RowLayout {
                     Layout.fillWidth: true
-                    relations: animePage.animeRelations
+                    spacing:          0
 
-                    onCardClicked: (mediaId, mediaType) => {
-                        if (mediaType === "ANIME") {
-                            pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: mediaId })
-                        } else if (mediaType === "MANGA") {
-                            pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: mediaId })
+                    // Left: information sidebar
+                    InformationSection {
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 14
+                        Layout.alignment:      Qt.AlignTop
+                        information:           animePage.animeInformation
+                    }
+
+                    // Right: relations, characters, staff
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing:          0
+
+                        RelationsSection {
+                            Layout.fillWidth: true
+                            relations: animePage.animeRelations
+                            onCardClicked: (mediaId, mediaType) => {
+                                if (mediaType === "ANIME") {
+                                    pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: mediaId })
+                                } else if (mediaType === "MANGA") {
+                                    pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: mediaId })
+                                }
+                            }
+                        }
+
+                        CharactersSection {
+                            Layout.fillWidth: true
+                            characters: animePage.animeCharacters
+                            onCharacterClicked: (characterId, name, image, role) => {
+                                pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
+                                    characterId: characterId
+                                })
+                            }
+                        }
+
+                        StaffSection {
+                            Layout.fillWidth: true
+                            staff: animePage.animeStaff
+                            onCardClicked: (staffId) => {
+                                console.log("Clicked StaffCard", staffId)
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
                         }
                     }
                 }
 
-                CharactersSection {
-                    Layout.fillWidth: true
-                    characters: animePage.animeCharacters 
-                    onCharacterClicked: (characterId, name, image, role) => {
-                        console.log(name + " Clicked!")
-                        pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
-                            characterId: characterId
-                        })
-                    }
-                }
-
-                StaffSection {
-                    Layout.fillWidth: true
-                    staff: animePage.animeStaff
-                    onCardClicked: (staffId) => {
-                        // TODO: Implement a StaffPage to push
-                        console.log("Clicked StaffCard")
-                    }
-                }
-
+                // ── Full-width recommendations ────────────────────────────────
                 RecommendationsSection {
                     Layout.fillWidth: true
                     recommendations:  animePage.animeRecommendations
-
                     onCardClicked: (mediaId, mediaType) => {
                         pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: mediaId })
                     }
@@ -235,7 +254,7 @@ Kirigami.Page {
             }
         }
 
-        // Dimming overlay — shown during any loading operation
+        // Dimming overlay
         Rectangle {
             anchors.fill: parent
             visible:      anilistService.loading

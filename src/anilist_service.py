@@ -33,6 +33,16 @@ def _format_score(score: float, fmt: str) -> str:
         return {1: ":(", 2: ":|", 3: ":)"}.get(int(score), "")
     return str(score)
 
+def _format_duration(sec: int) -> str:
+    days = sec // 86400
+    hrs  = (sec % 86400) // 3600
+    mins = (sec % 3600) // 60
+    parts = []
+    if days: parts.append(f"{days}d")
+    if hrs:  parts.append(f"{hrs}h")
+    if mins: parts.append(f"{mins}m")
+    return " ".join(parts) if parts else "< 1m"
+
 
 def _next_ep_text(status: str, next_airing: dict | None,
                   progress: int, total_episodes: int) -> str:
@@ -50,19 +60,7 @@ def _next_ep_text(status: str, next_airing: dict | None,
 
     sec     = next_airing.get("timeUntilAiring", 0)
     next_ep = next_airing.get("episode", 0)
-    days    = sec // 86400
-    hrs     = (sec % 86400) // 3600
-    mins    = (sec % 3600) // 60
-    secs = sec % 60
-
-    if days > 0:
-        time_str = f"Ep. {next_ep} in {days}d"
-    elif hrs > 0:
-        time_str = f"Ep. {next_ep} in {hrs}h"
-    elif mins > 0:
-        time_str = f"Ep. {next_ep} in {mins}m"
-    else:
-        time_str = f"Ep. {next_ep} in {secs}s"
+    time_str = f"Ep. {next_ep} in {_format_duration(sec)}"
 
     behind = (next_ep - 1) - progress
     if behind == 1:
@@ -168,7 +166,7 @@ class AniListService(QObject):
     mangaEntrySaved    = Signal()
     entryDeleted       = Signal()
     scoreFormatChanged = Signal(str)
-    animePageLoaded    = Signal(int, str, str, str, str, str, bool, str, str, str)
+    animePageLoaded    = Signal(int, str, str, str, str, str, bool, str, str, str, str)
     animeEntryLoaded   = Signal(int, str)   # JSON of entry fields, or {"onList": false}
     favouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
     characterPageLoaded = Signal(str)
@@ -331,14 +329,46 @@ class AniListService(QObject):
                       "name": (node.get("name") or {}).get("full") or (node.get("name") or {}).get("native", ""),
                       "image": (node.get("image") or {}).get("large", "")
                     })
-                print(staff)
+
+                next_airing    = media.get("nextAiringEpisode") or {}
+                status         = media.get("status") or ""
+                studios_nodes  = (media.get("studios") or {}).get("nodes") or []
+
+                information = {
+                    "status":             status,
+                    "format":             media.get("format") or "",
+                    "episodes":           media.get("episodes") or 0,
+                    "duration":           media.get("duration") or 0,
+                    "startDate":          _date_str(_fuzzy_date(media.get("startDate"))),
+                    "endDate":            _date_str(_fuzzy_date(media.get("endDate"))),
+                    "season":             media.get("season") or "",
+                    "seasonYear":         media.get("seasonYear") or 0,
+                    "averageScore":       media.get("averageScore") or 0,
+                    "meanScore":          media.get("meanScore") or 0,
+                    "popularity":         media.get("popularity") or 0,
+                    "favourites":         media.get("favourites") or 0,
+                    "source":             media.get("source") or "",
+                    "hashtag":            media.get("hashtag") or "",
+                    "genres":             media.get("genres") or [],
+                    "synonyms":           media.get("synonyms") or [],
+                    "studios":   list(dict.fromkeys(s["name"] for s in studios_nodes if     s.get("isAnimationStudio"))),
+                    "producers": list(dict.fromkeys(s["name"] for s in studios_nodes if not s.get("isAnimationStudio"))),
+                    "titleRomaji":        (media.get("title") or {}).get("romaji")  or "",
+                    "titleEnglish":       (media.get("title") or {}).get("english") or "",
+                    "titleNative":        (media.get("title") or {}).get("native")  or "",
+                    # Airing — only populated when RELEASING
+                    "nextAiringEpisode":  next_airing.get("episode", 0),
+                    "timeUntilAiring":    _format_duration(next_airing.get("timeUntilAiring", 0))
+                                          if (status == "RELEASING" and next_airing) else "",
+                }
 
                 self.animePageLoaded.emit(
                     anilist_id, title, banner, cover, description,
                     json.dumps(relations), is_favourite,
                     json.dumps(characters),
                     json.dumps(recommendations),
-                    json.dumps(staff)
+                    json.dumps(staff),
+                    json.dumps(information)
                 )
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
