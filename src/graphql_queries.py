@@ -243,7 +243,7 @@ query ($id: Int) {
         }
       }
     }
-    characters(sort: [FAVOURITES_DESC, ROLE], perPage: 24) {
+    characters(sort: [RELEVANCE], perPage: 25) {
       edges {
         role
         node {
