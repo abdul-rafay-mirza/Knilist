@@ -186,6 +186,8 @@ query ($id: Int) {
     episodes
     duration
     status
+    season
+    seasonYear
     startDate {
       day
       month
