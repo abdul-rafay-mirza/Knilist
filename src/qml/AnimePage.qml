@@ -226,8 +226,11 @@ Kirigami.Page {
                         StaffSection {
                             Layout.fillWidth: true
                             staff: animePage.animeStaff
-                            onCardClicked: (staffId) => {
-                                console.log("Clicked StaffCard", staffId)
+                            onCardClicked: (id) => {
+                                console.log("Clicked StaffCard", id)
+                                pageStack.layers.push(Qt.resolvedUrl("StaffPage.qml"), {
+                                    staffId: id
+                                })
                             }
                         }
 
