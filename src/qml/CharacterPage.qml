@@ -15,6 +15,7 @@ Kirigami.Page {
     property var  _data:  null
     property string _revealedIds: ""   // comma-separated; change triggers text re-bind
     property bool _ready: false
+    property bool _altSpoilerRevealed: false
 
     Component.onCompleted: {
         _ready = true
@@ -28,6 +29,7 @@ Kirigami.Page {
     function _loadData() {
         if (characterId > 0) {
             _revealedIds = ""
+            _altSpoilerRevealed = false
             anilistService.fetchCharacterPage(characterId)
         }
     }
@@ -193,10 +195,11 @@ Kirigami.Page {
                             spacing:          Kirigami.Units.smallSpacing
                             visible: Boolean(
                                 _data &&
-                                Array.isArray(_data.nameAlternative) &&
-                                _data.nameAlternative.length > 0
+                                ((Array.isArray(_data.nameAlternative)        && _data.nameAlternative.length > 0) ||
+                                (Array.isArray(_data.nameAlternativeSpoiler) && _data.nameAlternativeSpoiler.length > 0))
                             )
 
+                            // Regular alternative names
                             Repeater {
                                 model: (_data && _data.nameAlternative) ? _data.nameAlternative : []
 
@@ -208,6 +211,55 @@ Kirigami.Page {
 
                                     Controls.Label {
                                         id:               chipLabel
+                                        anchors.centerIn: parent
+                                        text:             modelData
+                                        font.pointSize:   Kirigami.Theme.defaultFont.pointSize * 0.85
+                                        color:            Kirigami.Theme.textColor
+                                    }
+                                }
+                            }
+
+                            // Spoiler names — single obscured chip until clicked
+                            Rectangle {
+                                visible: Boolean(
+                                    !characterPage._altSpoilerRevealed &&
+                                    _data &&
+                                    Array.isArray(_data.nameAlternativeSpoiler) &&
+                                    _data.nameAlternativeSpoiler.length > 0
+                                )
+                                implicitHeight: spoilerHintLabel.implicitHeight + Kirigami.Units.smallSpacing * 2
+                                implicitWidth:  spoilerHintLabel.implicitWidth  + Kirigami.Units.largeSpacing
+                                radius: height / 2
+                                color:  "#555555"
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape:  Qt.PointingHandCursor
+                                    onClicked:    characterPage._altSpoilerRevealed = true
+                                }
+
+                                Controls.Label {
+                                    id:               spoilerHintLabel
+                                    anchors.centerIn: parent
+                                    text:             "click to reveal spoiler"
+                                    font.pointSize:   Kirigami.Theme.defaultFont.pointSize * 0.85
+                                    color:            "#555555"   // invisible on matching background
+                                }
+                            }
+
+                            // Spoiler names — revealed chips
+                            Repeater {
+                                model: (characterPage._altSpoilerRevealed && _data && _data.nameAlternativeSpoiler)
+                                    ? _data.nameAlternativeSpoiler : []
+
+                                Rectangle {
+                                    implicitHeight: spoilerChipLabel.implicitHeight + Kirigami.Units.smallSpacing * 2
+                                    implicitWidth:  spoilerChipLabel.implicitWidth  + Kirigami.Units.largeSpacing
+                                    radius: height / 2
+                                    color:  Kirigami.Theme.alternateBackgroundColor
+
+                                    Controls.Label {
+                                        id:               spoilerChipLabel
                                         anchors.centerIn: parent
                                         text:             modelData
                                         font.pointSize:   Kirigami.Theme.defaultFont.pointSize * 0.85

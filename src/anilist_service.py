@@ -403,6 +403,7 @@ class AniListService(QObject):
                 name_user_preferred = name_dict.get("userPreferred") or ""
                 # alternative is a list — keep it as one, serialise with the rest
                 name_alternative   = name_dict.get("alternative") or []
+                name_altrnative_spoiler = name_dict.get("alternativeSpoiler") or []
 
                 image              = (character.get("image") or {}).get("large", "")
                 description        = character.get("description") or ""
@@ -434,6 +435,7 @@ class AniListService(QObject):
                     "nameNative":         name_native,
                     "nameUserPreferred":  name_user_preferred,
                     "nameAlternative":    name_alternative,   # list, serialised below
+                    "nameAlternativeSpoiler": name_altrnative_spoiler,
                     "image":              image,
                     "description":        description,
                     "age":                age,
