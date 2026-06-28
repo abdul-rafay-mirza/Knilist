@@ -36,7 +36,7 @@ Kirigami.Page {
 
     // Convert AniList's Markdown subset to HTML for Text.RichText.
     // Order matters: bold (**) must be matched before italic (*).
-    function markdownToHtml(src, revealed) {
+    function markdownToHtml(src, revealed, hoveredId) {
         if (!src) return ""
         let s = src
         let count = 0
@@ -46,10 +46,11 @@ Kirigami.Page {
         s = s.replace(/~!([^!]+)!~/g, function(match, inner) {
             const id = "sp" + (count++)
             if (revList.indexOf(id) >= 0)
-                return inner   // revealed: subsequent passes handle its markdown
+                return inner
+            const isHovered = (hoveredId === id)
             return '<a href="spoiler://' + id + '" style="text-decoration:none;">'
-                + '<span style="background-color:#555555;color:#555555;'
-                + 'border-radius:3px;padding:1px 4px;">click to reveal spoiler</span></a>'
+                + '<span style="background-color:#555555;color:' + (isHovered ? '#ffffff' : '#555555') + ';'
+                + 'border-radius:3px;padding:1px 4px;">Click to Show Spoiler</span></a>'
         })
 
         s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
@@ -233,17 +234,20 @@ Kirigami.Page {
                                 color:  "#555555"
 
                                 MouseArea {
+                                    id:           spoilerHintMouseArea
                                     anchors.fill: parent
                                     cursorShape:  Qt.PointingHandCursor
+                                    hoverEnabled: true
                                     onClicked:    characterPage._altSpoilerRevealed = true
+                                    z: 1
                                 }
 
                                 Controls.Label {
                                     id:               spoilerHintLabel
                                     anchors.centerIn: parent
-                                    text:             "click to reveal spoiler"
+                                    text:             "Click to Show Spoiler"
                                     font.pointSize:   Kirigami.Theme.defaultFont.pointSize * 0.85
-                                    color:            "#555555"   // invisible on matching background
+                                    color:            spoilerHintMouseArea.containsMouse ? "#ffffff" : "#555555"
                                 }
                             }
 
@@ -327,11 +331,14 @@ Kirigami.Page {
                         // Inline <style> colours links from the system palette so they
                         // look correct in both light and dark Plasma themes.
                         text: {
-                            const _rev = characterPage._revealedIds
+                            const _rev      = characterPage._revealedIds
+                            const _hovered  = descriptionLabel.hoveredLink
+                            const hoveredId = (_hovered && _hovered.startsWith("spoiler://"))
+                                            ? _hovered.slice("spoiler://".length) : ""
                             const raw  = _data ? (_data.description || "") : ""
-                            const body = characterPage.markdownToHtml(raw, _rev)
+                            const body = characterPage.markdownToHtml(raw, _rev, hoveredId)
                             return '<style>a { color: %1; text-decoration: underline; }</style>'
-                                   .arg(descriptionLabel.palette.link) + body
+                                .arg(descriptionLabel.palette.link) + body
                         }
                         onLinkActivated: function(link) {
                             if (link.startsWith("spoiler://")) {
