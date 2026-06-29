@@ -137,12 +137,10 @@ ColumnLayout {
                 elide:            Text.ElideRight
             }
 
-            Controls.Label {
+            AniListDescription {
                 Layout.fillWidth: true
-                text:             description || "Loading..."
-                wrapMode:         Text.WordWrap
+                description:      root.description || ""
                 color:            Kirigami.Theme.disabledTextColor
-                textFormat:       Text.RichText
             }
         }
     }

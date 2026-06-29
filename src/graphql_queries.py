@@ -349,3 +349,71 @@ mutation ($characterId: Int) {
   }
 }
 """
+
+_STAFF_PAGE_QUERY = """
+query ($id: Int) {
+  Staff(id: $id) {
+    name {
+      full
+      native
+      alternative
+      userPreferred
+    }
+    languageV2
+    image {
+      large
+    }
+    description
+    primaryOccupations
+    gender
+    dateOfBirth { day month year }
+    dateOfDeath { day month year }
+    age
+    yearsActive
+    homeTown
+    bloodType
+    isFavourite
+    isFavouriteBlocked
+    siteUrl
+
+    # All non-VA credits — edges expose the role label (Director, Script, etc.)
+    staffMedia(sort: [POPULARITY_DESC], perPage: 50) {
+      edges {
+        staffRole
+        node {
+          id
+          type
+          title { userPreferred english romaji }
+          coverImage { large }
+        }
+      }
+    }
+
+    # VA characters — edges expose the Character object AND which media it's from
+    characters(sort: [FAVOURITES_DESC], perPage: 50) {
+      edges {
+        node {
+          id
+          name { userPreferred native }
+          image { large }
+        }
+        media {
+          id
+          title { userPreferred english romaji }
+          coverImage { large }
+        }
+      }
+    }
+  }
+}
+"""
+
+_TOGGLE_STAFF_FAVOURITE_MUTATION = """
+mutation ($staffId: Int) {
+  ToggleFavourite(staffId: $staffId) {
+    staff {
+      nodes { id }
+    }
+  }
+}
+"""

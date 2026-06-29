@@ -13,7 +13,6 @@ Kirigami.Page {
 
     // ── Internal ──────────────────────────────────────────────────────────────
     property var  _data:  null
-    property string _revealedIds: ""   // comma-separated; change triggers text re-bind
     property bool _ready: false
     property bool _altSpoilerRevealed: false
 
@@ -28,39 +27,9 @@ Kirigami.Page {
 
     function _loadData() {
         if (characterId > 0) {
-            _revealedIds = ""
             _altSpoilerRevealed = false
             anilistService.fetchCharacterPage(characterId)
         }
-    }
-
-    // Convert AniList's Markdown subset to HTML for Text.RichText.
-    // Order matters: bold (**) must be matched before italic (*).
-    function markdownToHtml(src, revealed, hoveredId) {
-        if (!src) return ""
-        let s = src
-        let count = 0
-        const revList = revealed ? revealed.split(",") : []
-
-        // Spoilers — must run before all other replacements
-        s = s.replace(/~!([^!]+)!~/g, function(match, inner) {
-            const id = "sp" + (count++)
-            if (revList.indexOf(id) >= 0)
-                return inner
-            const isHovered = (hoveredId === id)
-            return '<a href="spoiler://' + id + '" style="text-decoration:none;">'
-                + '<span style="background-color:#555555;color:' + (isHovered ? '#ffffff' : '#555555') + ';'
-                + 'border-radius:3px;padding:1px 4px;">Click to Show Spoiler</span></a>'
-        })
-
-        s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-        s = s.replace(/\*\*([^*]+)\*\*/g,          '<b>$1</b>')
-        s = s.replace(/__([^_]+)__/g,               '<b>$1</b>')
-        s = s.replace(/\*([^*]+)\*/g,               '<i>$1</i>')
-        s = s.replace(/_([^_\s][^_]*)_/g,           '<i>$1</i>')
-        s = s.replace(/~~([^~]+)~~/g,               '<s>$1</s>')
-        s = s.replace(/\n/g,                         '<br>')
-        return s
     }
 
     Connections {
@@ -324,56 +293,10 @@ Kirigami.Page {
 
                     Kirigami.Separator { Layout.fillWidth: true }
 
-                    Controls.Label {
-                        id:               descriptionLabel
+                    AniListDescription {
                         Layout.fillWidth: true
                         Layout.topMargin: Kirigami.Units.smallSpacing
-                        // Inline <style> colours links from the system palette so they
-                        // look correct in both light and dark Plasma themes.
-                        text: {
-                            const _rev      = characterPage._revealedIds
-                            const _hovered  = descriptionLabel.hoveredLink
-                            const hoveredId = (_hovered && _hovered.startsWith("spoiler://"))
-                                            ? _hovered.slice("spoiler://".length) : ""
-                            const raw  = _data ? (_data.description || "") : ""
-                            const body = characterPage.markdownToHtml(raw, _rev, hoveredId)
-                            return '<style>a { color: %1; text-decoration: underline; }</style>'
-                                .arg(descriptionLabel.palette.link) + body
-                        }
-                        onLinkActivated: function(link) {
-                            if (link.startsWith("spoiler://")) {
-                                const id = link.slice("spoiler://".length)
-                                const cur = characterPage._revealedIds
-
-                                if (cur.split(",").indexOf(id) < 0)
-                                    characterPage._revealedIds = cur ? cur + "," + id : id
-
-                                return
-                            }
-
-                            const charMatch  = link.match(/anilist\.co\/character\/(\d+)/)
-                            const animeMatch = link.match(/anilist\.co\/anime\/(\d+)/)
-                            const mangaMatch = link.match(/anilist\.co\/manga\/(\d+)/)
-
-                            if (charMatch) {
-                                pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
-                                    characterId: parseInt(charMatch[1])
-                                })
-                            } else if (animeMatch) {
-                                pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), {
-                                    anilistId: parseInt(animeMatch[1])
-                                })
-                            } else if (mangaMatch) {
-                                pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), {
-                                    anilistId: parseInt(mangaMatch[1])
-                                })
-                            } else {
-                                Qt.openUrlExternally(link)
-                            }
-                        }
-                        wrapMode:        Text.WordWrap
-                        textFormat:      Text.RichText
-                        color:           Kirigami.Theme.textColor
+                        description:      _data ? (_data.description || "") : ""
                     }
                 }
 

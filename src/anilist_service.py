@@ -13,7 +13,7 @@ import threading
 import requests
 from PySide6.QtCore import QObject, Signal, Slot, Property
 from .config import GRAPHQL_URL
-from.graphql_queries import _VIEWER_QUERY, _ANIME_LIST_QUERY, _MANGA_LIST_QUERY, _SAVE_ENTRY_MUTATION, _SAVE_MANGA_ENTRY_MUTATION, _DELETE_ENTRY_MUTATION, _TOGGLE_FAVOURITE_MUTATION, _ANIME_PAGE_QUERY, _CHARACTER_PAGE_QUERY, _TOGGLE_CHARACTER_FAVOURITE_MUTATION
+from.graphql_queries import _VIEWER_QUERY, _ANIME_LIST_QUERY, _MANGA_LIST_QUERY, _SAVE_ENTRY_MUTATION, _SAVE_MANGA_ENTRY_MUTATION, _DELETE_ENTRY_MUTATION, _TOGGLE_FAVOURITE_MUTATION, _ANIME_PAGE_QUERY, _CHARACTER_PAGE_QUERY, _TOGGLE_CHARACTER_FAVOURITE_MUTATION, _STAFF_PAGE_QUERY, _TOGGLE_STAFF_FAVOURITE_MUTATION
 
 # Helper functions
 
@@ -171,6 +171,8 @@ class AniListService(QObject):
     favouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
     characterPageLoaded = Signal(str)
     characterFavouriteToggled = Signal(int, bool)
+    staffPageLoaded           = Signal(str)   # full JSON payload
+    staffFavouriteToggled     = Signal(int, bool)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -454,6 +456,116 @@ class AniListService(QObject):
             finally:
                 self._end_loading()
 
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def fetchStaffPage(self, staff_id: int) -> None:
+        def _run():
+            try:
+                self._begin_loading()
+                data  = self._gql(_STAFF_PAGE_QUERY, {"id": staff_id})
+                staff = data.get("Staff") or {}
+
+                name_dict    = staff.get("name") or {}
+                date_of_birth = _fuzzy_date(staff.get("dateOfBirth"))
+                date_of_death = _fuzzy_date(staff.get("dateOfDeath"))
+
+                # ── Staff media credits (directors, writers, composers, etc.) ──
+                raw_staff_media = (staff.get("staffMedia") or {}).get("edges") or []
+                staff_media = []
+                for edge in raw_staff_media:
+                    node = edge.get("node")
+                    if not node:
+                        continue
+                    title_obj = node.get("title") or {}
+                    staff_media.append({
+                        "staffRole":  edge.get("staffRole", ""),
+                        "mediaId":    node.get("id", 0),
+                        "type":       node.get("type", ""),
+                        "title":      (title_obj.get("userPreferred")
+                                    or title_obj.get("english")
+                                    or title_obj.get("romaji", "")),
+                        "coverImage": (node.get("coverImage") or {}).get("large", ""),
+                    })
+
+                # ── Voice acting characters ────────────────────────────────────
+                # Each edge: node = Character, media = list of shows it appears in
+                raw_characters = (staff.get("characters") or {}).get("edges") or []
+                characters = []
+                for edge in raw_characters:
+                    char_node = edge.get("node")
+                    if not char_node:
+                        continue
+                    char_name = char_node.get("name") or {}
+
+                    # A character can appear in multiple shows (dub + sub, sequels, etc.)
+                    char_media = []
+                    for m in (edge.get("media") or []):
+                        if not m:
+                            continue
+                        t = m.get("title") or {}
+                        char_media.append({
+                            "mediaId":    m.get("id", 0),
+                            "title":      (t.get("userPreferred")
+                                        or t.get("english")
+                                        or t.get("romaji", "")),
+                            "coverImage": (m.get("coverImage") or {}).get("large", ""),
+                        })
+
+                    characters.append({
+                        "characterId": char_node.get("id", 0),
+                        "name":        (char_name.get("userPreferred")
+                                        or char_name.get("full", "")),
+                        "nameNative":  char_name.get("native", ""),
+                        "image":       (char_node.get("image") or {}).get("large", ""),
+                        "media":       char_media,
+                    })
+
+                age_raw = staff.get("age")
+
+                payload = {
+                    "staffId":            staff_id,
+                    "nameUserPreferred":  name_dict.get("userPreferred", ""),
+                    "nameFull":           name_dict.get("full", ""),
+                    "nameNative":         name_dict.get("native", ""),
+                    "nameAlternative":    name_dict.get("alternative") or [],
+                    "image":              (staff.get("image") or {}).get("large", ""),
+                    "description":        staff.get("description") or "",
+                    "language":           staff.get("languageV2") or "",
+                    "primaryOccupations": staff.get("primaryOccupations") or [],
+                    "gender":             staff.get("gender") or "",
+                    "age":                str(age_raw) if age_raw else "",
+                    "yearsActive":        staff.get("yearsActive") or [],
+                    "homeTown":           staff.get("homeTown") or "",
+                    "bloodType":          staff.get("bloodType") or "",
+                    "isFavourite":        staff.get("isFavourite", False),
+                    "isFavouriteBlocked": staff.get("isFavouriteBlocked", False),
+                    "dateOfBirth":        _date_str(date_of_birth),
+                    "dateOfDeath":        _date_str(date_of_death),
+                    "siteUrl":            staff.get("siteUrl") or "",
+                    "staffMedia":         staff_media,   # empty for pure VAs
+                    "characters":         characters,    # empty for non-VAs
+                }
+
+                self.staffPageLoaded.emit(json.dumps(payload))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, bool)
+    def toggleStaffFavourite(self, staff_id: int, currently_favourite: bool) -> None:
+        def _run():
+            try:
+                self._begin_loading()
+                self._gql(_TOGGLE_STAFF_FAVOURITE_MUTATION, {"staffId": staff_id})
+                self.staffFavouriteToggled.emit(staff_id, not currently_favourite)
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
         threading.Thread(target=_run, daemon=True).start()
 
 

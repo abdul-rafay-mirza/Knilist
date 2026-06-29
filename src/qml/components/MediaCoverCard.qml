@@ -4,7 +4,7 @@ import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 
 Item {
-    id: root
+    id: mediaCoverCard
 
     property int    mediaId:  0
     property string title:    ""
@@ -29,7 +29,7 @@ Item {
 
             Image {
                 anchors.fill: parent
-                source:       root.imageURL
+                source:       mediaCoverCard.imageURL
                 fillMode:     Image.PreserveAspectCrop
                 asynchronous: true
                 mipmap:       true
@@ -38,7 +38,7 @@ Item {
 
         Controls.Label {
             Layout.fillWidth:    true
-            text:                root.title
+            text:                mediaCoverCard.title
             wrapMode:            Text.WordWrap
             maximumLineCount:    3
             elide:               Text.ElideRight
@@ -49,7 +49,7 @@ Item {
     }
 
     TapHandler {
-        onTapped: root.tapped()
+        onTapped: mediaCoverCard.tapped()
     }
 
     HoverHandler {
