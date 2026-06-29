@@ -347,16 +347,9 @@ mutation ($characterId: Int) {
 _STAFF_PAGE_QUERY = """
 query ($id: Int) {
   Staff(id: $id) {
-    name {
-      full
-      native
-      alternative
-      userPreferred
-    }
+    name { full native alternative userPreferred }
     languageV2
-    image {
-      large
-    }
+    image { large }
     description
     primaryOccupations
     gender
@@ -370,8 +363,8 @@ query ($id: Int) {
     isFavouriteBlocked
     siteUrl
 
-    # All non-VA credits — edges expose the role label (Director, Script, etc.)
-    staffMedia(sort: [POPULARITY_DESC], perPage: 50) {
+    staffMedia(sort: [POPULARITY_DESC], perPage: 25, page: 1) {
+      pageInfo { hasNextPage }
       edges {
         staffRole
         node {
@@ -383,8 +376,42 @@ query ($id: Int) {
       }
     }
 
-    # VA characters — edges expose the Character object AND which media it's from
-    characters(sort: [FAVOURITES_DESC], perPage: 50) {
+    characters(sort: [FAVOURITES_DESC], perPage: 25, page: 1) {
+      pageInfo { hasNextPage }
+      edges {
+        node {
+          id
+          name { userPreferred native }
+          image { large }
+        }
+        media {
+          id
+          title { userPreferred english romaji }
+          coverImage { large }
+        }
+      }
+    }
+  }
+}
+"""
+
+_STAFF_PAGE_NEXT_QUERY = """
+query ($id: Int, $mediaPage: Int, $charPage: Int) {
+  Staff(id: $id) {
+    staffMedia(sort: [POPULARITY_DESC], perPage: 25, page: $mediaPage) {
+      pageInfo { hasNextPage }
+      edges {
+        staffRole
+        node {
+          id
+          type
+          title { userPreferred english romaji }
+          coverImage { large }
+        }
+      }
+    }
+    characters(sort: [FAVOURITES_DESC], perPage: 25, page: $charPage) {
+      pageInfo { hasNextPage }
       edges {
         node {
           id

@@ -14,6 +14,11 @@ Kirigami.Page {
     // ── Internal ──────────────────────────────────────────────────────────────
     property var    _data:        null
     property bool   _ready:       false
+    property bool _mediaHasNext:   false
+    property bool _charHasNext:    false
+    property int  _nextMediaPage:  2
+    property int  _nextCharPage:   2
+    property bool _isFetchingMore: false
 
     Component.onCompleted: {
         _ready = true
@@ -30,18 +35,52 @@ Kirigami.Page {
         }
     }
 
+    function _loadMore() {
+        if (_isFetchingMore || (!_mediaHasNext && !_charHasNext)) return
+        _isFetchingMore = true
+        anilistService.fetchStaffPageMore(
+            staffId,
+            _mediaHasNext ? _nextMediaPage : 0,
+            _charHasNext  ? _nextCharPage  : 0
+        )
+    }
+
     Connections {
         target: anilistService
 
         function onStaffPageLoaded(payloadJson) {
             const d = JSON.parse(payloadJson)
             if (d.staffId !== staffPage.staffId) return
-            staffPage._data = d
+            staffPage._data          = d
+            staffPage._mediaHasNext  = d.mediaHasNext  || false
+            staffPage._charHasNext   = d.charHasNext   || false
+            staffPage._nextMediaPage = 2
+            staffPage._nextCharPage  = 2
+            staffPage._isFetchingMore = false
+        }
+
+        function onStaffPageMoreLoaded(payloadJson) {
+            const d = JSON.parse(payloadJson)
+            if (d.staffId !== staffPage.staffId) return
+
+            if (!d.isError) {
+                const updated = Object.assign({}, staffPage._data)
+                if (d.staffMedia.length > 0)
+                    updated.staffMedia = (staffPage._data.staffMedia || []).concat(d.staffMedia)
+                if (d.characters.length > 0)
+                    updated.characters = (staffPage._data.characters || []).concat(d.characters)
+                staffPage._data = updated
+
+                staffPage._mediaHasNext = d.mediaHasNext
+                staffPage._nextMediaPage++
+                staffPage._charHasNext  = d.charHasNext
+                staffPage._nextCharPage++
+            }
+            staffPage._isFetchingMore = false
         }
 
         function onStaffFavouriteToggled(sId, newState) {
             if (sId !== staffPage.staffId) return
-            // Re-fetch so isFavourite reflects server state
             anilistService.fetchStaffPage(staffPage.staffId)
         }
     }
@@ -59,6 +98,15 @@ Kirigami.Page {
 
             Controls.ScrollBar.vertical: Controls.ScrollBar {
                 policy: Controls.ScrollBar.AsNeeded
+            }
+
+            onContentYChanged: {
+                if (!staffPage._isFetchingMore &&
+                    (staffPage._mediaHasNext || staffPage._charHasNext) &&
+                    staffPage._data !== null &&
+                    contentY + height >= contentHeight - Kirigami.Units.gridUnit * 20) {
+                    staffPage._loadMore()
+                }
             }
 
             ColumnLayout {
@@ -461,6 +509,17 @@ Kirigami.Page {
                                 }
                             }
                         }
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth:       true
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 3
+                    visible:                staffPage._isFetchingMore
+
+                    Controls.BusyIndicator {
+                        anchors.centerIn: parent
+                        running:          staffPage._isFetchingMore
                     }
                 }
 

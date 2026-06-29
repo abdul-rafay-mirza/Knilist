@@ -13,7 +13,13 @@ import threading
 import requests
 from PySide6.QtCore import QObject, Signal, Slot, Property
 from .config import GRAPHQL_URL
-from.graphql_queries import _VIEWER_QUERY, _ANIME_LIST_QUERY, _MANGA_LIST_QUERY, _SAVE_ENTRY_MUTATION, _SAVE_MANGA_ENTRY_MUTATION, _DELETE_ENTRY_MUTATION, _TOGGLE_FAVOURITE_MUTATION, _ANIME_PAGE_QUERY, _CHARACTER_PAGE_QUERY, _TOGGLE_CHARACTER_FAVOURITE_MUTATION, _STAFF_PAGE_QUERY, _TOGGLE_STAFF_FAVOURITE_MUTATION
+from .graphql_queries import (
+    _VIEWER_QUERY, _ANIME_LIST_QUERY, _MANGA_LIST_QUERY,
+    _SAVE_ENTRY_MUTATION, _SAVE_MANGA_ENTRY_MUTATION, _DELETE_ENTRY_MUTATION,
+    _TOGGLE_FAVOURITE_MUTATION, _ANIME_PAGE_QUERY,
+    _CHARACTER_PAGE_QUERY, _TOGGLE_CHARACTER_FAVOURITE_MUTATION,
+    _STAFF_PAGE_QUERY, _STAFF_PAGE_NEXT_QUERY, _TOGGLE_STAFF_FAVOURITE_MUTATION
+)
 
 # Helper functions
 
@@ -116,6 +122,7 @@ class AniListService(QObject):
     characterFavouriteToggled = Signal(int, bool)
     staffPageLoaded           = Signal(str)   # full JSON payload
     staffFavouriteToggled     = Signal(int, bool)
+    staffPageMoreLoaded = Signal(str)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -453,14 +460,14 @@ class AniListService(QObject):
                 data  = self._gql(_STAFF_PAGE_QUERY, {"id": staff_id})
                 staff = data.get("Staff") or {}
 
-                name_dict    = staff.get("name") or {}
+                name_dict     = staff.get("name") or {}
                 date_of_birth = _fuzzy_date(staff.get("dateOfBirth"))
                 date_of_death = _fuzzy_date(staff.get("dateOfDeath"))
 
-                # ── Staff media credits (directors, writers, composers, etc.) ──
-                raw_staff_media = (staff.get("staffMedia") or {}).get("edges") or []
-                staff_media = []
-                for edge in raw_staff_media:
+                sm_conn        = staff.get("staffMedia") or {}
+                media_has_next = (sm_conn.get("pageInfo") or {}).get("hasNextPage", False)
+                staff_media    = []
+                for edge in (sm_conn.get("edges") or []):
                     node = edge.get("node")
                     if not node:
                         continue
@@ -475,17 +482,14 @@ class AniListService(QObject):
                         "coverImage": (node.get("coverImage") or {}).get("large", ""),
                     })
 
-                # ── Voice acting characters ────────────────────────────────────
-                # Each edge: node = Character, media = list of shows it appears in
-                raw_characters = (staff.get("characters") or {}).get("edges") or []
-                characters = []
-                for edge in raw_characters:
+                ch_conn       = staff.get("characters") or {}
+                char_has_next = (ch_conn.get("pageInfo") or {}).get("hasNextPage", False)
+                characters    = []
+                for edge in (ch_conn.get("edges") or []):
                     char_node = edge.get("node")
                     if not char_node:
                         continue
-                    char_name = char_node.get("name") or {}
-
-                    # A character can appear in multiple shows (dub + sub, sequels, etc.)
+                    char_name  = char_node.get("name") or {}
                     char_media = []
                     for m in (edge.get("media") or []):
                         if not m:
@@ -493,23 +497,18 @@ class AniListService(QObject):
                         t = m.get("title") or {}
                         char_media.append({
                             "mediaId":    m.get("id", 0),
-                            "title":      (t.get("userPreferred")
-                                        or t.get("english")
-                                        or t.get("romaji", "")),
+                            "title":      (t.get("userPreferred") or t.get("english") or t.get("romaji", "")),
                             "coverImage": (m.get("coverImage") or {}).get("large", ""),
                         })
-
                     characters.append({
                         "characterId": char_node.get("id", 0),
-                        "name":        (char_name.get("userPreferred")
-                                        or char_name.get("full", "")),
+                        "name":        (char_name.get("userPreferred") or char_name.get("full", "")),
                         "nameNative":  char_name.get("native", ""),
                         "image":       (char_node.get("image") or {}).get("large", ""),
                         "media":       char_media,
                     })
 
                 age_raw = staff.get("age")
-
                 payload = {
                     "staffId":            staff_id,
                     "nameUserPreferred":  name_dict.get("userPreferred", ""),
@@ -530,15 +529,97 @@ class AniListService(QObject):
                     "dateOfBirth":        _date_str(date_of_birth),
                     "dateOfDeath":        _date_str(date_of_death),
                     "siteUrl":            staff.get("siteUrl") or "",
-                    "staffMedia":         staff_media,   # empty for pure VAs
-                    "characters":         characters,    # empty for non-VAs
+                    "staffMedia":         staff_media,
+                    "characters":         characters,
+                    "mediaHasNext":       media_has_next,
+                    "charHasNext":        char_has_next,
                 }
-
                 self.staffPageLoaded.emit(json.dumps(payload))
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
             finally:
                 self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, int, int)
+    def fetchStaffPageMore(self, staff_id: int, media_page: int, char_page: int) -> None:
+        def _run():
+            try:
+                data  = self._gql(_STAFF_PAGE_NEXT_QUERY, {
+                    "id":        staff_id,
+                    "mediaPage": media_page if media_page > 0 else 1,
+                    "charPage":  char_page  if char_page  > 0 else 1,
+                })
+                staff = data.get("Staff") or {}
+
+                staff_media    = []
+                media_has_next = False
+                if media_page > 0:
+                    sm_conn        = staff.get("staffMedia") or {}
+                    media_has_next = (sm_conn.get("pageInfo") or {}).get("hasNextPage", False)
+                    for edge in (sm_conn.get("edges") or []):
+                        node = edge.get("node")
+                        if not node:
+                            continue
+                        title_obj = node.get("title") or {}
+                        staff_media.append({
+                            "staffRole":  edge.get("staffRole", ""),
+                            "mediaId":    node.get("id", 0),
+                            "type":       node.get("type", ""),
+                            "title":      (title_obj.get("userPreferred")
+                                        or title_obj.get("english")
+                                        or title_obj.get("romaji", "")),
+                            "coverImage": (node.get("coverImage") or {}).get("large", ""),
+                        })
+
+                characters    = []
+                char_has_next = False
+                if char_page > 0:
+                    ch_conn       = staff.get("characters") or {}
+                    char_has_next = (ch_conn.get("pageInfo") or {}).get("hasNextPage", False)
+                    for edge in (ch_conn.get("edges") or []):
+                        char_node = edge.get("node")
+                        if not char_node:
+                            continue
+                        char_name  = char_node.get("name") or {}
+                        char_media = []
+                        for m in (edge.get("media") or []):
+                            if not m:
+                                continue
+                            t = m.get("title") or {}
+                            char_media.append({
+                                "mediaId":    m.get("id", 0),
+                                "title":      (t.get("userPreferred") or t.get("english") or t.get("romaji", "")),
+                                "coverImage": (m.get("coverImage") or {}).get("large", ""),
+                            })
+                        characters.append({
+                            "characterId": char_node.get("id", 0),
+                            "name":        (char_name.get("userPreferred") or char_name.get("full", "")),
+                            "nameNative":  char_name.get("native", ""),
+                            "image":       (char_node.get("image") or {}).get("large", ""),
+                            "media":       char_media,
+                        })
+
+                self.staffPageMoreLoaded.emit(json.dumps({
+                    "staffId":      staff_id,
+                    "staffMedia":   staff_media,
+                    "characters":   characters,
+                    "mediaHasNext": media_has_next,
+                    "charHasNext":  char_has_next,
+                    "isError":      False,
+                }))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+                # Emit so QML can unblock _isFetchingMore; user can scroll to retry
+                self.staffPageMoreLoaded.emit(json.dumps({
+                    "staffId":      staff_id,
+                    "staffMedia":   [],
+                    "characters":   [],
+                    "mediaHasNext": False,
+                    "charHasNext":  False,
+                    "isError":      True,
+                }))
 
         threading.Thread(target=_run, daemon=True).start()
 
