@@ -30,7 +30,7 @@ query ($userId: Int) {
         updatedAt
         media {
           id
-          title { userPreferred romaji }
+          title { userPreferred romaji english }
           format
           episodes
           coverImage { large }
@@ -65,7 +65,7 @@ query ($userId: Int) {
         updatedAt
         media {
           id
-          title { userPreferred romaji }
+          title { userPreferred romaji english }
           format
           chapters
           volumes
@@ -176,6 +176,7 @@ query ($id: Int) {
       romaji
       english
       native
+      userPreferred
     }
     nextAiringEpisode {
       airingAt

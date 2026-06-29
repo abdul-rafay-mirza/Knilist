@@ -96,63 +96,6 @@ def _parse_date(s: str) -> dict | None:
     except Exception:
         return None
 
-
-def _normalise(entry: dict) -> dict:
-    media          = entry.get("media") or {}
-    status         = entry.get("status", "CURRENT")
-    next_airing    = media.get("nextAiringEpisode")
-    progress       = entry.get("progress", 0)
-    total_episodes = media.get("episodes") or 0
-    return {
-        "entryId":               entry.get("id", 0),
-        "anilistId":             media.get("id", 0),
-        "title":                 (media.get("title") or {}).get("userPreferred", "Unknown"),
-        "titleRomaji":           (media.get("title") or {}).get("romaji", ""),
-        "mediaType":             media.get("format", "TV"),
-        "cover":                 (media.get("coverImage") or {}).get("large", ""),
-        "nextEpText":            _next_ep_text(status, next_airing, progress, total_episodes),
-        "status":                status,
-        "score":                 entry.get("score", 0),
-        "progress":              progress,
-        "episodes":              total_episodes,
-        "updatedAt":             entry.get("updatedAt", 0),
-        "rewatches":             entry.get("repeat", 0),
-        "notes":                 entry.get("notes", "") or "",
-        "priority":              entry.get("priority", 0),
-        "hiddenFromStatusLists": entry.get("hiddenFromStatusLists", False),
-        "isPrivate":             entry.get("private", False),
-        "startedAt":             _date_str(_fuzzy_date(entry.get("startedAt"))),
-        "completedAt":           _date_str(_fuzzy_date(entry.get("completedAt"))),
-    }
-
-
-def _normalise_manga(entry: dict) -> dict:
-    media  = entry.get("media") or {}
-    status = entry.get("status", "CURRENT")
-    return {
-        "entryId":               entry.get("id", 0),
-        "anilistId":             media.get("id", 0),
-        "title":                 (media.get("title") or {}).get("userPreferred", "Unknown"),
-        "titleRomaji":           (media.get("title") or {}).get("romaji", ""),
-        "mediaType":             media.get("format", "MANGA"),
-        "cover":                 (media.get("coverImage") or {}).get("large", ""),
-        "status":                status,
-        "score":                 entry.get("score", 0),
-        "progress":              entry.get("progress", 0),
-        "progressVolumes":       entry.get("progressVolumes", 0),
-        "chapters":              media.get("chapters") or 0,
-        "volumes":               media.get("volumes") or 0,
-        "updatedAt":             entry.get("updatedAt", 0),
-        "rewatches":             entry.get("repeat", 0),
-        "notes":                 entry.get("notes", "") or "",
-        "priority":              entry.get("priority", 0),
-        "hiddenFromStatusLists": entry.get("hiddenFromStatusLists", False),
-        "isPrivate":             entry.get("private", False),
-        "startedAt":             _date_str(_fuzzy_date(entry.get("startedAt"))),
-        "completedAt":           _date_str(_fuzzy_date(entry.get("completedAt"))),
-    }
-
-
 # Service class
 
 class AniListService(QObject):
@@ -249,14 +192,40 @@ class AniListService(QObject):
                 uid, _ = self._fetch_viewer()
                 data    = self._gql(_ANIME_LIST_QUERY, {"userId": int(uid)})
                 lists   = (data.get("MediaListCollection") or {}).get("lists", [])
-                entries = [
-                    _normalise(e)
-                    for lst in lists
-                    for e in (lst.get("entries") or [])
-                ]
+                entries = []
+                for lst in lists:
+                    for e in (lst.get("entries") or []):
+                        media          = e.get("media") or {}
+                        status         = e.get("status", "CURRENT")
+                        next_airing    = media.get("nextAiringEpisode")
+                        progress       = e.get("progress", 0)
+                        total_episodes = media.get("episodes") or 0
+                        title_obj      = media.get("title") or {}
+                        title          = title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or ""
+                        entries.append({
+                            "entryId":               e.get("id", 0),
+                            "anilistId":             media.get("id", 0),
+                            "title":                 title,
+                            "titleRomaji":           title_obj.get("romaji", ""),
+                            "mediaType":             media.get("format", "TV"),
+                            "cover":                 (media.get("coverImage") or {}).get("large", ""),
+                            "nextEpText":            _next_ep_text(status, next_airing, progress, total_episodes),
+                            "status":                status,
+                            "score":                 e.get("score", 0),
+                            "progress":              progress,
+                            "episodes":              total_episodes,
+                            "updatedAt":             e.get("updatedAt", 0),
+                            "rewatches":             e.get("repeat", 0),
+                            "notes":                 e.get("notes", "") or "",
+                            "priority":              e.get("priority", 0),
+                            "hiddenFromStatusLists": e.get("hiddenFromStatusLists", False),
+                            "isPrivate":             e.get("private", False),
+                            "startedAt":             _date_str(_fuzzy_date(e.get("startedAt"))),
+                            "completedAt":           _date_str(_fuzzy_date(e.get("completedAt"))),
+                        })
                 entries.sort(key=lambda e: e["updatedAt"], reverse=True)
-                self._entry_id_map       = {e["anilistId"]: e["entryId"] for e in entries}
-                self._anime_entry_cache  = {e["anilistId"]: e for e in entries}
+                self._entry_id_map      = {e["anilistId"]: e["entryId"] for e in entries}
+                self._anime_entry_cache = {e["anilistId"]: e for e in entries}
                 self.animeLoaded.emit(entries)
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
@@ -273,7 +242,8 @@ class AniListService(QObject):
                 data  = self._gql(_ANIME_PAGE_QUERY, {"id": anilist_id})
                 media = data.get("Media") or {}
 
-                title        = (media.get("title") or {}).get("romaji", "")
+                title_obj = media.get("title") or {}
+                title     = title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or ""
                 banner       = media.get("bannerImage") or ""
                 cover        = (media.get("coverImage") or {}).get("large", "")
                 description  = media.get("description") or ""
@@ -691,11 +661,35 @@ class AniListService(QObject):
                 uid, _ = self._fetch_viewer()
                 data    = self._gql(_MANGA_LIST_QUERY, {"userId": int(uid)})
                 lists   = (data.get("MediaListCollection") or {}).get("lists", [])
-                entries = [
-                    _normalise_manga(e)
-                    for lst in lists
-                    for e in (lst.get("entries") or [])
-                ]
+                entries = []
+                for lst in lists:
+                    for e in (lst.get("entries") or []):
+                        media     = e.get("media") or {}
+                        status    = e.get("status", "CURRENT")
+                        title_obj = media.get("title") or {}
+                        title     = title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or ""
+                        entries.append({
+                            "entryId":               e.get("id", 0),
+                            "anilistId":             media.get("id", 0),
+                            "title":                 title,
+                            "titleRomaji":           title_obj.get("romaji", ""),
+                            "mediaType":             media.get("format", "MANGA"),
+                            "cover":                 (media.get("coverImage") or {}).get("large", ""),
+                            "status":                status,
+                            "score":                 e.get("score", 0),
+                            "progress":              e.get("progress", 0),
+                            "progressVolumes":       e.get("progressVolumes", 0),
+                            "chapters":              media.get("chapters") or 0,
+                            "volumes":               media.get("volumes") or 0,
+                            "updatedAt":             e.get("updatedAt", 0),
+                            "rewatches":             e.get("repeat", 0),
+                            "notes":                 e.get("notes", "") or "",
+                            "priority":              e.get("priority", 0),
+                            "hiddenFromStatusLists": e.get("hiddenFromStatusLists", False),
+                            "isPrivate":             e.get("private", False),
+                            "startedAt":             _date_str(_fuzzy_date(e.get("startedAt"))),
+                            "completedAt":           _date_str(_fuzzy_date(e.get("completedAt"))),
+                        })
                 entries.sort(key=lambda e: e["updatedAt"], reverse=True)
                 self._manga_entry_id_map = {e["anilistId"]: e["entryId"] for e in entries}
                 self.mangaLoaded.emit(entries)
