@@ -5,7 +5,7 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Addons
 
 Controls.AbstractButton {
-    id: root
+    id: characterCard
 
     property int characterId: -1
     property string name: ""
@@ -23,7 +23,7 @@ Controls.AbstractButton {
 
     background: Rectangle {
         radius: Kirigami.Units.cornerRadius
-        color: root.hovered ? Kirigami.Theme.hoverColor : "transparent"
+        color: characterCard.hovered ? Kirigami.Theme.hoverColor : "transparent"
     }
 
     contentItem: ColumnLayout {
@@ -34,15 +34,15 @@ Controls.AbstractButton {
             Layout.preferredWidth: 80
             Layout.preferredHeight: 80
             Layout.alignment: Qt.AlignHCenter
-            source: root.image
-            name: root.name
+            source: characterCard.image
+            name: characterCard.name
         }
 
         Controls.Label {
             Layout.preferredWidth: 96
             Layout.alignment: Qt.AlignHCenter
             horizontalAlignment: Text.AlignHCenter
-            text: root.name
+            text: characterCard.name
             font.bold: true
             wrapMode: Text.WordWrap
             maximumLineCount: 2
@@ -53,7 +53,7 @@ Controls.AbstractButton {
             Layout.preferredWidth: 96
             Layout.alignment: Qt.AlignHCenter
             horizontalAlignment: Text.AlignHCenter
-            text: root.role
+            text: characterCard.role
             opacity: 0.7
             font.pointSize: Kirigami.Theme.smallFont.pointSize
             elide: Text.ElideRight
@@ -61,6 +61,6 @@ Controls.AbstractButton {
     }
 
     onClicked: {
-        root.characterClicked(root.characterId, root.name)
+        characterCard.characterClicked(characterCard.characterId, characterCard.name)
     }
 }

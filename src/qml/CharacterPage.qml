@@ -27,6 +27,7 @@ Kirigami.Page {
 
     function _loadData() {
         if (characterId > 0) {
+            console.log("Character ID: " + characterId)
             _altSpoilerRevealed = false
             anilistService.fetchCharacterPage(characterId)
         }
@@ -335,6 +336,44 @@ Kirigami.Page {
                                         pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
                                     else if (modelData.type === "MANGA")
                                         pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId })
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Voice Actors ──────────────────────────────────────────────────────
+                ColumnLayout {
+                    Layout.fillWidth:    true
+                    Layout.leftMargin:   Kirigami.Units.largeSpacing
+                    Layout.rightMargin:  Kirigami.Units.largeSpacing
+                    Layout.bottomMargin: Kirigami.Units.largeSpacing
+                    spacing:             Kirigami.Units.smallSpacing
+                    visible:             Boolean(_data && _data.voiceActors && _data.voiceActors.length > 0)
+
+                    Kirigami.Heading {
+                        level: 3
+                        text:  "Voice Actors"
+                    }
+
+                    Kirigami.Separator { Layout.fillWidth: true }
+
+                    Flow {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Kirigami.Units.smallSpacing
+                        spacing:          Kirigami.Units.largeSpacing
+
+                        Repeater {
+                            model: (_data && _data.voiceActors) ? _data.voiceActors : []
+
+                            CharacterCard {
+                                characterId: modelData.staffId
+                                name:        modelData.name
+                                image:       modelData.image
+                                role:        modelData.language
+                                onCharacterClicked: (id, _name) => {
+                                    console.log("CharacterCard Clicked that holds staff info!", id)
+                                    pageStack.layers.push(Qt.resolvedUrl("StaffPage.qml"), { staffId: id })
                                 }
                             }
                         }

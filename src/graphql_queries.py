@@ -299,41 +299,34 @@ _CHARACTER_PAGE_QUERY = """
 query ($id: Int) {
   Character (id: $id) {
     name {
-      first
-      middle
-      last
       full
       native
       alternative
       alternativeSpoiler
       userPreferred
     }
-    image {
-      large
-    }
+    image { large }
     description
     age
     bloodType
     isFavourite
     isFavouriteBlocked
     gender
-    dateOfBirth {
-      day
-      month
-      year
-    }
+    dateOfBirth { day month year }
     siteUrl
     media {
-      nodes {
-        id
-        type
-        title {
-          english
-          native
-          romaji
+      edges {
+        node {
+          id
+          type
+          title { english native romaji }
+          coverImage { extraLarge }
         }
-        coverImage {
-          extraLarge
+        voiceActors(sort: [RELEVANCE]) {
+          id
+          name { full native userPreferred }
+          image { large }
+          languageV2
         }
       }
     }

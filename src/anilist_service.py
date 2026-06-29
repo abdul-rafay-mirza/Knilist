@@ -388,18 +388,34 @@ class AniListService(QObject):
                 date_of_birth      = _fuzzy_date(character.get("dateOfBirth"))
                 site_url           = character.get("siteUrl") or ""
 
-                # Media appearances — iterate each node in the list
-                raw_media = (character.get("media") or {}).get("nodes") or []
-                media = [
-                    {
+                raw_media_edges = (character.get("media") or {}).get("edges") or []
+                media: list[dict] = []
+                va_dict: dict[int, dict] = {}
+
+                for edge in raw_media_edges:
+                    node = edge.get("node")
+                    if not node:
+                        continue
+                    title_obj = node.get("title") or {}
+                    media.append({
                         "mediaId": node.get("id", 0),
-                        "type": node.get("type") or "",
-                        "title":   (node.get("title") or {}).get("english")
-                                  or (node.get("title") or {}).get("romaji", ""),
+                        "type":    node.get("type") or "",
+                        "title":   title_obj.get("english") or title_obj.get("romaji", ""),
                         "cover":   (node.get("coverImage") or {}).get("extraLarge", ""),
-                    }
-                    for node in raw_media
-                ]
+                    })
+                    for va in (edge.get("voiceActors") or []):
+                        va_id = va.get("id", 0)
+                        if va_id and va_id not in va_dict:
+                            name_obj = va.get("name") or {}
+                            va_dict[va_id] = {
+                                "staffId":    va_id,
+                                "name":       name_obj.get("userPreferred") or name_obj.get("full", ""),
+                                "nameNative": name_obj.get("native", ""),
+                                "image":      (va.get("image") or {}).get("large", ""),
+                                "language":   va.get("languageV2", ""),
+                            }
+
+                voice_actors = list(va_dict.values())
 
                 payload = {
                     "characterId":        characterId,
@@ -418,6 +434,7 @@ class AniListService(QObject):
                     "dateOfBirth":        _date_str(date_of_birth),
                     "siteUrl":            site_url,
                     "media":              media,              # list, serialised below
+                    "voiceActors": voice_actors
                 }
 
                 self.characterPageLoaded.emit(json.dumps(payload))

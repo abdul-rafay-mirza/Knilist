@@ -350,19 +350,16 @@ Kirigami.Page {
                     }
                 }
 
-                // ── Staff Credits ─────────────────────────────────────────────
-                // Only visible for production staff (directors, writers, etc.).
-                // Uses MediaCoverCard for the cover + title, with the role label
-                // rendered below it. Item wrapper gives Flow a stable implicitWidth.
+                // ── Anime Staff Roles ─────────────────────────────────────────────────
                 ColumnLayout {
                     Layout.fillWidth:    true
                     Layout.leftMargin:   Kirigami.Units.largeSpacing
                     Layout.rightMargin:  Kirigami.Units.largeSpacing
                     Layout.bottomMargin: Kirigami.Units.largeSpacing
                     spacing:             Kirigami.Units.smallSpacing
-                    visible:             Boolean(_data && _data.staffMedia && _data.staffMedia.length > 0)
+                    visible:             Boolean(_data && _data.staffMedia && _data.staffMedia.some(m => m.type === "ANIME"))
 
-                    Kirigami.Heading { level: 3; text: "Staff Credits" }
+                    Kirigami.Heading { level: 3; text: "Anime Staff Roles" }
 
                     Kirigami.Separator { Layout.fillWidth: true }
 
@@ -372,36 +369,83 @@ Kirigami.Page {
                         spacing:          Kirigami.Units.largeSpacing
 
                         Repeater {
-                            model: (_data && _data.staffMedia) ? _data.staffMedia : []
+                            model: (_data && _data.staffMedia)
+                                ? _data.staffMedia.filter(m => m.type === "ANIME") : []
 
-                            // Wrapper gives Flow a concrete implicitWidth while
-                            // Column stacks MediaCoverCard + role label naturally.
                             Item {
                                 implicitWidth:  Kirigami.Units.gridUnit * 9
-                                implicitHeight: creditInnerCol.implicitHeight
+                                implicitHeight: animeStaffInnerCol.implicitHeight
 
                                 Column {
-                                    id:      creditInnerCol
+                                    id:      animeStaffInnerCol
                                     width:   parent.width
                                     spacing: Kirigami.Units.smallSpacing
 
                                     MediaCoverCard {
                                         width:    parent.width
                                         mediaId:  modelData.mediaId
-                                        title:    modelData.title    || ""
+                                        title:    modelData.title     || ""
                                         imageURL: modelData.coverImage || ""
-                                        onTapped: {
-                                            if (modelData.type === "ANIME") {
-                                                console.log("MediaCoverCard Clicked!", modelData.mediaId)
-                                                pageStack.layers.push(
-                                                    Qt.resolvedUrl("AnimePage.qml"),
-                                                    { animeId: modelData.mediaId })
-                                            } else if (modelData.type === "MANGA") {
-                                                pageStack.layers.push(
-                                                    Qt.resolvedUrl("MangaPage.qml"),
-                                                    { anilistId: modelData.mediaId })
-                                            }
-                                        }
+                                        onTapped: pageStack.layers.push(
+                                            Qt.resolvedUrl("AnimePage.qml"),
+                                            { animeId: modelData.mediaId })
+                                    }
+
+                                    Controls.Label {
+                                        width:               parent.width
+                                        text:                modelData.staffRole || ""
+                                        font.pointSize:      Kirigami.Theme.defaultFont.pointSize * 0.75
+                                        color:               Kirigami.Theme.disabledTextColor
+                                        horizontalAlignment: Text.AlignHCenter
+                                        wrapMode:            Text.WordWrap
+                                        maximumLineCount:    2
+                                        elide:               Text.ElideRight
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Manga Staff Roles ─────────────────────────────────────────────────
+                ColumnLayout {
+                    Layout.fillWidth:    true
+                    Layout.leftMargin:   Kirigami.Units.largeSpacing
+                    Layout.rightMargin:  Kirigami.Units.largeSpacing
+                    Layout.bottomMargin: Kirigami.Units.largeSpacing
+                    spacing:             Kirigami.Units.smallSpacing
+                    visible:             Boolean(_data && _data.staffMedia && _data.staffMedia.some(m => m.type === "MANGA"))
+
+                    Kirigami.Heading { level: 3; text: "Manga Staff Roles" }
+
+                    Kirigami.Separator { Layout.fillWidth: true }
+
+                    Flow {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Kirigami.Units.smallSpacing
+                        spacing:          Kirigami.Units.largeSpacing
+
+                        Repeater {
+                            model: (_data && _data.staffMedia)
+                                ? _data.staffMedia.filter(m => m.type === "MANGA") : []
+
+                            Item {
+                                implicitWidth:  Kirigami.Units.gridUnit * 9
+                                implicitHeight: mangaStaffInnerCol.implicitHeight
+
+                                Column {
+                                    id:      mangaStaffInnerCol
+                                    width:   parent.width
+                                    spacing: Kirigami.Units.smallSpacing
+
+                                    MediaCoverCard {
+                                        width:    parent.width
+                                        mediaId:  modelData.mediaId
+                                        title:    modelData.title     || ""
+                                        imageURL: modelData.coverImage || ""
+                                        onTapped: pageStack.layers.push(
+                                            Qt.resolvedUrl("MangaPage.qml"),
+                                            { anilistId: modelData.mediaId })
                                     }
 
                                     Controls.Label {
