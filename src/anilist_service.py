@@ -18,7 +18,8 @@ from .graphql_queries import (
     _SAVE_ENTRY_MUTATION, _SAVE_MANGA_ENTRY_MUTATION, _DELETE_ENTRY_MUTATION,
     _TOGGLE_FAVOURITE_MUTATION, _ANIME_PAGE_QUERY,
     _CHARACTER_PAGE_QUERY, _TOGGLE_CHARACTER_FAVOURITE_MUTATION,
-    _STAFF_PAGE_QUERY, _STAFF_PAGE_NEXT_QUERY, _TOGGLE_STAFF_FAVOURITE_MUTATION
+    _STAFF_PAGE_QUERY, _STAFF_PAGE_NEXT_QUERY, _TOGGLE_STAFF_FAVOURITE_MUTATION,
+    _ANIME_FAVOURITE_QUERY, _CHARACTER_FAVOURITE_QUERY, _STAFF_FAVOURITE_QUERY,
 )
 
 # Helper functions
@@ -146,6 +147,12 @@ class AniListService(QObject):
             self._loading_count = 0
             self._loading = False
             self.loadingChanged.emit(False)
+
+    def _emit_update_failure(self, exc: Exception) -> None:
+        """Every write-mutation failure surfaces this one message to the UI.
+        The real exception is printed for debugging, never shown to the user."""
+        print(f"[AniListService] update failed: {exc}")
+        self.errorOccurred.emit("Network Issue: Failed to update show.")
 
     # ── Properties ────────────────────────────────────────────────────────────
 
@@ -623,19 +630,6 @@ class AniListService(QObject):
 
         threading.Thread(target=_run, daemon=True).start()
 
-    @Slot(int, bool)
-    def toggleStaffFavourite(self, staff_id: int, currently_favourite: bool) -> None:
-        def _run():
-            try:
-                self._begin_loading()
-                self._gql(_TOGGLE_STAFF_FAVOURITE_MUTATION, {"staffId": staff_id})
-                self.staffFavouriteToggled.emit(staff_id, not currently_favourite)
-            except Exception as exc:
-                self.errorOccurred.emit(str(exc))
-            finally:
-                self._end_loading()
-        threading.Thread(target=_run, daemon=True).start()
-
 
     @Slot(int, int, str)
     def saveProgress(self, media_id: int, progress: int, status: str) -> None:
@@ -650,7 +644,7 @@ class AniListService(QObject):
             except Exception as exc:
                 self._loading = False
                 self.loadingChanged.emit(False)
-                self.errorOccurred.emit(str(exc))
+                self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int, int, str, float, str, str, int, str, int, bool, bool)
@@ -687,7 +681,7 @@ class AniListService(QObject):
                 self._gql(_SAVE_ENTRY_MUTATION, variables)
                 self.entrySaved.emit()
             except Exception as exc:
-                self.errorOccurred.emit(str(exc))
+                self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int)
@@ -707,7 +701,7 @@ class AniListService(QObject):
                 self._anime_entry_cache.pop(media_id, None)
                 self.entryDeleted.emit()
             except Exception as exc:
-                self.errorOccurred.emit(str(exc))
+                self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int, float)
@@ -720,18 +714,24 @@ class AniListService(QObject):
                 })
                 self.entrySaved.emit()
             except Exception as exc:
-                self.errorOccurred.emit(str(exc))
+                self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int, bool)
     def toggleFavourite(self, anilist_id: int, currently_favourite: bool) -> None:
+        # currently_favourite is no longer used to compute anything — kept only
+        # so the QML call site doesn't need to change. The emitted value always
+        # comes from a fresh query made after the mutation confirms.
         def _run():
             try:
                 self._begin_loading()
                 self._gql(_TOGGLE_FAVOURITE_MUTATION, {"animeId": anilist_id})
-                self.favouriteToggled.emit(anilist_id, not currently_favourite)
+                data   = self._gql(_ANIME_FAVOURITE_QUERY, {"id": anilist_id})
+                is_fav = (data.get("Media") or {}).get("isFavourite", False)
+                self.favouriteToggled.emit(anilist_id, is_fav)
+                print("Anime Favourite:", is_fav)
             except Exception as exc:
-                self.errorOccurred.emit(str(exc))
+                self._emit_update_failure(exc)
             finally:
                 self._end_loading()
         threading.Thread(target=_run, daemon=True).start()
@@ -742,12 +742,32 @@ class AniListService(QObject):
             try:
                 self._begin_loading()
                 self._gql(_TOGGLE_CHARACTER_FAVOURITE_MUTATION, {"characterId": character_id})
-                self.characterFavouriteToggled.emit(character_id, not currently_favourite)
+                data   = self._gql(_CHARACTER_FAVOURITE_QUERY, {"id": character_id})
+                is_fav = (data.get("Character") or {}).get("isFavourite", False)
+                print("Character Favourite:", is_fav)
+                self.characterFavouriteToggled.emit(character_id, is_fav)
             except Exception as exc:
-                self.errorOccurred.emit(str(exc))
+                self._emit_update_failure(exc)
             finally:
                 self._end_loading()
         threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, bool)
+    def toggleStaffFavourite(self, staff_id: int, currently_favourite: bool) -> None:
+        def _run():
+            try:
+                self._begin_loading()
+                self._gql(_TOGGLE_STAFF_FAVOURITE_MUTATION, {"staffId": staff_id})
+                data   = self._gql(_STAFF_FAVOURITE_QUERY, {"id": staff_id})
+                is_fav = (data.get("Staff") or {}).get("isFavourite", False)
+                print("Staff Favourite:", is_fav)
+                self.staffFavouriteToggled.emit(staff_id, is_fav)
+            except Exception as exc:
+                self._emit_update_failure(exc)
+            finally:
+                self._end_loading()
+        threading.Thread(target=_run, daemon=True).start()
+
 
     # Manga slots
 
@@ -811,7 +831,7 @@ class AniListService(QObject):
             except Exception as exc:
                 self._loading = False
                 self.loadingChanged.emit(False)
-                self.errorOccurred.emit(str(exc))
+                self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int, int)
@@ -827,7 +847,7 @@ class AniListService(QObject):
             except Exception as exc:
                 self._loading = False
                 self.loadingChanged.emit(False)
-                self.errorOccurred.emit(str(exc))
+                self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int, int, int, str, float, str, str, int, str, int, bool, bool)
@@ -866,7 +886,7 @@ class AniListService(QObject):
                 self._gql(_SAVE_MANGA_ENTRY_MUTATION, variables)
                 self.mangaEntrySaved.emit()
             except Exception as exc:
-                self.errorOccurred.emit(str(exc))
+                self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int)
@@ -885,7 +905,7 @@ class AniListService(QObject):
                 self._manga_entry_id_map.pop(media_id, None)
                 self.entryDeleted.emit()
             except Exception as exc:
-                self.errorOccurred.emit(str(exc))
+                self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
 
     # ── QML-callable helpers ──────────────────────────────────────────────────

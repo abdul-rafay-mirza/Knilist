@@ -53,47 +53,30 @@ Kirigami.Page {
     }
 
     function incrementChapter(anilistId) {
-        let newChapters = 0
-        let newStatus   = ""
+        let item = null
         for (let i = 0; i < mangaData.length; i++) {
-            const item = mangaData[i]
-            if (item.anilistId !== anilistId) continue
-            if (item.chapters > 0 && item.progress >= item.chapters) return
-
-            item.progress++
-            item.updatedAt = Math.floor(Date.now() / 1000)
-            newChapters    = item.progress
-
-            if (item.chapters > 0 && item.progress === item.chapters) {
-                item.status = "COMPLETED"
-                newStatus   = "COMPLETED"
-            } else {
-                newStatus = "CURRENT"
-            }
-            break
+            if (mangaData[i].anilistId === anilistId) { item = mangaData[i]; break }
         }
-        mangaData.sort((a, b) => b.updatedAt - a.updatedAt)
-        rebuildModel()
-        if (newChapters > 0)
-            anilistService.saveMangaProgress(anilistId, newChapters, newStatus)
+        if (!item) return
+        if (item.chapters > 0 && item.progress >= item.chapters) return
+
+        const newChapters = item.progress + 1
+        const newStatus = (item.chapters > 0 && newChapters === item.chapters)
+            ? "COMPLETED" : "CURRENT"
+
+        anilistService.saveMangaProgress(anilistId, newChapters, newStatus)
     }
 
     function incrementVolume(anilistId) {
-        let newVolumes = 0
+        let item = null
         for (let i = 0; i < mangaData.length; i++) {
-            const item = mangaData[i]
-            if (item.anilistId !== anilistId) continue
-            if (item.volumes > 0 && item.progressVolumes >= item.volumes) return
-
-            item.progressVolumes++
-            item.updatedAt = Math.floor(Date.now() / 1000)
-            newVolumes     = item.progressVolumes
-            break
+            if (mangaData[i].anilistId === anilistId) { item = mangaData[i]; break }
         }
-        mangaData.sort((a, b) => b.updatedAt - a.updatedAt)
-        rebuildModel()
-        if (newVolumes > 0)
-            anilistService.saveMangaVolumeProgress(anilistId, newVolumes)
+        if (!item) return
+        if (item.volumes > 0 && item.progressVolumes >= item.volumes) return
+
+        const newVolumes = item.progressVolumes + 1
+        anilistService.saveMangaVolumeProgress(anilistId, newVolumes)
     }
 
     // ── Open List Editor dialog ───────────────────────────────────────────────

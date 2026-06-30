@@ -104,8 +104,10 @@ Kirigami.Page {
                             Layout.preferredWidth: portraitRect.width
                             Layout.maximumWidth:   portraitRect.width
                             enabled: _data ? !_data.isFavouriteBlocked : false
-                            onClicked: anilistService.toggleCharacterFavourite(
-                                characterPage.characterId, _data.isFavourite)
+                            onClicked: {
+                                console.log("Character Favourite Button Clicked!")
+                                anilistService.toggleCharacterFavourite(characterPage.characterId, _data.isFavourite)
+                            }
 
                             contentItem: RowLayout {
                                 spacing: Kirigami.Units.smallSpacing

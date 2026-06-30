@@ -52,30 +52,20 @@ Kirigami.Page {
     }
 
     function incrementProgress(anilistId) {
-        let newProgress = 0
-        let newStatus   = ""
+        let item = null
         for (let i = 0; i < animeData.length; i++) {
-            const item = animeData[i]
-            if (item.anilistId !== anilistId) continue
-            if (item.episodes > 0 && item.progress >= item.episodes) return
-
-            item.progress++
-            item.updatedAt = Math.floor(Date.now() / 1000)
-            newProgress    = item.progress
-
-            if (item.episodes > 0 && item.progress === item.episodes) {
-                item.status     = "COMPLETED"
-                item.nextEpText = "Finished"
-                newStatus       = "COMPLETED"
-            } else {
-                newStatus = "CURRENT"
-            }
-            break
+            if (animeData[i].anilistId === anilistId) { item = animeData[i]; break }
         }
-        animeData.sort((a, b) => b.updatedAt - a.updatedAt)
-        rebuildModel()
-        if (newProgress > 0)
-            anilistService.saveProgress(anilistId, newProgress, newStatus)
+        if (!item) return
+        if (item.episodes > 0 && item.progress >= item.episodes) return
+
+        const newProgress = item.progress + 1
+        const newStatus = (item.episodes > 0 && newProgress === item.episodes)
+            ? "COMPLETED" : "CURRENT"
+
+        // animeData is left untouched — the list only refreshes once the mutation
+        // succeeds and the resulting fetchAnime() comes back with real data.
+        anilistService.saveProgress(anilistId, newProgress, newStatus)
     }
 
     // ── Open List Editor dialog ───────────────────────────────────────────────

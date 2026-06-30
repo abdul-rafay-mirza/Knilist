@@ -438,3 +438,27 @@ mutation ($staffId: Int) {
   }
 }
 """
+
+_ANIME_FAVOURITE_QUERY = """
+query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    isFavourite
+  }
+}
+"""
+
+_CHARACTER_FAVOURITE_QUERY = """
+query ($id: Int) {
+  Character(id: $id) {
+    isFavourite
+  }
+}
+"""
+
+_STAFF_FAVOURITE_QUERY = """
+query ($id: Int) {
+  Staff(id: $id) {
+    isFavourite
+  }
+}
+"""

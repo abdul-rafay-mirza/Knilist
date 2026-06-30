@@ -30,6 +30,13 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    Connections {
+        target: anilistService
+        function onErrorOccurred(message) {
+            applicationWindow().showPassiveNotification(message)
+        }
+    }
+
     globalDrawer: Kirigami.GlobalDrawer {
         id: globalDrawer
         handleVisible: false
