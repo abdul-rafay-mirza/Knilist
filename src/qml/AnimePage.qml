@@ -204,6 +204,11 @@ Kirigami.Page {
                             Layout.fillWidth: true
                             tags:             animePage.animeInformation.tags
                         }
+
+                        ExternalLinksSection {
+                            Layout.fillWidth: true
+                            links: animePage.animeInformation.externalLinks
+                        }
                     }
 
                     // Right: relations, characters, staff

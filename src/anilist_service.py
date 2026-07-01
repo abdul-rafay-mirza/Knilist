@@ -350,6 +350,7 @@ class AniListService(QObject):
                     "timeUntilAiring":    _format_duration(next_airing.get("timeUntilAiring", 0))
                                           if (status == "RELEASING" and next_airing) else "",
                     "tags": media.get("tags") or [],
+                    "externalLinks": media.get("externalLinks") or []
                 }
 
                 self.animePageLoaded.emit(
