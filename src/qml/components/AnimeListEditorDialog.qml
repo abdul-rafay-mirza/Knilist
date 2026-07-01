@@ -125,7 +125,7 @@ Kirigami.Dialog {
         const completedAt = editFinishYear > 0
             ? { year: editFinishYear, month: editFinishMonth, day: editFinishDay } : null
 
-        anilistService.saveEntry(
+        anilistService.saveAnimeEntry(
             anilistId, editProgress, editStatus, editScore,
             startedAt   ? JSON.stringify(startedAt)   : "",
             completedAt ? JSON.stringify(completedAt) : "",
@@ -143,7 +143,7 @@ Kirigami.Dialog {
         subtitle: "Remove '" + animeListEditorDialog.animeTitle + "' from your list? This cannot be undone."
         standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
         onAccepted: {
-            anilistService.removeEntry(animeListEditorDialog.anilistId)
+            anilistService.removeAnimeEntry(animeListEditorDialog.anilistId)
             animeListEditorDialog.entryRemoved()
             animeListEditorDialog.close()
         }

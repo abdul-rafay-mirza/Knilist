@@ -77,7 +77,7 @@ query ($userId: Int) {
 }
 """
 
-_SAVE_ENTRY_MUTATION = """
+_SAVE_ANIME_ENTRY_MUTATION = """
 mutation (
   $mediaId:              Int,
   $status:               MediaListStatus,
@@ -150,7 +150,15 @@ mutation (
 }
 """
 
-_DELETE_ENTRY_MUTATION = """
+_DELETE_ANIME_ENTRY_MUTATION = """
+mutation ($id: Int) {
+  DeleteMediaListEntry(id: $id) {
+    deleted
+  }
+}
+"""
+
+_DELETE_MANGA_ENTRY_MUTATION = """
 mutation ($id: Int) {
   DeleteMediaListEntry(id: $id) {
     deleted

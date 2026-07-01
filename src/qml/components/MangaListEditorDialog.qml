@@ -152,7 +152,7 @@ Kirigami.Dialog {
         subtitle: "Remove '" + mangaListEditorDialog.mangaTitle + "' from your list? This cannot be undone."
         standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
         onAccepted: {
-            anilistService.removeEntry(mangaListEditorDialog.anilistId)
+            anilistService.removeMangaEntry(mangaListEditorDialog.anilistId)
             mangaListEditorDialog.entryRemoved()
             mangaListEditorDialog.close()
         }

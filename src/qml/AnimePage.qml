@@ -122,7 +122,7 @@ Kirigami.Page {
             animePage.animeEntry = JSON.parse(_entryJson)
         }
 
-        function onEntrySaved() {
+        function onAnimeEntrySaved() {
             anilistService.fetchAnime()
         }
 
@@ -130,7 +130,7 @@ Kirigami.Page {
             anilistService.fetchAnimeEntry(animePage.animeId)
         }
 
-        function onFavouriteToggled(anilistId, newState) {
+        function onAnimeFavouriteToggled(anilistId, newState) {
             if (anilistId === animePage.animeId) {
                 animePage.animeIsFavourite = newState
                 applicationWindow().showPassiveNotification(
@@ -181,7 +181,7 @@ Kirigami.Page {
                         "REPEATING": "Rewatching",
                     })
                     onEditRequested:    animePage.openEditor()
-                    onFavouriteToggled: anilistService.toggleFavourite(animePage.animeId, animePage.animeIsFavourite)
+                    onFavouriteToggled: anilistService.toggleAnimeFavourite(animePage.animeId, animePage.animeIsFavourite)
                 }
 
                 // ── Two-column body ───────────────────────────────────────────

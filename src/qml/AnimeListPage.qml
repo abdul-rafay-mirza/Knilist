@@ -65,7 +65,7 @@ Kirigami.Page {
 
         // animeData is left untouched — the list only refreshes once the mutation
         // succeeds and the resulting fetchAnime() comes back with real data.
-        anilistService.saveProgress(anilistId, newProgress, newStatus)
+        anilistService.saveAnimeProgress(anilistId, newProgress, newStatus)
     }
 
     // ── Open List Editor dialog ───────────────────────────────────────────────
@@ -122,7 +122,7 @@ Kirigami.Page {
             animeListPage.animeData = data
             animeListPage.rebuildModel()
         }
-        function onEntrySaved() {
+        function onAnimeEntrySaved() {
             anilistService.fetchAnime()
         }
     }

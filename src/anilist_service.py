@@ -15,7 +15,8 @@ from PySide6.QtCore import QObject, Signal, Slot, Property
 from .config import GRAPHQL_URL
 from .graphql_queries import (
     _VIEWER_QUERY, _ANIME_LIST_QUERY, _MANGA_LIST_QUERY,
-    _SAVE_ENTRY_MUTATION, _SAVE_MANGA_ENTRY_MUTATION, _DELETE_ENTRY_MUTATION,
+    _SAVE_ANIME_ENTRY_MUTATION, _SAVE_MANGA_ENTRY_MUTATION,
+    _DELETE_ANIME_ENTRY_MUTATION, _DELETE_MANGA_ENTRY_MUTATION,
     _TOGGLE_FAVOURITE_MUTATION, _ANIME_PAGE_QUERY,
     _CHARACTER_PAGE_QUERY, _TOGGLE_CHARACTER_FAVOURITE_MUTATION,
     _STAFF_PAGE_QUERY, _STAFF_PAGE_NEXT_QUERY, _TOGGLE_STAFF_FAVOURITE_MUTATION,
@@ -112,13 +113,14 @@ class AniListService(QObject):
     userInfoReady      = Signal()
     loadingChanged     = Signal(bool)
     errorOccurred      = Signal(str)
-    entrySaved         = Signal()
+    animeEntrySaved    = Signal()
     mangaEntrySaved    = Signal()
-    entryDeleted       = Signal()
+    animeEntryDeleted  = Signal()
+    mangaEntryDeleted  = Signal()
     scoreFormatChanged = Signal(str)
     animePageLoaded    = Signal(int, str, str, str, str, str, bool, str, str, str, str)
     animeEntryLoaded   = Signal(int, str)   # JSON of entry fields, or {"onList": false}
-    favouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
+    animeFavouriteToggled   = Signal(int, bool)      # emitted after re-fetch is kicked off
     characterPageLoaded = Signal(str)
     characterFavouriteToggled = Signal(int, bool)
     staffPageLoaded           = Signal(str)   # full JSON payload
@@ -262,6 +264,7 @@ class AniListService(QObject):
                 cover        = (media.get("coverImage") or {}).get("large", "")
                 description  = media.get("description") or ""
                 is_favourite = media.get("isFavourite", False)
+                print(f"[fetchAnimePage] {anilist_id} raw isFavourite from AniList: {is_favourite}")
 
                 raw_relations: list = (media.get("relations") or {}).get("edges") or []
                 relations = []
@@ -632,15 +635,15 @@ class AniListService(QObject):
 
 
     @Slot(int, int, str)
-    def saveProgress(self, media_id: int, progress: int, status: str) -> None:
+    def saveAnimeProgress(self, media_id: int, progress: int, status: str) -> None:
         self._loading = True
         self.loadingChanged.emit(True)
 
         def _run():
             try:
-                self._gql(_SAVE_ENTRY_MUTATION,
+                self._gql(_SAVE_ANIME_ENTRY_MUTATION,
                           {"mediaId": media_id, "progress": progress, "status": status})
-                self.entrySaved.emit()
+                self.animeEntrySaved.emit()
             except Exception as exc:
                 self._loading = False
                 self.loadingChanged.emit(False)
@@ -648,7 +651,7 @@ class AniListService(QObject):
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int, int, str, float, str, str, int, str, int, bool, bool)
-    def saveEntry(
+    def saveAnimeEntry(
         self,
         media_id:          int,
         progress:          int,
@@ -678,28 +681,28 @@ class AniListService(QObject):
 
         def _run():
             try:
-                self._gql(_SAVE_ENTRY_MUTATION, variables)
-                self.entrySaved.emit()
+                self._gql(_SAVE_ANIME_ENTRY_MUTATION, variables)
+                self.animeEntrySaved.emit()
             except Exception as exc:
                 self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int)
-    def removeEntry(self, media_id: int) -> None:
+    def removeAnimeEntry(self, media_id: int) -> None:
         entry_id = self._entry_id_map.get(media_id)
         if not entry_id:
             self.errorOccurred.emit(
-                f"Cannot remove: entry ID not found for media {media_id}. "
+                f"Cannot remove: anime entry ID not found for media {media_id}. "
                 "Try syncing first."
             )
             return
 
         def _run():
             try:
-                self._gql(_DELETE_ENTRY_MUTATION, {"id": entry_id})
+                self._gql(_DELETE_ANIME_ENTRY_MUTATION, {"id": entry_id})
                 self._entry_id_map.pop(media_id, None)
                 self._anime_entry_cache.pop(media_id, None)
-                self.entryDeleted.emit()
+                self.animeEntryDeleted.emit()
             except Exception as exc:
                 self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
@@ -708,7 +711,7 @@ class AniListService(QObject):
     def saveScore(self, media_id: int, score: float) -> None:
         def _run():
             try:
-                self._gql(_SAVE_ENTRY_MUTATION, {
+                self._gql(_SAVE_ANIME_ENTRY_MUTATION, {
                     "mediaId": media_id,
                     "score":   score,
                 })
@@ -718,7 +721,7 @@ class AniListService(QObject):
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int, bool)
-    def toggleFavourite(self, anilist_id: int, currently_favourite: bool) -> None:
+    def toggleAnimeFavourite(self, anilist_id: int, currently_favourite: bool) -> None:
         # currently_favourite is no longer used to compute anything — kept only
         # so the QML call site doesn't need to change. The emitted value always
         # comes from a fresh query made after the mutation confirms.
@@ -728,7 +731,7 @@ class AniListService(QObject):
                 self._gql(_TOGGLE_FAVOURITE_MUTATION, {"animeId": anilist_id})
                 data   = self._gql(_ANIME_FAVOURITE_QUERY, {"id": anilist_id})
                 is_fav = (data.get("Media") or {}).get("isFavourite", False)
-                self.favouriteToggled.emit(anilist_id, is_fav)
+                self.animeFavouriteToggled.emit(anilist_id, is_fav)
                 print("Anime Favourite:", is_fav)
             except Exception as exc:
                 self._emit_update_failure(exc)
@@ -901,9 +904,9 @@ class AniListService(QObject):
 
         def _run():
             try:
-                self._gql(_DELETE_ENTRY_MUTATION, {"id": entry_id})
+                self._gql(_DELETE_MANGA_ENTRY_MUTATION, {"id": entry_id})
                 self._manga_entry_id_map.pop(media_id, None)
-                self.entryDeleted.emit()
+                self.mangaEntryDeleted.emit()
             except Exception as exc:
                 self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()
