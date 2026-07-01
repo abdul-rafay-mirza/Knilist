@@ -323,6 +323,21 @@ class AniListService(QObject):
                 status         = media.get("status") or ""
                 studios_nodes  = (media.get("studios") or {}).get("nodes") or []
 
+                studios = []
+                producers = []
+                seen_studios = set()
+                for node in studios_nodes:
+                    if node["id"] in seen_studios:
+                        continue
+                    if node["isAnimationStudio"]:
+                        studios.append(node)
+                    else:
+                        producers.append(node)
+                    seen_studios.add(node["id"])
+                
+                print(studios)
+                print(producers)
+
                 information = {
                     "status":             status,
                     "format":             media.get("format") or "",
@@ -340,8 +355,8 @@ class AniListService(QObject):
                     "hashtag":            media.get("hashtag") or "",
                     "genres":             media.get("genres") or [],
                     "synonyms":           media.get("synonyms") or [],
-                    "studios":   list(dict.fromkeys(s["name"] for s in studios_nodes if     s.get("isAnimationStudio"))),
-                    "producers": list(dict.fromkeys(s["name"] for s in studios_nodes if not s.get("isAnimationStudio"))),
+                    "studios":            studios,
+                    "producers":          producers,
                     "titleRomaji":        (media.get("title") or {}).get("romaji")  or "",
                     "titleEnglish":       (media.get("title") or {}).get("english") or "",
                     "titleNative":        (media.get("title") or {}).get("native")  or "",

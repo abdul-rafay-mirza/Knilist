@@ -107,7 +107,15 @@ Item {
             Controls.Label { text: "Studios"; font.weight: Font.DemiBold; color: Kirigami.Theme.textColor }
             Repeater {
                 model: information.studios || []
-                Controls.Label { Layout.fillWidth: true; text: modelData; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
+                // Controls.Label { Layout.fillWidth: true; text: modelData.name; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
+                Controls.Button {
+                    text: modelData.name
+                    flat: true 
+                    
+                    onClicked: {
+                        pageStack.layers.push(Qt.resolvedUrl("../StudioPage.qml"), { studioId: modelData.id })
+                    }
+                }
             }
         }
 
@@ -119,7 +127,15 @@ Item {
             Controls.Label { text: "Producers"; font.weight: Font.DemiBold; color: Kirigami.Theme.textColor }
             Repeater {
                 model: information.producers || []
-                Controls.Label { Layout.fillWidth: true; text: modelData; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
+                // Controls.Label { Layout.fillWidth: true; text: modelData.name; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
+                Controls.Button {
+                    text: modelData.name
+                    flat: true 
+                    
+                    onClicked: {
+                        pageStack.layers.push(Qt.resolvedUrl("../StudioPage.qml"), { studioId: modelData.id })
+                    }
+                }
             }
         }
 
