@@ -190,10 +190,20 @@ Kirigami.Page {
                     spacing:          0
 
                     // Left: information sidebar
-                    AnimeInformationSection {
+                    ColumnLayout {
                         Layout.preferredWidth: Kirigami.Units.gridUnit * 14
                         Layout.alignment:      Qt.AlignTop
-                        information:           animePage.animeInformation
+                        spacing:               Kirigami.Units.largeSpacing
+
+                        AnimeInformationSection {
+                            Layout.fillWidth: true
+                            information:      animePage.animeInformation
+                        }
+
+                        TagsSection {
+                            Layout.fillWidth: true
+                            tags:             animePage.animeInformation.tags
+                        }
                     }
 
                     // Right: relations, characters, staff
