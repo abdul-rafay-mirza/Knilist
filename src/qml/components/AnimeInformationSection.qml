@@ -127,13 +127,26 @@ Item {
             Controls.Label { text: "Producers"; font.weight: Font.DemiBold; color: Kirigami.Theme.textColor }
             Repeater {
                 model: information.producers || []
-                // Controls.Label { Layout.fillWidth: true; text: modelData.name; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
-                Controls.Button {
+                Controls.Label {
+                    id: producerLabel
+                    Layout.fillWidth: true
                     text: modelData.name
-                    flat: true 
+                    wrapMode: Text.WordWrap
                     
-                    onClicked: {
-                        pageStack.layers.push(Qt.resolvedUrl("../StudioPage.qml"), { studioId: modelData.id })
+                    // 1. Smoothly switch opacity and color using the hover state
+                    opacity: producerHover.hovered ? 1.0 : 0.85
+                    color: producerHover.hovered ? Kirigami.Theme.linkColor : Kirigami.Theme.textColor
+
+                    TapHandler {
+                        onTapped: {
+                            pageStack.layers.push(Qt.resolvedUrl("../StudioPage.qml"), { studioId: modelData.id })
+                        }
+                    }
+
+                    // 2. This handles tracking the un-clicked mouse pointer and hover states
+                    HoverHandler {
+                        id: producerHover
+                        cursorShape: Qt.PointingHandCursor
                     }
                 }
             }
