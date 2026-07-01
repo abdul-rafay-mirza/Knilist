@@ -20,6 +20,7 @@ Item {
     implicitHeight: Kirigami.Units.gridUnit * 8
 
     Kirigami.ShadowedRectangle {
+        id: card
         anchors.fill: parent
         radius:       Kirigami.Units.smallSpacing
         color:        Kirigami.Theme.backgroundColor
@@ -30,69 +31,62 @@ Item {
         shadow.yOffset: 1
         shadow.color:   Qt.rgba(0, 0, 0, 0.2)
 
-        ColumnLayout {
-            anchors.fill:    parent
-            anchors.margins: Kirigami.Units.smallSpacing
-            spacing:         Kirigami.Units.smallSpacing
+        RowLayout {
+            anchors.fill: parent
+            spacing:      0
 
-            // Relation type label
-            Controls.Label {
-                Layout.fillWidth: true
-                text:      root.relationType.charAt(0) + root.relationType.slice(1).toLowerCase()
-                font.pointSize: Kirigami.Theme.smallFont.pointSize
-                color:     Kirigami.Theme.disabledTextColor
+            // Cover image, flush with the card's left edge
+            Kirigami.ShadowedImage {
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 5.5
+                Layout.fillHeight:     true
+                Layout.rightMargin: Kirigami.Units.smallSpacing
+
+                source:   root.coverImage
+                fillMode: Image.PreserveAspectCrop
+                color:    Kirigami.Theme.alternateBackgroundColor
+
+                corners {
+                    topLeftRadius:     card.radius
+                    bottomLeftRadius:  card.radius
+                    topRightRadius:    0
+                    bottomRightRadius: 0
+                }
             }
 
-            // Cover + info row
-            RowLayout {
+            // Relation type + title + format/status
+            ColumnLayout {
                 Layout.fillWidth:  true
                 Layout.fillHeight: true
-                spacing: Kirigami.Units.smallSpacing
+                Layout.margins:    Kirigami.Units.smallSpacing
+                spacing:           2
 
-                // Cover image
-                Kirigami.ShadowedImage {
-                    Layout.preferredWidth:  Kirigami.Units.gridUnit * 3.5
-                    Layout.fillHeight:      true
-                    Layout.alignment:       Qt.AlignTop
-
-                    source:    root.coverImage
-                    fillMode:  Image.PreserveAspectCrop
-                    color:     Kirigami.Theme.alternateBackgroundColor
-                    radius:    Kirigami.Units.smallSpacing / 2
-
-                    shadow.size:    Kirigami.Units.smallSpacing
-                    shadow.yOffset: 1
-                    shadow.color:   Qt.rgba(0, 0, 0, 0.3)
+                Controls.Label {
+                    Layout.fillWidth: true
+                    text:      root.relationType.charAt(0) + root.relationType.slice(1).toLowerCase()
+                    color:     Kirigami.Theme.linkColor
                 }
 
-                // Title + format/status
-                ColumnLayout {
-                    Layout.fillWidth:  true
-                    Layout.fillHeight: true
-                    spacing: 2
+                Controls.Label {
+                    Layout.fillWidth: true
+                    text:      root.title
+                    wrapMode:  Text.WordWrap
+                    font.weight: Font.Medium
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
+                }
 
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        text:      root.title
-                        wrapMode:  Text.WordWrap
-                        font.weight: Font.Medium
-                        maximumLineCount: 3
-                        elide: Text.ElideRight
+                Item { Layout.fillHeight: true }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    text: {
+                        const fmt = root.format.charAt(0) + root.format.slice(1).toLowerCase()
+                        const st  = root.status.charAt(0) + root.status.slice(1).replace(/_/g, " ").toLowerCase()
+                        return fmt + " · " + st
                     }
-
-                    Item { Layout.fillHeight: true }
-
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        text: {
-                            const fmt = root.format.charAt(0) + root.format.slice(1).toLowerCase()
-                            const st  = root.status.charAt(0) + root.status.slice(1).replace(/_/g, " ").toLowerCase()
-                            return fmt + " · " + st
-                        }
-                        font.pointSize: Kirigami.Theme.smallFont.pointSize
-                        color:     Kirigami.Theme.disabledTextColor
-                        wrapMode:  Text.WordWrap
-                    }
+                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    color:     Kirigami.Theme.disabledTextColor
+                    wrapMode:  Text.WordWrap
                 }
             }
         }

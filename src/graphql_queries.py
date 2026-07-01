@@ -214,6 +214,7 @@ query ($id: Int) {
     isFavourite
     studios {
       nodes {
+        id
         name
         isAnimationStudio
       }
