@@ -471,3 +471,46 @@ query ($id: Int) {
   }
 }
 """
+
+# Variables for _STUDIO_PAGE_QUERY
+# {
+#   "id": 2,
+#   "page": 1,
+#   "perPage": 25,
+#   "sort": ["START_DATE_DESC"]
+# }
+_STUDIO_PAGE_QUERY = """
+query (
+  $id: Int,
+  $page: Int = 1,
+  $perPage: Int = 25,
+  $sort: [MediaSort] = START_DATE_DESC
+) {
+  Studio(id: $id) {
+    name
+    media(
+      page: $page
+      perPage: $perPage
+      sort: $sort
+    ) {
+      pageInfo {
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          title {
+            userPreferred
+          }
+          startDate {
+            year
+          }
+          coverImage {
+            large
+          }
+        }
+      }
+    }
+  }
+}
+"""
