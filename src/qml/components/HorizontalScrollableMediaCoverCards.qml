@@ -4,7 +4,7 @@ import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 
 ColumnLayout {
-    id: root
+    id: horizontalScrollableMediaCoverCards
 
     property var mediaCardContent: []
     property string headingText: "Default Heading Text"
@@ -32,7 +32,7 @@ ColumnLayout {
         orientation:      ListView.Horizontal
         spacing:          Kirigami.Units.largeSpacing
         clip:             true
-        model:            root.mediaCardContent
+        model:            horizontalScrollableMediaCoverCards.mediaCardContent
 
         delegate: MediaCoverCard {
             required property var modelData
@@ -40,7 +40,7 @@ ColumnLayout {
             mediaId:  modelData.mediaId
             title:    modelData.title || ""
             imageURL: modelData.coverImage || ""
-            onTapped: root.cardClicked(modelData.mediaId, modelData.type || "")
+            onTapped: horizontalScrollableMediaCoverCards.cardClicked(modelData.mediaId, modelData.type || "")
         }
     }
 
