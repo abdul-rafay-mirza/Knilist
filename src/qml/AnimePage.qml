@@ -256,10 +256,11 @@ Kirigami.Page {
                     }
                 }
 
-                // ── Full-width recommendations ────────────────────────────────
-                RecommendationsSection {
+                // ── Full-width recommendations section ────────────────────────────────
+                HorizontalScrollableMediaCoverCards {
                     Layout.fillWidth: true
-                    recommendations:  animePage.animeRecommendations
+                    mediaCardContent:  animePage.animeRecommendations
+                    headingText: "Recommendations"
                     onCardClicked: (mediaId, mediaType) => {
                         pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: mediaId })
                     }
