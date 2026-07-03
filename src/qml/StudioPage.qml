@@ -4,7 +4,7 @@ import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 import "components"
 
-Kirigami.ScrollablePage {
+Kirigami.Page {
     id: root
 
     // Push with:
@@ -157,68 +157,82 @@ Kirigami.ScrollablePage {
         }
     }
 
-    ListView {
-        id: groupsListView
-        model:          yearGroupsModel
-        spacing:        Kirigami.Units.largeSpacing
-        boundsBehavior: Flickable.StopAtBounds
+    Item {
+        anchors.fill: parent
 
-        onContentYChanged: {
-            if (isLoadingMore || isInitialLoading || !hasNextPage)
-                return
-            if (groupsListView.contentY + groupsListView.height
-                    >= groupsListView.contentHeight - Kirigami.Units.gridUnit * 8)
-                loadMore()
-        }
+        ListView {
+            id: groupsListView
+            anchors.fill: parent
+            clip: true
 
-        header: Kirigami.Heading {
-            width: groupsListView.width
-            topPadding:    Kirigami.Units.largeSpacing
-            bottomPadding: Kirigami.Units.largeSpacing
-            leftPadding:   Kirigami.Units.largeSpacing
-            rightPadding:  Kirigami.Units.largeSpacing
-            level:    1
-            text:     root.studioName
-            wrapMode: Text.WordWrap
-        }
+            flickableDirection: Flickable.VerticalFlick
+            interactive: true
 
-        // One row per year, reusing your existing heading+scroller component
-        // instead of hand-rolling another one.
-        delegate: HorizontalScrollableMediaCoverCards {
-            // Layout.leftMargin/rightMargin on this component only apply when its
-            // parent is an actual Layout — a ListView delegate isn't one, so the
-            // inset is reproduced here directly instead.
-            x:     Kirigami.Units.largeSpacing
-            width: groupsListView.width - Kirigami.Units.largeSpacing * 2
-
-            headingText:      model.year
-            mediaCardContent: root.toArray(model.items)
-
-            onCardClicked: (mediaId, mediaType) => {
-                console.log("MediaCoverCard Clicked!")
-                if (mediaType === "ANIME")
-                    pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: mediaId })
-                else if (mediaType === "MANGA")
-                    pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: mediaId })
-            }
-        }
-
-        footer: ColumnLayout {
-            width: groupsListView.width
-
-            Controls.BusyIndicator {
-                Layout.alignment:    Qt.AlignHCenter
-                Layout.topMargin:    Kirigami.Units.largeSpacing
-                Layout.bottomMargin: Kirigami.Units.largeSpacing
-                running: root.isLoadingMore || root.isInitialLoading
-                visible: running
+            Controls.ScrollBar.vertical: Controls.ScrollBar {
+                policy: Controls.ScrollBar.AsNeeded
             }
 
-            Kirigami.PlaceholderMessage {
-                Layout.fillWidth: true
-                Layout.topMargin: Kirigami.Units.gridUnit * 4
-                visible: !root.isInitialLoading && yearGroupsModel.count === 0
-                text: "No media found for this studio"
+            model: yearGroupsModel
+            spacing: Kirigami.Units.largeSpacing
+            boundsBehavior: Flickable.StopAtBounds
+
+            onContentYChanged: {
+                if (isLoadingMore || isInitialLoading || !hasNextPage)
+                    return
+                if (groupsListView.contentY + groupsListView.height
+                        >= groupsListView.contentHeight - Kirigami.Units.gridUnit * 8)
+                    loadMore()
+            }
+
+            header: Kirigami.Heading {
+                width: groupsListView.width
+                topPadding:    Kirigami.Units.largeSpacing
+                bottomPadding: Kirigami.Units.largeSpacing
+                leftPadding:   Kirigami.Units.largeSpacing
+                rightPadding:  Kirigami.Units.largeSpacing
+                level:    1
+                text:     root.studioName
+                wrapMode: Text.WordWrap
+            }
+
+            // One row per year, reusing your existing heading+scroller component
+            // instead of hand-rolling another one.
+            delegate: HorizontalScrollableMediaCoverCards {
+                // Layout.leftMargin/rightMargin on this component only apply when its
+                // parent is an actual Layout — a ListView delegate isn't one, so the
+                // inset is reproduced here directly instead.
+                x:     Kirigami.Units.largeSpacing
+                width: groupsListView.width - Kirigami.Units.largeSpacing * 2
+
+                headingText:      model.year
+                mediaCardContent: root.toArray(model.items)
+
+                onCardClicked: (mediaId, mediaType) => {
+                    console.log("MediaCoverCard Clicked!")
+                    if (mediaType === "ANIME")
+                        pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: mediaId })
+                    else if (mediaType === "MANGA")
+                        pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: mediaId })
+                }
+            }
+
+            footer: ColumnLayout {
+                width: groupsListView.width
+
+                Controls.BusyIndicator {
+                    Layout.alignment:    Qt.AlignHCenter
+                    Layout.topMargin:    Kirigami.Units.largeSpacing
+                    Layout.bottomMargin: Kirigami.Units.largeSpacing
+                    running: root.isLoadingMore || root.isInitialLoading
+                    visible: running
+                }
+
+                Kirigami.PlaceholderMessage {
+                    Layout.fillWidth: true
+                    Layout.topMargin: Kirigami.Units.gridUnit * 4
+                    visible: !root.isInitialLoading && yearGroupsModel.count === 0
+                    text: "No media found for this studio"
+                }
             }
         }
     }
