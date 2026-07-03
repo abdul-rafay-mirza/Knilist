@@ -119,7 +119,7 @@ Item {
 
                     TapHandler {
                         onTapped: {
-                            pageStack.layers.push(Qt.resolvedUrl("../StudioPage.qml"), { studioId: modelData.id })
+                            pageStack.layers.push(Qt.resolvedUrl("../StudioPage.qml"), { studioId: modelData.id, studioName: modelData.name })
                         }
                     }
 
