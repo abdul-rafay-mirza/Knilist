@@ -194,7 +194,13 @@ Kirigami.ScrollablePage {
             headingText:      model.year
             mediaCardContent: root.toArray(model.items)
 
-            onCardClicked: (mediaId, mediaType) => root.mediaSelected(mediaId)
+            onCardClicked: (mediaId, mediaType) => {
+                console.log("MediaCoverCard Clicked!")
+                if (mediaType === "ANIME")
+                    pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: mediaId })
+                else if (mediaType === "MANGA")
+                    pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: mediaId })
+            }
         }
 
         footer: ColumnLayout {
