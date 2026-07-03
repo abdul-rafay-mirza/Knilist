@@ -63,7 +63,7 @@ Item {
                 Controls.Label {
                     Layout.fillWidth: true
                     text:      root.relationType.charAt(0) + root.relationType.slice(1).toLowerCase()
-                    color:     Kirigami.Theme.linkColor
+                    color:     Kirigami.Theme.highlightColor
                 }
 
                 Controls.Label {

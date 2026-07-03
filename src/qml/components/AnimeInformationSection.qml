@@ -42,12 +42,12 @@ Item {
 
             Controls.Label {
                 text:        "Airing"
-                color:       Kirigami.Theme.linkColor
+                color:       Kirigami.Theme.highlightColor
                 font.weight: Font.DemiBold
             }
             Controls.Label {
                 text:  `Ep ${information.nextAiringEpisode || ""}: ${information.timeUntilAiring || ""}`
-                color: Kirigami.Theme.linkColor
+                color: Kirigami.Theme.highlightColor
             }
         }
 
