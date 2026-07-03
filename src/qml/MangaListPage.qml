@@ -20,8 +20,8 @@ Kirigami.Page {
         { id: "PLANNING",  label: "Planning",  icon: "appointment-new-symbolic"      },
     ]
 
-    ScoreDialog {
-        id: scoreDialog
+    MangaScoreDialog {
+        id: mangaScoreDialog
     }
 
     property string selectedStatus: "ALL"
@@ -367,9 +367,9 @@ Kirigami.Page {
                         onAddVolume:   mangaListPage.incrementVolume(model.anilistId)
                         onCardClicked: mangaListPage.openEditor(model.anilistId)
                         onScoreClicked: {
-                            scoreDialog.anilistId    = model.anilistId
-                            scoreDialog.currentScore = model.score
-                            scoreDialog.open()
+                            mangaScoreDialog.anilistId    = model.anilistId
+                            mangaScoreDialog.currentScore = model.score
+                            mangaScoreDialog.open()
                         }
                         onImageClicked: { 
                             applicationWindow().pageStack.layers.push(

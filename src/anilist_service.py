@@ -21,6 +21,7 @@ from .graphql_queries import (
     _CHARACTER_PAGE_QUERY, _TOGGLE_CHARACTER_FAVOURITE_MUTATION,
     _STAFF_PAGE_QUERY, _STAFF_PAGE_NEXT_QUERY, _TOGGLE_STAFF_FAVOURITE_MUTATION,
     _ANIME_FAVOURITE_QUERY, _CHARACTER_FAVOURITE_QUERY, _STAFF_FAVOURITE_QUERY,
+    _STUDIO_PAGE_QUERY
 )
 
 # Helper functions
@@ -104,6 +105,22 @@ def _parse_date(s: str) -> dict | None:
     except Exception:
         return None
 
+def _parse_studio_media_edges(edges: list | None) -> list[dict]:
+    """Normalise Studio.media edges into flat dicts for the QML side."""
+    media_list = []
+    for edge in edges or []:
+        node = edge.get("node")
+        if not node:
+            continue
+        title_obj = node.get("title") or {}
+        media_list.append({
+            "mediaId":    node.get("id", 0),
+            "title":      title_obj.get("userPreferred", ""),
+            "year":       (node.get("startDate") or {}).get("year") or 0,
+            "coverImage": (node.get("coverImage") or {}).get("large", ""),
+        })
+    return media_list
+
 # Service class
 
 class AniListService(QObject):
@@ -126,6 +143,7 @@ class AniListService(QObject):
     staffPageLoaded           = Signal(str)   # full JSON payload
     staffFavouriteToggled     = Signal(int, bool)
     staffPageMoreLoaded = Signal(str)
+    studioPageLoaded = Signal(str)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -382,6 +400,54 @@ class AniListService(QObject):
                 self._end_loading()
 
         threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, int)
+    def fetchStudioPage(self, studioId: int, page: int):
+        try:
+            variables = {
+                "id": studioId,
+                "page": page,
+                "perPage": 25,
+                "sort": ["START_DATE_DESC"]
+            }
+
+            result = self._gql(_STUDIO_PAGE_QUERY, variables)
+
+            studio = result["Studio"]
+
+            media = []
+
+            for edge in studio["media"]["edges"]:
+                node = edge["node"]
+
+                media.append({
+                    "mediaId": node["id"],
+                    "title": node["title"]["userPreferred"],
+                    "coverImage": node["coverImage"]["large"],
+                    "year": node["startDate"]["year"] or 0
+                })
+
+            payload = {
+                "studioId": studioId,
+                "page": page,
+                "name": studio["name"],
+                "hasNextPage": studio["media"]["pageInfo"]["hasNextPage"],
+                "media": media,
+                "isError": False
+            }
+
+        except Exception:
+            import traceback
+            traceback.print_exc()
+
+            payload = {
+                "studioId": studioId,
+                "page": page,
+                "isError": True,
+                "error": traceback.format_exc()
+            }
+
+        self.studioPageLoaded.emit(json.dumps(payload))
 
     @Slot(int)
     def fetchAnimeEntry(self, anilist_id: int) -> None:
@@ -725,14 +791,27 @@ class AniListService(QObject):
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int, float)
-    def saveScore(self, media_id: int, score: float) -> None:
+    def saveAnimeScore(self, media_id: int, score: float) -> None:
         def _run():
             try:
                 self._gql(_SAVE_ANIME_ENTRY_MUTATION, {
                     "mediaId": media_id,
                     "score":   score,
                 })
-                self.entrySaved.emit()
+                self.animeEntrySaved.emit()
+            except Exception as exc:
+                self._emit_update_failure(exc)
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, float)
+    def saveMangaScore(self, media_id: int, score: float) -> None:
+        def _run():
+            try:
+                self._gql(_SAVE_MANGA_ENTRY_MUTATION, {
+                    "mediaId": media_id,
+                    "score":   score,
+                })
+                self.mangaEntrySaved.emit()
             except Exception as exc:
                 self._emit_update_failure(exc)
         threading.Thread(target=_run, daemon=True).start()

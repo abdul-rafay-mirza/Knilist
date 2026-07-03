@@ -19,8 +19,8 @@ Kirigami.Page {
         { id: "PLANNING",  label: "Planning",  icon: "appointment-new-symbolic"      },
     ]
 
-    ScoreDialog {
-        id: scoreDialog
+    AnimeScoreDialog {
+        id: animeScoreDialog
     }
 
     property string selectedStatus: "ALL"
@@ -349,9 +349,9 @@ Kirigami.Page {
                         onAddEpisode:  animeListPage.incrementProgress(model.anilistId)
                         onCardClicked: animeListPage.openEditor(model.anilistId)
                         onScoreClicked: {
-                            scoreDialog.anilistId    = model.anilistId
-                            scoreDialog.currentScore = model.score
-                            scoreDialog.open()
+                            animeScoreDialog.anilistId    = model.anilistId
+                            animeScoreDialog.currentScore = model.score
+                            animeScoreDialog.open()
                         }
                         onImageClicked: {
                             applicationWindow().pageStack.layers.push(
