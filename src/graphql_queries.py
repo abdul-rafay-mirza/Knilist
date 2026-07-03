@@ -488,6 +488,7 @@ query (
 ) {
   Studio(id: $id) {
     name
+    isFavourite
     media(
       page: $page
       perPage: $perPage

@@ -106,16 +106,25 @@ def _parse_date(s: str) -> dict | None:
         return None
 
 def _parse_studio_media_edges(edges: list | None) -> list[dict]:
-    """Normalise Studio.media edges into flat dicts for the QML side."""
+    """Normalise Studio.media edges into flat dicts for the QML side.
+    AniList's Studio.media connection can return the same media more than once
+    within one page (e.g. multiple credit records) — dedupe by id, keeping the
+    first occurrence."""
     media_list = []
+    seen_ids = set()
     for edge in edges or []:
         node = edge.get("node")
         if not node:
             continue
+        media_id = node.get("id", 0)
+        if media_id in seen_ids:
+            continue
+        seen_ids.add(media_id)
         title_obj = node.get("title") or {}
         media_list.append({
-            "mediaId":    node.get("id", 0),
+            "mediaId":    media_id,
             "title":      title_obj.get("userPreferred", ""),
+            "type":       "ANIME",   # HorizontalScrollableMediaCoverCards' cardClicked expects this
             "year":       (node.get("startDate") or {}).get("year") or 0,
             "coverImage": (node.get("coverImage") or {}).get("large", ""),
         })
@@ -402,52 +411,43 @@ class AniListService(QObject):
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int, int)
-    def fetchStudioPage(self, studioId: int, page: int):
-        try:
-            variables = {
-                "id": studioId,
-                "page": page,
-                "perPage": 25,
-                "sort": ["START_DATE_DESC"]
-            }
+    def fetchStudioPage(self, studio_id: int, page: int) -> None:
+        is_first_page = page <= 1   # QML passes 1 for the initial load, currentPage+1 to load more
 
-            result = self._gql(_STUDIO_PAGE_QUERY, variables)
+        def _run():
+            try:
+                if is_first_page:
+                    self._begin_loading()   # global spinner only for the first load
+                data   = self._gql(_STUDIO_PAGE_QUERY, {"id": studio_id, "page": page if page > 0 else 1})
+                studio = data.get("Studio") or {}
+                media_conn = studio.get("media") or {}
+                has_next   = (media_conn.get("pageInfo") or {}).get("hasNextPage", False)
 
-            studio = result["Studio"]
+                self.studioPageLoaded.emit(json.dumps({
+                    "studioId":    studio_id,
+                    "page":        page,
+                    "name":        studio.get("name") or "",
+                    "media":       _parse_studio_media_edges(media_conn.get("edges")),
+                    "hasNextPage": has_next,
+                    "isError":     False,
+                }))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+                # Always emit studioPageLoaded too, even here — QML has exactly one
+                # handler to clear its loading flags in, regardless of page or outcome.
+                self.studioPageLoaded.emit(json.dumps({
+                    "studioId":    studio_id,
+                    "page":        page,
+                    "name":        "",
+                    "media":       [],
+                    "hasNextPage": False,
+                    "isError":     True,
+                }))
+            finally:
+                if is_first_page:
+                    self._end_loading()
 
-            media = []
-
-            for edge in studio["media"]["edges"]:
-                node = edge["node"]
-
-                media.append({
-                    "mediaId": node["id"],
-                    "title": node["title"]["userPreferred"],
-                    "coverImage": node["coverImage"]["large"],
-                    "year": node["startDate"]["year"] or 0
-                })
-
-            payload = {
-                "studioId": studioId,
-                "page": page,
-                "name": studio["name"],
-                "hasNextPage": studio["media"]["pageInfo"]["hasNextPage"],
-                "media": media,
-                "isError": False
-            }
-
-        except Exception:
-            import traceback
-            traceback.print_exc()
-
-            payload = {
-                "studioId": studioId,
-                "page": page,
-                "isError": True,
-                "error": traceback.format_exc()
-            }
-
-        self.studioPageLoaded.emit(json.dumps(payload))
+        threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int)
     def fetchAnimeEntry(self, anilist_id: int) -> None:
