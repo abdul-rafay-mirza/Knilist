@@ -9,8 +9,9 @@ Kirigami.Page {
 
     // Push with:
     // pageStack.push(Qt.resolvedUrl("StudioPage.qml"), { studioId: 5, studioName: "Kyoto Animation" })
-    property int    studioId:   0
+    property int studioId:   0
     property string studioName: ""
+    property bool isFavourite: false
 
     // Connect this wherever StudioPage is pushed to navigate to your anime detail page.
     signal mediaSelected(int mediaId)
@@ -147,13 +148,21 @@ Kirigami.Page {
             if (data.isError)
                 return
 
-            if (isFirstPage)
+            if (isFirstPage) {
                 root.studioName = data.name
+                root.isFavourite = data.isFavourite
+            }
 
             root.currentPage = data.page
             root.hasNextPage = data.hasNextPage
             mergeMedia(data.media)
             Qt.callLater(checkFillViewport)
+        }
+
+        function onStudioFavouriteToggled(sId, newState) {
+            if (sId !== root.studioId)
+                return
+            root.isFavourite = newState
         }
     }
 
@@ -184,23 +193,63 @@ Kirigami.Page {
                     loadMore()
             }
 
-            header: Kirigami.Heading {
+            header: ColumnLayout {
                 width: groupsListView.width
-                topPadding:    Kirigami.Units.largeSpacing
-                bottomPadding: Kirigami.Units.largeSpacing
-                leftPadding:   Kirigami.Units.largeSpacing
-                rightPadding:  Kirigami.Units.largeSpacing
-                level:    1
-                text:     root.studioName
-                wrapMode: Text.WordWrap
+                height: implicitHeight
+                spacing: 0
+
+                RowLayout {
+                    Layout.fillWidth:    true
+                    Layout.topMargin:    Kirigami.Units.largeSpacing
+                    Layout.bottomMargin: Kirigami.Units.largeSpacing
+                    Layout.leftMargin:   Kirigami.Units.largeSpacing
+                    Layout.rightMargin:  Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.largeSpacing
+
+                    Kirigami.Heading {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                        level:    1
+                        text:     root.studioName
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Controls.Button {
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                        Layout.alignment: Qt.AlignVCenter
+                        enabled: !root.isInitialLoading
+
+                        onClicked: {
+                            console.log("Studio Favourite Button Clicked!")
+                            anilistService.toggleStudioFavourite(root.studioId, root.isFavourite)
+                        }
+
+                        contentItem: RowLayout {
+                            spacing: Kirigami.Units.smallSpacing
+
+                            Kirigami.Icon {
+                                source:         "love"
+                                isMask:         true
+                                color:          root.isFavourite ? "#e05562" : Kirigami.Theme.textColor
+                                implicitWidth:  Kirigami.Units.iconSizes.medium
+                                implicitHeight: Kirigami.Units.iconSizes.medium
+                                Layout.alignment:  Qt.AlignVCenter
+                                Layout.leftMargin: Kirigami.Units.largeSpacing
+                            }
+
+                            Controls.Label {
+                                Layout.fillWidth: true
+                                text:                root.isFavourite ? "Favourited" : "Favourite"
+                                color:               root.isFavourite ? "#e05562" : Kirigami.Theme.textColor
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment:   Text.AlignVCenter
+                            }
+                        }
+                    }
+                }
             }
 
-            // One row per year, reusing your existing heading+scroller component
-            // instead of hand-rolling another one.
             delegate: HorizontalScrollableMediaCoverCards {
-                // Layout.leftMargin/rightMargin on this component only apply when its
-                // parent is an actual Layout — a ListView delegate isn't one, so the
-                // inset is reproduced here directly instead.
                 x:     Kirigami.Units.largeSpacing
                 width: groupsListView.width - Kirigami.Units.largeSpacing * 2
 
@@ -218,6 +267,7 @@ Kirigami.Page {
 
             footer: ColumnLayout {
                 width: groupsListView.width
+                height: implicitHeight
 
                 Controls.BusyIndicator {
                     Layout.alignment:    Qt.AlignHCenter

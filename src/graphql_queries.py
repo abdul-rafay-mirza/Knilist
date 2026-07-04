@@ -515,3 +515,21 @@ query (
   }
 }
 """
+
+_TOGGLE_STUDIO_FAVOURITE_MUTATION = """
+mutation ($studioId: Int) {
+  ToggleFavourite(studioId: $studioId) {
+    studios {
+      nodes { id }
+    }
+  }
+}
+"""
+
+_STUDIO_FAVOURITE_QUERY = """
+query ($id: Int) {
+  Studio(id: $id) {
+    isFavourite
+  }
+}
+"""

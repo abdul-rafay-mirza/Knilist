@@ -21,7 +21,7 @@ from .graphql_queries import (
     _CHARACTER_PAGE_QUERY, _TOGGLE_CHARACTER_FAVOURITE_MUTATION,
     _STAFF_PAGE_QUERY, _STAFF_PAGE_NEXT_QUERY, _TOGGLE_STAFF_FAVOURITE_MUTATION,
     _ANIME_FAVOURITE_QUERY, _CHARACTER_FAVOURITE_QUERY, _STAFF_FAVOURITE_QUERY,
-    _STUDIO_PAGE_QUERY
+    _STUDIO_PAGE_QUERY, _TOGGLE_STUDIO_FAVOURITE_MUTATION, _STUDIO_FAVOURITE_QUERY
 )
 
 # Helper functions
@@ -153,6 +153,7 @@ class AniListService(QObject):
     staffFavouriteToggled     = Signal(int, bool)
     staffPageMoreLoaded = Signal(str)
     studioPageLoaded = Signal(str)
+    studioFavouriteToggled = Signal(int, bool)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -427,6 +428,7 @@ class AniListService(QObject):
                     "studioId":    studio_id,
                     "page":        page,
                     "name":        studio.get("name") or "",
+                    "isFavourite": studio.get("isFavourite", False),
                     "media":       _parse_studio_media_edges(media_conn.get("edges")),
                     "hasNextPage": has_next,
                     "isError":     False,
@@ -439,6 +441,7 @@ class AniListService(QObject):
                     "studioId":    studio_id,
                     "page":        page,
                     "name":        "",
+                    "isFavourite": False,
                     "media":       [],
                     "hasNextPage": False,
                     "isError":     True,
@@ -447,6 +450,22 @@ class AniListService(QObject):
                 if is_first_page:
                     self._end_loading()
 
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, bool)
+    def toggleStudioFavourite(self, studio_id: int, currently_favourite: bool) -> None:
+        def _run():
+            try:
+                self._begin_loading()
+                self._gql(_TOGGLE_STUDIO_FAVOURITE_MUTATION, {"studioId": studio_id})
+                data   = self._gql(_STUDIO_FAVOURITE_QUERY, {"id": studio_id})
+                is_fav = (data.get("Studio") or {}).get("isFavourite", False)
+                print("Studio Favourite:", is_fav)
+                self.studioFavouriteToggled.emit(studio_id, is_fav)
+            except Exception as exc:
+                self._emit_update_failure(exc)
+            finally:
+                self._end_loading()
         threading.Thread(target=_run, daemon=True).start()
 
     @Slot(int)
