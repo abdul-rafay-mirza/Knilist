@@ -9,17 +9,32 @@ ColumnLayout {
     property var characters: []
 
     signal characterClicked(int characterId, string name, string image, string role)
+    signal characterHeadingClicked()
 
     visible: characters.length > 0
     spacing: 0
 
     Kirigami.Heading {
-        Layout.fillWidth:   true
+        // Layout.fillWidth:   true
         Layout.topMargin:   Kirigami.Units.largeSpacing
         Layout.leftMargin:  Kirigami.Units.largeSpacing
         Layout.rightMargin: Kirigami.Units.largeSpacing
         level: 3
         text:  "Characters"
+
+        opacity: producerHover.hovered ? 1.0 : 0.85
+        color: producerHover.hovered ? Kirigami.Theme.linkColor : Kirigami.Theme.textColor
+
+        TapHandler {
+            onTapped: {
+                root.characterHeadingClicked()
+            }
+        }
+
+        HoverHandler {
+            id: producerHover
+            cursorShape: Qt.PointingHandCursor
+        }
     }
 
     Flow {

@@ -236,6 +236,9 @@ Kirigami.Page {
                                     characterId: characterId
                                 })
                             }
+                            onCharacterHeadingClicked: {
+                                console.log("Character Heading Clicked!")
+                            }
                         }
 
                         StaffSection {
