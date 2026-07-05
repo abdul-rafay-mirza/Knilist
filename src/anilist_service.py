@@ -1040,10 +1040,10 @@ class AniListService(QObject):
                     self._begin_loading()   # global spinner only for the first load
                 data      = self._gql(_ALL_CHARACTERS_QUERY, {"id": anilistId, "page": page if page > 0 else 1})
                 media     = data.get("Media") or {}
-                staff_con = media.get("characters") or {}
-                has_next  = (staff_con.get("pageInfo") or {}).get("hasNextPage", False)
+                char_con = media.get("characters") or {}
+                has_next  = (char_con.get("pageInfo") or {}).get("hasNextPage", False)
 
-                raw_characters = staff_con.get("edges") or []
+                raw_characters = char_con.get("edges") or []
                 characters = []
                 for edge in raw_characters:
                     if edge.get("node") is not None and edge.get("node") != {}:
