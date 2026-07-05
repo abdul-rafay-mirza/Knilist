@@ -560,3 +560,30 @@ query ($id: Int, $page: Int = 1) {
   }
 }
 """
+
+_ALL_STAFF_QUERY = """
+query ($id: Int, $page: Int = 1) {
+  Media(id: $id) {
+    staff(page: $page, perPage: 25, sort: [RELEVANCE]) {
+      pageInfo {
+        currentPage
+        lastPage
+        hasNextPage
+      }
+      edges {
+        role
+        node {
+          id
+          name {
+            full
+            native
+          }
+          image {
+            large
+          }
+        }
+      }
+    }
+  }
+}
+"""
