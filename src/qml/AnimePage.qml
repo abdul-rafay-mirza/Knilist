@@ -254,6 +254,9 @@ Kirigami.Page {
                                     staffId: id
                                 })
                             }
+                            onStaffHeadingClicked: {
+                                console.log("Staff Heading Clicked!")
+                            }
                         }
 
                         Item {
