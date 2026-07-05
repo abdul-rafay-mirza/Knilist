@@ -238,6 +238,10 @@ Kirigami.Page {
                             }
                             onCharacterHeadingClicked: {
                                 console.log("Character Heading Clicked!")
+                                pageStack.layers.push(Qt.resolvedUrl("AllCharactersPage.qml"), {
+                                    anilistId: animeId,
+                                    mediaTitle: animeTitle
+                                })
                             }
                         }
 
