@@ -533,3 +533,30 @@ query ($id: Int) {
   }
 }
 """
+
+_ALL_CHARACTERS_QUERY = """
+query ($id: Int, $page: Int = 1) {
+  Media(id: $id) {
+    characters(page: $page, perPage: 25, sort: [ROLE, RELEVANCE]) {
+      pageInfo {
+        currentPage
+        lastPage
+        hasNextPage
+      }
+      edges {
+        role
+        node {
+          id
+          name {
+            full
+            native
+          }
+          image {
+            large
+          }
+        }
+      }
+    }
+  }
+}
+"""

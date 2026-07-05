@@ -21,7 +21,8 @@ from .graphql_queries import (
     _CHARACTER_PAGE_QUERY, _TOGGLE_CHARACTER_FAVOURITE_MUTATION,
     _STAFF_PAGE_QUERY, _STAFF_PAGE_NEXT_QUERY, _TOGGLE_STAFF_FAVOURITE_MUTATION,
     _ANIME_FAVOURITE_QUERY, _CHARACTER_FAVOURITE_QUERY, _STAFF_FAVOURITE_QUERY,
-    _STUDIO_PAGE_QUERY, _TOGGLE_STUDIO_FAVOURITE_MUTATION, _STUDIO_FAVOURITE_QUERY
+    _STUDIO_PAGE_QUERY, _TOGGLE_STUDIO_FAVOURITE_MUTATION, _STUDIO_FAVOURITE_QUERY,
+    _ALL_CHARACTERS_QUERY
 )
 
 # Helper functions
@@ -154,6 +155,7 @@ class AniListService(QObject):
     staffPageMoreLoaded = Signal(str)
     studioPageLoaded = Signal(str)
     studioFavouriteToggled = Signal(int, bool)
+    allCharactersPageLoaded = Signal(str)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -1024,6 +1026,56 @@ class AniListService(QObject):
                 self.mangaEntryDeleted.emit()
             except Exception as exc:
                 self._emit_update_failure(exc)
+        threading.Thread(target=_run, daemon=True).start()
+
+    # All Character Page
+    @Slot(int, int)
+    def fetchAllCharactersPage(self, anilistId: int, page: int) -> None:
+        is_first_page = page <= 1   # QML passes 1 for the initial load, currentPage+1 to load more
+
+        def _run():
+            try:
+                if is_first_page:
+                    self._begin_loading()   # global spinner only for the first load
+                data      = self._gql(_ALL_CHARACTERS_QUERY, {"id": anilistId, "page": page if page > 0 else 1})
+                media     = data.get("Media") or {}
+                char_conn = media.get("characters") or {}
+                has_next  = (char_conn.get("pageInfo") or {}).get("hasNextPage", False)
+
+                raw_characters = char_conn.get("edges") or []
+                characters = []
+                for edge in raw_characters:
+                    if edge.get("node") is not None and edge.get("node") != {}:
+                        node = edge["node"]
+                        characters.append({
+                            "characterId": node.get("id", 0),
+                            "name":        (node.get("name") or {}).get("full") or (node.get("name") or {}).get("native", "") or "",
+                            "image":       (node.get("image") or {}).get("large", ""),
+                            "role":        edge.get("role", ""),
+                        })
+
+                self.allCharactersPageLoaded.emit(json.dumps({
+                    "anilistId":   anilistId,
+                    "page":        page,
+                    "characters":  characters,
+                    "hasNextPage": has_next,
+                    "isError":     False,
+                }))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+                # Always emit allCharactersPageLoaded too, even here — QML has exactly
+                # one handler to clear its loading flags in, regardless of outcome.
+                self.allCharactersPageLoaded.emit(json.dumps({
+                    "anilistId":   anilistId,
+                    "page":        page,
+                    "characters":  [],
+                    "hasNextPage": False,
+                    "isError":     True,
+                }))
+            finally:
+                if is_first_page:
+                    self._end_loading()
+
         threading.Thread(target=_run, daemon=True).start()
 
     # ── QML-callable helpers ──────────────────────────────────────────────────

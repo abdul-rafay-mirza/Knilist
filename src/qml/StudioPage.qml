@@ -183,7 +183,7 @@ Kirigami.Page {
 
             model: yearGroupsModel
             spacing: Kirigami.Units.largeSpacing
-            boundsBehavior: Flickable.StopAtBounds
+            boundsBehavior: Flickable.DragAndOvershootBounds
 
             onContentYChanged: {
                 if (isLoadingMore || isInitialLoading || !hasNextPage)
