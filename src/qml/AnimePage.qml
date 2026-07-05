@@ -256,6 +256,10 @@ Kirigami.Page {
                             }
                             onStaffHeadingClicked: {
                                 console.log("Staff Heading Clicked!")
+                                pageStack.layers.push(Qt.resolvedUrl("AllStaffPage.qml"), {
+                                    anilistId: animeId,
+                                    mediaTitle: animeTitle
+                                })
                             }
                         }
 
