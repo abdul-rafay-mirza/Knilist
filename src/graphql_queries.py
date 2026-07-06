@@ -587,3 +587,116 @@ query ($id: Int, $page: Int = 1) {
   }
 }
 """
+
+_MANGA_PAGE_QUERY = """
+query ($id: Int) {
+  Media(id: $id, type: MANGA) {
+    id
+    title {
+      romaji
+      english
+      native
+      userPreferred
+    }
+    format
+    chapters
+    volumes
+    status
+    startDate {
+      day
+      month
+      year
+    }
+    endDate {
+      day
+      month
+      year
+    }
+    averageScore
+    meanScore
+    popularity
+    favourites
+    isFavourite
+    source
+    genres
+    synonyms
+    tags {
+      name
+      rank
+      isMediaSpoiler
+    }
+    externalLinks {
+      site
+      url
+    }
+    bannerImage
+    coverImage {
+      large
+    }
+    description
+    relations {
+      edges {
+        relationType(version: 2)
+        node {
+          id
+          type
+          format
+          title {
+            romaji
+            english
+          }
+          coverImage {
+            large
+          }
+          status
+        }
+      }
+    }
+    characters(sort: [RELEVANCE], perPage: 25) {
+      edges {
+        role
+        node {
+          id
+          name {
+            full
+            native
+          }
+          image {
+            large
+          }
+        }
+      }
+    }
+    staff(sort: [RELEVANCE], perPage: 3) {
+      edges {
+        role
+        node {
+          id
+          name {
+            full
+            native
+          }
+          image {
+            large
+          }
+        }
+      }
+    }
+    recommendations(sort: [RATING_DESC], perPage: 30) {
+      nodes {
+        mediaRecommendation {
+          id
+          title {
+            english
+            native
+            romaji
+          }
+          coverImage {
+            large
+          }
+        }
+      }
+    }
+  }
+}
+"""
