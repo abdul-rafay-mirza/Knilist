@@ -103,7 +103,7 @@ ColumnLayout {
 
                 Controls.Button {
                     onClicked: {
-                        console.log("Anime Favourite Button Clicked!")
+                        console.log("Favourite Button Clicked!")
                         root.favouriteToggled()
                     }
 

@@ -158,6 +158,7 @@ class AniListService(QObject):
     studioFavouriteToggled = Signal(int, bool)
     allCharactersPageLoaded = Signal(str)
     allStaffPageLoaded = Signal(str)
+    mangaPageLoaded = Signal(int, str, str, str, str, str, bool, str, str, str, str)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -1028,6 +1029,113 @@ class AniListService(QObject):
                 self.mangaEntryDeleted.emit()
             except Exception as exc:
                 self._emit_update_failure(exc)
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def fetchMangaPage(self, anilist_id: int) -> None:
+        def _run():
+            try:
+                self._begin_loading()
+                data  = self._gql(_MANGA_PAGE_QUERY, {"id": anilist_id})
+                media = data.get("Media") or {}
+
+                title_obj = media.get("title") or {}
+                title     = title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or ""
+                banner       = media.get("bannerImage") or ""
+                cover        = (media.get("coverImage") or {}).get("large", "")
+                description  = media.get("description") or ""
+                is_favourite = media.get("isFavourite", False)
+                print(f"[fetchMangaPage] {anilist_id} raw isFavourite from AniList: {is_favourite}")
+
+                raw_relations: list = (media.get("relations") or {}).get("edges") or []
+                relations = []
+                for edge in raw_relations:
+                    if edge.get("node") is not None and edge.get("node") != {}:
+                        node = edge["node"]
+                        title_obj = node.get("title") or {}
+                        relations.append({
+                            "mediaId":      node.get("id", 0),
+                            "relationType": edge.get("relationType", ""),
+                            "mediaType":    node.get("type", ""),
+                            "format":       node.get("format", ""),
+                            "title":        title_obj.get("english") or title_obj.get("romaji", ""),
+                            "coverImage":   (node.get("coverImage") or {}).get("large", ""),
+                            "status":       node.get("status", ""),
+                        })
+
+                raw_characters = (media.get("characters") or {}).get("edges") or []
+                characters = []
+                for edge in raw_characters:
+                    if edge.get("node") is not None and edge.get("node") != {}:
+                        node = edge["node"]
+                        characters.append({
+                            "characterId": node.get("id", 0),
+                            "name":        (node.get("name") or {}).get("full", ""),
+                            "nativeName":  (node.get("name") or {}).get("native", "") or "",
+                            "image":       (node.get("image") or {}).get("large", ""),
+                            "role":        edge.get("role", ""),
+                        })
+
+                raw_recommendation_nodes = (media.get("recommendations") or {}).get("nodes") or []
+                recommendations = []
+                for node in raw_recommendation_nodes:
+                    if node.get("mediaRecommendation") is not None and node.get("mediaRecommendation") != {}:
+                        media_recommendation = node["mediaRecommendation"]
+                        title_obj = media_recommendation.get("title") or {}
+                        recommendations.append({
+                            "mediaId": media_recommendation.get("id", 0),
+                            "title": title_obj.get("english") or title_obj.get("romaji", ""), 
+                            "coverImage": (media_recommendation.get("coverImage") or {}).get("large", "")
+                        })
+
+                raw_staff_edges = (media.get("staff") or {}).get("edges") or []
+                staff = []
+                for edge in raw_staff_edges:
+                    if edge.get("node") is not None and edge.get("node") != {}:
+                        node = edge["node"]
+                        staff.append({
+                            "role": edge.get("role", ""),
+                            "id": node.get("id", 0),
+                            "name": (node.get("name") or {}).get("full") or (node.get("name") or {}).get("native", ""),
+                            "image": (node.get("image") or {}).get("large", "")
+                        })
+
+                status = media.get("status") or ""
+
+                information = {
+                    "status":             status,
+                    "format":             media.get("format") or "",
+                    "chapters":           media.get("chapters") or 0,
+                    "volumes":            media.get("volumes") or 0,
+                    "startDate":          _date_str(_fuzzy_date(media.get("startDate"))),
+                    "endDate":            _date_str(_fuzzy_date(media.get("endDate"))),
+                    "averageScore":       media.get("averageScore") or 0,
+                    "meanScore":          media.get("meanScore") or 0,
+                    "popularity":         media.get("popularity") or 0,
+                    "favourites":         media.get("favourites") or 0,
+                    "source":             media.get("source") or "",
+                    "genres":             media.get("genres") or [],
+                    "synonyms":           media.get("synonyms") or [],
+                    "titleRomaji":        (media.get("title") or {}).get("romaji")  or "",
+                    "titleEnglish":       (media.get("title") or {}).get("english") or "",
+                    "titleNative":        (media.get("title") or {}).get("native")  or "",
+                    "tags": media.get("tags") or [],
+                    "externalLinks": media.get("externalLinks") or []
+                }
+
+                self.mangaPageLoaded.emit(
+                    anilist_id, title, banner, cover, description,
+                    json.dumps(relations), is_favourite,
+                    json.dumps(characters),
+                    json.dumps(recommendations),
+                    json.dumps(staff),
+                    json.dumps(information)
+                )
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
+
         threading.Thread(target=_run, daemon=True).start()
 
     # All Character Page
