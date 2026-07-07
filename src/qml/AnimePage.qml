@@ -22,6 +22,7 @@ Kirigami.Page {
     property var animeRecommendations: []
     property var animeStaff:         []
     property var animeInformation:   ({})
+    property var informationSidebarMaxWidth: 250
 
     property bool _ready: false
 
@@ -198,16 +199,19 @@ Kirigami.Page {
                         AnimeInformationSection {
                             Layout.fillWidth: true
                             information:      animePage.animeInformation
+                            Layout.maximumWidth: animePage.informationSidebarMaxWidth
                         }
 
                         TagsSection {
                             Layout.fillWidth: true
                             tags:             animePage.animeInformation.tags
+                            Layout.maximumWidth: animePage.informationSidebarMaxWidth
                         }
 
                         ExternalLinksSection {
                             Layout.fillWidth: true
                             links: animePage.animeInformation.externalLinks
+                            Layout.maximumWidth: animePage.informationSidebarMaxWidth
                         }
                     }
 
