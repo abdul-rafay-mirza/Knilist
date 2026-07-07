@@ -159,6 +159,7 @@ class AniListService(QObject):
     allCharactersPageLoaded = Signal(str)
     allStaffPageLoaded = Signal(str)
     mangaPageLoaded = Signal(int, str, str, str, str, str, bool, str, str, str, str)
+    mangaEntryLoaded = Signal(int, str)   # JSON of entry fields, or {"onList": false}
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -169,6 +170,7 @@ class AniListService(QObject):
         self._entry_id_map:         dict[int, int]  = {}
         self._manga_entry_id_map:   dict[int, int]  = {}
         self._anime_entry_cache:    dict[int, dict] = {}  # anilistId → full normalised entry
+        self._manga_entry_cache:    dict[int, dict] = {}  # anilistId → full normalised entry
 
     def _begin_loading(self):
         self._loading_count += 1
@@ -933,6 +935,7 @@ class AniListService(QObject):
                         })
                 entries.sort(key=lambda e: e["updatedAt"], reverse=True)
                 self._manga_entry_id_map = {e["anilistId"]: e["entryId"] for e in entries}
+                self._manga_entry_cache = {e["anilistId"]: e for e in entries}
                 self.mangaLoaded.emit(entries)
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
@@ -940,6 +943,18 @@ class AniListService(QObject):
                 self._end_loading()
 
         threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def fetchMangaEntry(self, anilist_id: int) -> None:
+        """Emit the cached list entry for this manga, or {"onList": false} if not on list."""
+        entry = self._manga_entry_cache.get(anilist_id)
+        print("fetchMangaEntry called for:", anilist_id, "cache hit:", entry is not None)
+        if not entry:
+            self.mangaEntryLoaded.emit(anilist_id, json.dumps({"onList": False}))
+            return
+        payload = dict(entry)
+        payload["onList"] = True
+        self.mangaEntryLoaded.emit(anilist_id, json.dumps(payload))
 
     @Slot(int, int, str)
     def saveMangaProgress(self, media_id: int, chapters: int, status: str) -> None:
@@ -1026,6 +1041,7 @@ class AniListService(QObject):
             try:
                 self._gql(_DELETE_MANGA_ENTRY_MUTATION, {"id": entry_id})
                 self._manga_entry_id_map.pop(media_id, None)
+                self._manga_entry_cache.pop(media_id, None)
                 self.mangaEntryDeleted.emit()
             except Exception as exc:
                 self._emit_update_failure(exc)

@@ -15,7 +15,14 @@ Kirigami.Page {
     property var mangaBannerImage
     property var mangaCoverImage
     property var mangaDescription
+    property var mangaRelations:     []
+    property int mangaTotalChapters: 0
+    property int mangaTotalVolumes: 0
     property bool mangaIsFavourite: false
+    property var mangaCharacters:    []
+    property var mangaRecommendations: []
+    property var mangaStaff:         []
+    property var mangaInformation:   ({})
 
     property bool _ready: false
 
@@ -31,7 +38,62 @@ Kirigami.Page {
     function _loadMangaData() {
         if (anilistId > 0) {
             anilistService.fetchMangaPage(anilistId)
+            anilistService.fetchMangaEntry(anilistId)
         }
+    }
+
+    // ── List editor ───────────────────────────────────────────────────────────
+    MangaListEditorDialog {
+        id: listEditor
+        onEntrySaved: {
+            anilistService.fetchManga()
+            anilistService.fetchMangaPage(mangaPage.anilistId)
+            anilistService.fetchMangaEntry(mangaPage.anilistId)
+        }
+        onEntryRemoved: {
+            anilistService.fetchManga()
+            anilistService.fetchMangaPage(mangaPage.anilistId)
+            anilistService.fetchMangaEntry(mangaPage.anilistId)
+        }
+    }
+
+    function openEditor(anilistId) {
+        const e = mangaPage.mangaEntry
+        const onList = e && e.onList
+
+        function parsePart(dateStr, part) {
+            if (!dateStr || dateStr.length < 10) return 0
+            const p = dateStr.split("-")
+            if (part === "y") return parseInt(p[0]) || 0
+            if (part === "m") return parseInt(p[1]) || 0
+            if (part === "d") return parseInt(p[2]) || 0
+            return 0
+        }
+
+        const sd = (onList && e.startedAt)   || ""
+        const fd = (onList && e.completedAt) || ""
+
+        listEditor.anilistId            = mangaPage.anilistId
+        listEditor.mangaTitle           = mangaPage.mangaTitle || ""
+        listEditor.currentStatus        = (onList && e.status) || "PLANNING"
+        listEditor.currentScore         = (onList && e.score) || 0
+        listEditor.currentChapters      = (onList && e.progress) || 0
+        listEditor.currentVolumes       = (onList && e.progressVolumes) || 0
+        listEditor.currentTotalChapters = mangaPage.mangaTotalChapters
+        listEditor.currentTotalVolumes  = mangaPage.mangaTotalVolumes
+        listEditor.currentStartYear     = parsePart(sd, "y")
+        listEditor.currentStartMonth    = parsePart(sd, "m")
+        listEditor.currentStartDay      = parsePart(sd, "d")
+        listEditor.currentFinishYear    = parsePart(fd, "y")
+        listEditor.currentFinishMonth   = parsePart(fd, "m")
+        listEditor.currentFinishDay     = parsePart(fd, "d")
+        listEditor.currentRereads       = (onList && e.rewatches) || 0
+        listEditor.currentNotes         = (onList && e.notes)            || ""
+        listEditor.currentPriority      = (onList && e.priority)         || 0
+        listEditor.currentHideFromLists = (onList && e.hiddenFromStatusLists) || false
+        listEditor.currentPrivate       = (onList && e.isPrivate)        || false
+
+        listEditor.open()
     }
 
     // ── Live data ─────────────────────────────────────────────────────────────
@@ -50,6 +112,29 @@ Kirigami.Page {
             mangaPage.mangaCoverImage  = _coverImage
             mangaPage.mangaDescription = _description
             mangaPage.mangaIsFavourite = _isFavourite
+        }
+
+        function onMangaEntryLoaded(_id, _entryJson) {
+            if (_id !== mangaPage.anilistId) return
+            mangaPage.mangaEntry = JSON.parse(_entryJson)
+            console.log("Manga Status: " + mangaPage.mangaEntry.status)
+        }
+
+        function onMangaEntrySaved() {
+            anilistService.fetchManga()
+        }
+
+        function onMangaLoaded() {
+            anilistService.fetchMangaEntry(mangaPage.anilistId)
+        }
+
+        function onMangaFavouriteToggled(anilistId, newState) {
+            if (anilistId === mangaPage.anilistId) {
+                mangaPage.mangaIsFavourite = newState
+                applicationWindow().showPassiveNotification(
+                    newState ? "Added to Favorites" : "Removed from Favorites"
+                )
+            }
         }
     }
 
@@ -83,7 +168,7 @@ Kirigami.Page {
                     coverImage:    mangaPage.mangaCoverImage
                     description:   mangaPage.mangaDescription
                     entry:         mangaPage.mangaEntry
-                    totalProgress: 0
+                    totalProgress: mangaPage.mangaTotalChapters
                     isFavourite:   mangaPage.mangaIsFavourite
                     statusLabels: ({
                         "CURRENT":   "Reading",
@@ -94,8 +179,7 @@ Kirigami.Page {
                         "REPEATING": "Rereading",
                     })
                     onEditRequested: {
-                        // TODO: no manga list editor dialog yet — mirror AnimeListEditorDialog
-                        console.log("[MangaPage] edit requested — editor dialog not implemented")
+                        mangaPage.openEditor()
                     }
                     onFavouriteToggled: {
                         // TODO: backend has no toggleMangaFavourite slot yet (only anime/character/staff/studio)
