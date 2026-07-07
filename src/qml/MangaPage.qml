@@ -182,8 +182,7 @@ Kirigami.Page {
                         mangaPage.openEditor()
                     }
                     onFavouriteToggled: {
-                        // TODO: backend has no toggleMangaFavourite slot yet (only anime/character/staff/studio)
-                        console.log("[MangaPage] favourite toggle requested — backend slot not implemented")
+                        anilistService.toggleMangaFavourite(mangaPage.anilistId, mangaPage.mangaIsFavourite)
                     }
                 }
 

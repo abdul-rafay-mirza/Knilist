@@ -17,13 +17,13 @@ from .graphql_queries import (
     _VIEWER_QUERY, _ANIME_LIST_QUERY, _MANGA_LIST_QUERY,
     _SAVE_ANIME_ENTRY_MUTATION, _SAVE_MANGA_ENTRY_MUTATION,
     _DELETE_ANIME_ENTRY_MUTATION, _DELETE_MANGA_ENTRY_MUTATION,
-    _TOGGLE_FAVOURITE_MUTATION, _ANIME_PAGE_QUERY,
+    _TOGGLE_ANIME_FAVOURITE_MUTATION, _ANIME_PAGE_QUERY,
     _CHARACTER_PAGE_QUERY, _TOGGLE_CHARACTER_FAVOURITE_MUTATION,
     _STAFF_PAGE_QUERY, _STAFF_PAGE_NEXT_QUERY, _TOGGLE_STAFF_FAVOURITE_MUTATION,
     _ANIME_FAVOURITE_QUERY, _CHARACTER_FAVOURITE_QUERY, _STAFF_FAVOURITE_QUERY,
     _STUDIO_PAGE_QUERY, _TOGGLE_STUDIO_FAVOURITE_MUTATION, _STUDIO_FAVOURITE_QUERY,
     _ALL_CHARACTERS_QUERY, _ALL_STAFF_QUERY,
-    _MANGA_PAGE_QUERY
+    _MANGA_PAGE_QUERY, _MANGA_FAVOURITE_QUERY, _TOGGLE_MANGA_FAVOURITE_MUTATION
 )
 
 # Helper functions
@@ -160,6 +160,7 @@ class AniListService(QObject):
     allStaffPageLoaded = Signal(str)
     mangaPageLoaded = Signal(int, str, str, str, str, str, bool, str, str, str, str)
     mangaEntryLoaded = Signal(int, str)   # JSON of entry fields, or {"onList": false}
+    mangaFavouriteToggled = Signal(int, bool)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -850,7 +851,7 @@ class AniListService(QObject):
         def _run():
             try:
                 self._begin_loading()
-                self._gql(_TOGGLE_FAVOURITE_MUTATION, {"animeId": anilist_id})
+                self._gql(_TOGGLE_ANIME_FAVOURITE_MUTATION, {"animeId": anilist_id})
                 data   = self._gql(_ANIME_FAVOURITE_QUERY, {"id": anilist_id})
                 is_fav = (data.get("Media") or {}).get("isFavourite", False)
                 self.animeFavouriteToggled.emit(anilist_id, is_fav)
@@ -1152,6 +1153,25 @@ class AniListService(QObject):
             finally:
                 self._end_loading()
 
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, bool)
+    def toggleMangaFavourite(self, anilist_id: int, currently_favourite: bool) -> None:
+        # currently_favourite is no longer used to compute anything — kept only
+        # so the QML call site doesn't need to change. The emitted value always
+        # comes from a fresh query made after the mutation confirms.
+        def _run():
+            try:
+                self._begin_loading()
+                self._gql(_TOGGLE_MANGA_FAVOURITE_MUTATION, {"mangaId": anilist_id})
+                data   = self._gql(_MANGA_FAVOURITE_QUERY, {"id": anilist_id})
+                is_fav = (data.get("Media") or {}).get("isFavourite", False)
+                self.mangaFavouriteToggled.emit(anilist_id, is_fav)
+                print("Manga Favourite:", is_fav)
+            except Exception as exc:
+                self._emit_update_failure(exc)
+            finally:
+                self._end_loading()
         threading.Thread(target=_run, daemon=True).start()
 
     # All Character Page

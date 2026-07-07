@@ -166,10 +166,20 @@ mutation ($id: Int) {
 }
 """
 
-_TOGGLE_FAVOURITE_MUTATION = """
+_TOGGLE_ANIME_FAVOURITE_MUTATION = """
 mutation ($animeId: Int) {
   ToggleFavourite(animeId: $animeId) {
     anime {
+      nodes { id }
+    }
+  }
+}
+"""
+
+_TOGGLE_MANGA_FAVOURITE_MUTATION = """
+mutation ($mangaId: Int) {
+  ToggleFavourite(mangaId: $mangaId) {
+    manga {
       nodes { id }
     }
   }
@@ -451,6 +461,14 @@ mutation ($staffId: Int) {
 _ANIME_FAVOURITE_QUERY = """
 query ($id: Int) {
   Media(id: $id, type: ANIME) {
+    isFavourite
+  }
+}
+"""
+
+_MANGA_FAVOURITE_QUERY = """
+query ($id: Int) {
+  Media(id: $id, type: MANGA) {
     isFavourite
   }
 }
