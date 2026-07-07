@@ -109,7 +109,7 @@ Item {
                 model: information.studios || []
                 Controls.Label {
                     id: studioLabel
-                    Layout.fillWidth: true
+                    // Layout.fillWidth: true
                     text: modelData.name
                     wrapMode: Text.WordWrap
                     
@@ -142,7 +142,7 @@ Item {
                 model: information.producers || []
                 Controls.Label {
                     id: producerLabel
-                    Layout.fillWidth: true
+                    // Layout.fillWidth: true
                     text: modelData.name
                     wrapMode: Text.WordWrap
                     
