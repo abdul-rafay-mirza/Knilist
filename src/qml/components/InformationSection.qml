@@ -7,6 +7,9 @@ Item {
     id: root
 
     property var information: ({})
+    property string mediaType: "ANIME"   // "ANIME" | "MANGA"
+
+    readonly property bool isAnime: mediaType === "ANIME"
 
     // Let the parent RowLayout size us vertically by content
     implicitHeight: layout.implicitHeight + Kirigami.Units.largeSpacing * 2
@@ -35,9 +38,9 @@ Item {
         }
         spacing: Kirigami.Units.largeSpacing
 
-        // ── Airing — only when there is actually a next episode ───────────────
+        // ── Airing — anime only, only when there is actually a next episode ───
         ColumnLayout {
-            visible: (information.timeUntilAiring || "") !== ""
+            visible: isAnime && (information.timeUntilAiring || "") !== ""
             spacing: 1
 
             Controls.Label {
@@ -52,16 +55,30 @@ Item {
         }
 
         // ── Core fields ───────────────────────────────────────────────────────
-        InfoRow { label: "Format"; value: information.format || "" }
+        InfoRow { label: "Format"; value: formatFormat(information.format || "") }
 
         InfoRow {
+            visible: isAnime && (information.episodes || 0) > 0
             label: "Episodes"
             value: (information.episodes || 0) > 0 ? String(information.episodes) : ""
         }
 
         InfoRow {
+            visible: isAnime && (information.duration || 0) > 0
             label: "Episode Duration"
             value: (information.duration || 0) > 0 ? `${information.duration} mins` : ""
+        }
+
+        InfoRow {
+            visible: !isAnime && (information.chapters || 0) > 0
+            label: "Chapters"
+            value: (information.chapters || 0) > 0 ? String(information.chapters) : ""
+        }
+
+        InfoRow {
+            visible: !isAnime && (information.volumes || 0) > 0
+            label: "Volumes"
+            value: (information.volumes || 0) > 0 ? String(information.volumes) : ""
         }
 
         InfoRow { label: "Status";     value: formatStatus(information.status || "") }
@@ -77,6 +94,7 @@ Item {
         }
 
         InfoRow {
+            visible: isAnime && formatSeason(information.season || "", information.seasonYear || 0) !== ""
             label: "Season"
             value: formatSeason(information.season || "", information.seasonYear || 0)
         }
@@ -99,23 +117,20 @@ Item {
             value: (information.favourites || 0) > 0 ? String(information.favourites) : ""
         }
 
-        // ── Studios ───────────────────────────────────────────────────────────
+        // ── Studios — anime only ─────────────────────────────────────────────
         ColumnLayout {
-            visible: (information.studios || []).length > 0
+            visible: isAnime && (information.studios || []).length > 0
             spacing: 1
 
             Controls.Label { text: "Studios"; font.weight: Font.DemiBold; color: Kirigami.Theme.textColor }
             Repeater {
                 model: information.studios || []
                 Controls.Label {
-                    id: studioLabel
-                    // Layout.fillWidth: true
                     text: modelData.name
                     wrapMode: Text.WordWrap
-                    
-                    // 1. Smoothly switch opacity and color using the hover state
-                    opacity: producerHover.hovered ? 1.0 : 0.85
-                    color: producerHover.hovered ? Kirigami.Theme.linkColor : Kirigami.Theme.textColor
+
+                    opacity: studioHover.hovered ? 1.0 : 0.85
+                    color: studioHover.hovered ? Kirigami.Theme.linkColor : Kirigami.Theme.textColor
 
                     TapHandler {
                         onTapped: {
@@ -123,30 +138,26 @@ Item {
                         }
                     }
 
-                    // 2. This handles tracking the un-clicked mouse pointer and hover states
                     HoverHandler {
-                        id: producerHover
+                        id: studioHover
                         cursorShape: Qt.PointingHandCursor
                     }
                 }
             }
         }
 
-        // ── Producers ─────────────────────────────────────────────────────────
+        // ── Producers — anime only ───────────────────────────────────────────
         ColumnLayout {
-            visible: (information.producers || []).length > 0
+            visible: isAnime && (information.producers || []).length > 0
             spacing: 1
 
             Controls.Label { text: "Producers"; font.weight: Font.DemiBold; color: Kirigami.Theme.textColor }
             Repeater {
                 model: information.producers || []
                 Controls.Label {
-                    id: producerLabel
-                    // Layout.fillWidth: true
                     text: modelData.name
                     wrapMode: Text.WordWrap
-                    
-                    // 1. Smoothly switch opacity and color using the hover state
+
                     opacity: producerHover.hovered ? 1.0 : 0.85
                     color: producerHover.hovered ? Kirigami.Theme.linkColor : Kirigami.Theme.textColor
 
@@ -156,7 +167,6 @@ Item {
                         }
                     }
 
-                    // 2. This handles tracking the un-clicked mouse pointer and hover states
                     HoverHandler {
                         id: producerHover
                         cursorShape: Qt.PointingHandCursor
@@ -166,9 +176,25 @@ Item {
         }
 
         // ── Misc ──────────────────────────────────────────────────────────────
-        InfoRow { label: "Source";  value: formatSource(information.source || "") }
-        InfoRow { label: "Hashtag"; value: information.hashtag || "" }
-        InfoRow { label: "Genres";  value: (information.genres || []).join(", ") }
+        InfoRow { label: "Source"; value: formatSource(information.source || "") }
+
+        InfoRow {
+            visible: isAnime && (information.hashtag || "") !== ""
+            label: "Hashtag"
+            value: information.hashtag || ""
+        }
+
+        // ── Genres ────────────────────────────────────────────────────────────
+        ColumnLayout {
+            visible: (information.genres || []).length > 0
+            spacing: 1
+
+            Controls.Label { text: "Genres"; font.weight: Font.DemiBold; color: Kirigami.Theme.textColor }
+            Repeater {
+                model: information.genres || []
+                Controls.Label { Layout.fillWidth: true; text: modelData; opacity: 0.85; wrapMode: Text.WordWrap; color: Kirigami.Theme.textColor }
+            }
+        }
 
         // ── Titles ────────────────────────────────────────────────────────────
         InfoRow { label: "Romaji";  value: information.titleRomaji  || "" }
@@ -203,6 +229,21 @@ Item {
         return ({ FINISHED: "Finished", RELEASING: "Releasing",
                   NOT_YET_RELEASED: "Not Yet Released",
                   CANCELLED: "Cancelled", HIATUS: "Hiatus" })[s] || s
+    }
+
+    function formatFormat(f) {
+        return ({
+            TV:       "TV",
+            TV_SHORT: "TV Short",
+            MOVIE:    "Movie",
+            SPECIAL:  "Special",
+            OVA:      "OVA",
+            ONA:      "ONA",
+            MUSIC:    "Music",
+            MANGA:    "Manga",
+            NOVEL:    "Novel",
+            ONE_SHOT: "One Shot",
+        })[f] || f
     }
 
     function formatSource(s) {

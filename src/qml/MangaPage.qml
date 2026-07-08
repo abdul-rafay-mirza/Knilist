@@ -202,6 +202,13 @@ Kirigami.Page {
                         Layout.alignment: Qt.AlignTop
                         spacing: Kirigami.Units.largeSpacing
 
+                        InformationSection {
+                            Layout.fillWidth: true
+                            information:      mangaPage.mangaInformation
+                            mediaType:        "MANGA"
+                            Layout.maximumWidth: mangaPage.informationSidebarMaxWidth
+                        }
+
                         TagsSection {
                             Layout.fillWidth: true
                             tags: mangaPage.mangaInformation.tags

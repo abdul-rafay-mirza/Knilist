@@ -196,9 +196,10 @@ Kirigami.Page {
                         Layout.alignment:      Qt.AlignTop
                         spacing:               Kirigami.Units.largeSpacing
 
-                        AnimeInformationSection {
+                        InformationSection {
                             Layout.fillWidth: true
                             information:      animePage.animeInformation
+                            mediaType:        "ANIME"
                             Layout.maximumWidth: animePage.informationSidebarMaxWidth
                         }
 
