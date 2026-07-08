@@ -103,7 +103,7 @@ Kirigami.Page {
         // mangaPageLoaded emits 11 fields total; only the ones Header needs
         // are picked up here — relations/characters/recommendations/staff/
         // information get added to the signature once those sections exist.
-        function onMangaPageLoaded(_id, _title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite, _charactersJson) {
+        function onMangaPageLoaded(_id, _title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite, _charactersJson, _recommendationsJson, _staffJson, _informationJson) {
             if (_id !== mangaPage.anilistId) return
 
             mangaPage.mangaTitle       = _title
@@ -113,6 +113,9 @@ Kirigami.Page {
             mangaPage.mangaRelations   = JSON.parse(_relationsJson)
             mangaPage.mangaIsFavourite = _isFavourite
             mangaPage.mangaCharacters = JSON.parse(_charactersJson)
+            mangaPage.mangaRecommendations = JSON.parse(_recommendationsJson)
+            mangaPage.mangaStaff = JSON.parse(_staffJson)
+            mangaPage.mangaInformation = JSON.parse(_informationJson)
         }
 
         function onMangaEntryLoaded(_id, _entryJson) {
@@ -226,6 +229,24 @@ Kirigami.Page {
                     onCharacterHeadingClicked: {
                         console.log("Character Heading Clicked!")
                         pageStack.layers.push(Qt.resolvedUrl("AllCharactersPage.qml"), {
+                            anilistId: mangaPage.anilistId,
+                            mediaTitle: mangaPage.mangaTitle
+                        })
+                    }
+                }
+
+                StaffSection {
+                    Layout.fillWidth: true
+                    staff: mangaPage.mangaStaff
+                    onCardClicked: (id) => {
+                        console.log("Clicked StaffCard", id)
+                        pageStack.layers.push(Qt.resolvedUrl("StaffPage.qml"), {
+                            staffId: id
+                        })
+                    }
+                    onStaffHeadingClicked: {
+                        console.log("Staff Heading Clicked!")
+                        pageStack.layers.push(Qt.resolvedUrl("AllStaffPage.qml"), {
                             anilistId: mangaPage.anilistId,
                             mediaTitle: mangaPage.mangaTitle
                         })
