@@ -103,14 +103,14 @@ Kirigami.Page {
         // mangaPageLoaded emits 11 fields total; only the ones Header needs
         // are picked up here — relations/characters/recommendations/staff/
         // information get added to the signature once those sections exist.
-        function onMangaPageLoaded(_id, _title, _bannerImage, _coverImage,
-                                   _description, _relationsJson, _isFavourite) {
+        function onMangaPageLoaded(_id, _title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite) {
             if (_id !== mangaPage.anilistId) return
 
             mangaPage.mangaTitle       = _title
             mangaPage.mangaBannerImage = _bannerImage
             mangaPage.mangaCoverImage  = _coverImage
             mangaPage.mangaDescription = _description
+            mangaPage.mangaRelations   = JSON.parse(_relationsJson)
             mangaPage.mangaIsFavourite = _isFavourite
         }
 
@@ -183,6 +183,34 @@ Kirigami.Page {
                     }
                     onFavouriteToggled: {
                         anilistService.toggleMangaFavourite(mangaPage.anilistId, mangaPage.mangaIsFavourite)
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    // Left: information sidebar
+                    ColumnLayout {
+
+                    }
+
+                    // Right: relations, characters, staff
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        RelationsSection {
+                            Layout.fillWidth: true
+                            relations: mangaPage.mangaRelations
+                            onCardClicked: (mediaId, mediaType) => {
+                                if (mediaType === "ANIME") {
+                                    pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: mediaId })
+                                } else if (mediaType === "MANGA") {
+                                    pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: mediaId })
+                                }
+                            }
+                        }
                     }
                 }
 
