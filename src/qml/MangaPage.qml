@@ -11,7 +11,7 @@ Kirigami.Page {
     // ── Public properties ─────────────────────────────────────────────────────
     property int anilistId:         0
     property var mangaEntry:        null
-    property var mangaTitle
+    property var mangaTitle: ""
     property var mangaBannerImage
     property var mangaCoverImage
     property var mangaDescription
@@ -103,7 +103,7 @@ Kirigami.Page {
         // mangaPageLoaded emits 11 fields total; only the ones Header needs
         // are picked up here — relations/characters/recommendations/staff/
         // information get added to the signature once those sections exist.
-        function onMangaPageLoaded(_id, _title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite) {
+        function onMangaPageLoaded(_id, _title, _bannerImage, _coverImage, _description, _relationsJson, _isFavourite, _charactersJson) {
             if (_id !== mangaPage.anilistId) return
 
             mangaPage.mangaTitle       = _title
@@ -112,6 +112,7 @@ Kirigami.Page {
             mangaPage.mangaDescription = _description
             mangaPage.mangaRelations   = JSON.parse(_relationsJson)
             mangaPage.mangaIsFavourite = _isFavourite
+            mangaPage.mangaCharacters = JSON.parse(_charactersJson)
         }
 
         function onMangaEntryLoaded(_id, _entryJson) {
@@ -211,6 +212,23 @@ Kirigami.Page {
                                 }
                             }
                         }
+                    }
+                }
+
+                CharactersSection {
+                    Layout.fillWidth: true
+                    characters: mangaPage.mangaCharacters
+                    onCharacterClicked: (characterId, name, image, role) => {
+                        pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
+                            characterId: characterId
+                        })
+                    }
+                    onCharacterHeadingClicked: {
+                        console.log("Character Heading Clicked!")
+                        pageStack.layers.push(Qt.resolvedUrl("AllCharactersPage.qml"), {
+                            anilistId: mangaPage.anilistId,
+                            mediaTitle: mangaPage.mangaTitle
+                        })
                     }
                 }
 
