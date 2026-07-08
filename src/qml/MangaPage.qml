@@ -23,6 +23,7 @@ Kirigami.Page {
     property var mangaRecommendations: []
     property var mangaStaff:         []
     property var mangaInformation:   ({})
+    property var informationSidebarMaxWidth: 250
 
     property bool _ready: false
 
@@ -197,7 +198,21 @@ Kirigami.Page {
 
                     // Left: information sidebar
                     ColumnLayout {
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 14
+                        Layout.alignment: Qt.AlignTop
+                        spacing: Kirigami.Units.largeSpacing
 
+                        TagsSection {
+                            Layout.fillWidth: true
+                            tags: mangaPage.mangaInformation.tags
+                            Layout.maximumWidth: mangaPage.informationSidebarMaxWidth
+                        }
+
+                        ExternalLinksSection {
+                            Layout.fillWidth: true
+                            links: mangaPage.mangaInformation.externalLinks
+                            Layout.maximumWidth: mangaPage.informationSidebarMaxWidth
+                        }
                     }
 
                     // Right: relations, characters, staff
