@@ -190,6 +190,7 @@ Kirigami.Page {
                     }
                 }
 
+                // ── Two-column body ───────────────────────────────────────────
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 0
@@ -215,41 +216,56 @@ Kirigami.Page {
                                 }
                             }
                         }
+
+                        CharactersSection {
+                            Layout.fillWidth: true
+                            characters: mangaPage.mangaCharacters
+                            onCharacterClicked: (characterId, name, image, role) => {
+                                pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
+                                    characterId: characterId
+                                })
+                            }
+                            onCharacterHeadingClicked: {
+                                console.log("Character Heading Clicked!")
+                                pageStack.layers.push(Qt.resolvedUrl("AllCharactersPage.qml"), {
+                                    anilistId: mangaPage.anilistId,
+                                    mediaTitle: mangaPage.mangaTitle
+                                })
+                            }
+                        }
+
+                        StaffSection {
+                            Layout.fillWidth: true
+                            staff: mangaPage.mangaStaff
+                            onCardClicked: (id) => {
+                                console.log("Clicked StaffCard", id)
+                                pageStack.layers.push(Qt.resolvedUrl("StaffPage.qml"), {
+                                    staffId: id
+                                })
+                            }
+                            onStaffHeadingClicked: {
+                                console.log("Staff Heading Clicked!")
+                                pageStack.layers.push(Qt.resolvedUrl("AllStaffPage.qml"), {
+                                    anilistId: mangaPage.anilistId,
+                                    mediaTitle: mangaPage.mangaTitle
+                                })
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
                     }
                 }
 
-                CharactersSection {
+                // ── Full-width recommendations section ────────────────────────────────
+                HorizontalScrollableMediaCoverCards {
                     Layout.fillWidth: true
-                    characters: mangaPage.mangaCharacters
-                    onCharacterClicked: (characterId, name, image, role) => {
-                        pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
-                            characterId: characterId
-                        })
-                    }
-                    onCharacterHeadingClicked: {
-                        console.log("Character Heading Clicked!")
-                        pageStack.layers.push(Qt.resolvedUrl("AllCharactersPage.qml"), {
-                            anilistId: mangaPage.anilistId,
-                            mediaTitle: mangaPage.mangaTitle
-                        })
-                    }
-                }
-
-                StaffSection {
-                    Layout.fillWidth: true
-                    staff: mangaPage.mangaStaff
-                    onCardClicked: (id) => {
-                        console.log("Clicked StaffCard", id)
-                        pageStack.layers.push(Qt.resolvedUrl("StaffPage.qml"), {
-                            staffId: id
-                        })
-                    }
-                    onStaffHeadingClicked: {
-                        console.log("Staff Heading Clicked!")
-                        pageStack.layers.push(Qt.resolvedUrl("AllStaffPage.qml"), {
-                            anilistId: mangaPage.anilistId,
-                            mediaTitle: mangaPage.mangaTitle
-                        })
+                    mediaCardContent:  mangaPage.mangaRecommendations
+                    headingText: "Recommendations"
+                    onCardClicked: (mediaId, mediaType) => {
+                        pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: mediaId })
                     }
                 }
 
