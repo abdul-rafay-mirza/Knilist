@@ -235,6 +235,109 @@ query ($id: Int, $name: String) {
 }
 """
 
+_PROFILE_PAGE_QUERY = """
+query ($userId: Int!) {
+  Viewer {
+    id
+    name
+    about
+    avatar { large }
+    bannerImage
+    unreadNotificationCount
+    donatorTier
+    donatorBadge
+    moderatorRoles
+
+    options {
+      titleLanguage
+      displayAdultContent
+      profileColor
+    }
+
+    mediaListOptions {
+      scoreFormat
+    }
+
+    statistics {
+      anime {
+        count
+        meanScore
+        minutesWatched
+        episodesWatched
+
+        statuses { status count }
+
+        genresLoved: genres(limit: 3, sort: COUNT_DESC) { genre count }
+        genresHated: genres(limit: 10, sort: MEAN_SCORE) { genre count meanScore }
+
+        tagsLoved: tags(limit: 15, sort: COUNT_DESC) {
+          count
+          tag { name category }
+        }
+
+        yearsLoved: releaseYears(limit: 15, sort: MEAN_SCORE_DESC) {
+          releaseYear
+          count
+          meanScore
+        }
+
+        startYears { startYear count }
+      }
+
+      manga {
+        count
+        meanScore
+        chaptersRead
+        volumesRead
+      }
+    }
+
+    favourites {
+      anime(perPage: 25) {
+        edges {
+          favouriteOrder
+          node { id title { userPreferred } coverImage { large } }
+        }
+      }
+      manga(perPage: 25) {
+        edges {
+          favouriteOrder
+          node { id title { userPreferred } coverImage { large } }
+        }
+      }
+      characters(perPage: 25) {
+        edges {
+          favouriteOrder
+          node { id name { userPreferred } image { large } }
+        }
+      }
+      staff(perPage: 25) {
+        edges {
+          favouriteOrder
+          node { id name { userPreferred } image { large } }
+        }
+      }
+      studios(perPage: 25) {
+        edges {
+          favouriteOrder
+          node { id name }
+        }
+      }
+    }
+  }
+
+  followingPage: Page(perPage: 1) {
+    pageInfo { total }
+    following(userId: $userId) { id }
+  }
+
+  followersPage: Page(perPage: 1) {
+    pageInfo { total }
+    followers(userId: $userId) { id }
+  }
+}
+"""
+
 _ANIME_LIST_QUERY = """
 query ($userId: Int) {
   MediaListCollection(userId: $userId, type: ANIME) {

@@ -23,7 +23,8 @@ from .graphql_queries import (
     _ANIME_FAVOURITE_QUERY, _CHARACTER_FAVOURITE_QUERY, _STAFF_FAVOURITE_QUERY,
     _STUDIO_PAGE_QUERY, _TOGGLE_STUDIO_FAVOURITE_MUTATION, _STUDIO_FAVOURITE_QUERY,
     _ALL_CHARACTERS_QUERY, _ALL_STAFF_QUERY,
-    _MANGA_PAGE_QUERY, _MANGA_FAVOURITE_QUERY, _TOGGLE_MANGA_FAVOURITE_MUTATION
+    _MANGA_PAGE_QUERY, _MANGA_FAVOURITE_QUERY, _TOGGLE_MANGA_FAVOURITE_MUTATION,
+    _PROFILE_PAGE_QUERY
 )
 
 # Helper functions
@@ -132,6 +133,101 @@ def _parse_studio_media_edges(edges: list | None) -> list[dict]:
         })
     return media_list
 
+def _flatten_favourite_media(edges: list | None) -> list[dict]:
+    """Flatten Favourites.anime/manga edges into flat dicts for the profile grids."""
+    result = []
+    for edge in edges or []:
+        node = edge.get("node")
+        if not node:
+            continue
+        title_obj = node.get("title") or {}
+        result.append({
+            "mediaId":    node.get("id", 0),
+            "title":      title_obj.get("userPreferred") or "",
+            "coverImage": (node.get("coverImage") or {}).get("large", ""),
+        })
+    return result
+
+
+def _flatten_favourite_people(edges: list | None) -> list[dict]:
+    """Flatten Favourites.characters/staff edges into flat dicts for the profile grids."""
+    result = []
+    for edge in edges or []:
+        node = edge.get("node")
+        if not node:
+            continue
+        name_obj = node.get("name") or {}
+        result.append({
+            "id":    node.get("id", 0),
+            "name":  name_obj.get("userPreferred") or "",
+            "image": (node.get("image") or {}).get("large", ""),
+        })
+    return result
+
+
+def _flatten_favourite_studios(edges: list | None) -> list[dict]:
+    """Flatten Favourites.studios edges (name only — studios have no image)."""
+    result = []
+    for edge in edges or []:
+        node = edge.get("node")
+        if not node:
+            continue
+        result.append({"id": node.get("id", 0), "name": node.get("name") or ""})
+    return result
+
+
+def _compute_tendencies(anime_stats: dict) -> list[dict]:
+    """Turn statistics.anime breakdowns into 'Anime Tendencies' lines.
+    None of this is an AniList concept — it's a heuristic built from the
+    breakdowns AniList does expose, so the thresholds below are tunable,
+    not authoritative."""
+    tendencies = []
+
+    genres_loved = anime_stats.get("genresLoved") or []
+    if genres_loved:
+        tendencies.append({
+            "kind":   "genresLoved",
+            "values": [g.get("genre", "") for g in genres_loved[:3]],
+        })
+
+    # Require a few entries so one low score doesn't "win" a genre outright
+    genres_hated = [g for g in (anime_stats.get("genresHated") or []) if (g.get("count") or 0) >= 3]
+    if genres_hated:
+        tendencies.append({
+            "kind":   "genresHated",
+            "values": [genres_hated[0].get("genre", "")],
+        })
+
+    cast_tags = [
+        t for t in (anime_stats.get("tagsLoved") or [])
+        if ((t.get("tag") or {}).get("category") or "").startswith("Cast")
+    ]
+    if cast_tags:
+        tendencies.append({
+            "kind":   "tagsLoved",
+            "values": [(t.get("tag") or {}).get("name", "") for t in cast_tags[:3]],
+        })
+
+    years_loved = [y for y in (anime_stats.get("yearsLoved") or []) if (y.get("count") or 0) >= 2]
+    if years_loved:
+        tendencies.append({
+            "kind":   "yearsLoved",
+            "values": [str(y.get("releaseYear", "")) for y in years_loved[:3]],
+        })
+
+    start_years = [y.get("startYear") for y in (anime_stats.get("startYears") or []) if y.get("startYear")]
+    if start_years:
+        tendencies.append({"kind": "firstYear", "values": [str(min(start_years))]})
+
+    statuses  = {s.get("status"): s.get("count", 0) for s in (anime_stats.get("statuses") or [])}
+    completed = statuses.get("COMPLETED", 0)
+    dropped   = statuses.get("DROPPED", 0)
+    if (completed + dropped) > 0:
+        rate = round(completed / (completed + dropped) * 100, 2)
+        tendencies.append({"kind": "completionRate", "values": [str(rate)]})
+
+    return tendencies
+
 # Service class
 
 class AniListService(QObject):
@@ -161,6 +257,7 @@ class AniListService(QObject):
     mangaPageLoaded = Signal(int, str, str, str, str, str, bool, str, str, str, str)
     mangaEntryLoaded = Signal(int, str)   # JSON of entry fields, or {"onList": false}
     mangaFavouriteToggled = Signal(int, bool)
+    profileLoaded = Signal(str)   # full JSON payload for the profile page
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -221,18 +318,94 @@ class AniListService(QObject):
             raise RuntimeError(body["errors"][0]["message"])
         return body["data"]
 
-    def _fetch_viewer(self) -> tuple[str, str]:
-        """Fetch viewer info, update score format, return (uid, name)."""
-        viewer = self._gql(_VIEWER_QUERY).get("Viewer") or {}
-        uid    = str(viewer.get("id", ""))
-        name   = viewer.get("name", "")
+    def _fetch_viewer_raw(self) -> dict:
+        """Single GraphQL round-trip for the Viewer query. Callers pick the
+        fields they need out of the returned dict."""
+        return self._gql(_VIEWER_QUERY).get("Viewer") or {}
+
+    def _apply_viewer_bookkeeping(self, viewer: dict) -> None:
+        """Shared side effects every Viewer fetch needs: sync auth info and
+        score format."""
+        uid  = str(viewer.get("id", ""))
+        name = viewer.get("name", "")
         self._auth.setUserInfo(uid, name)
         self.userInfoReady.emit()
-        fmt = ((viewer.get("mediaListOptions") or {}).get("scoreFormat", "POINT_10"))
+        fmt = (viewer.get("mediaListOptions") or {}).get("scoreFormat", "POINT_10")
         if fmt != self._score_format:
             self._score_format = fmt
             self.scoreFormatChanged.emit(fmt)
-        return uid, name
+
+    def _fetch_viewer(self) -> tuple[str, str]:
+        """Fetch viewer info, update score format, return (uid, name)."""
+        viewer = self._fetch_viewer_raw()
+        self._apply_viewer_bookkeeping(viewer)
+        return str(viewer.get("id", "")), viewer.get("name", "")
+
+    # Profile Slot
+    
+    @Slot()
+    def fetchProfile(self) -> None:
+        """Fetch the full profile payload — avatar, banner, about, badges,
+        stats, favourites, follow counts, and derived tendencies — for the
+        profile page."""
+        def _run():
+            try:
+                self._begin_loading()
+                uid, _ = self._fetch_viewer()
+
+                data    = self._gql(_PROFILE_PAGE_QUERY, {"userId": int(uid)})
+                viewer  = data.get("Viewer") or {}
+                options = viewer.get("options") or {}
+                stats       = viewer.get("statistics") or {}
+                anime_stats = stats.get("anime") or {}
+                manga_stats = stats.get("manga") or {}
+                favourites  = viewer.get("favourites") or {}
+
+                following_total = ((data.get("followingPage") or {}).get("pageInfo") or {}).get("total", 0)
+                followers_total = ((data.get("followersPage") or {}).get("pageInfo") or {}).get("total", 0)
+
+                payload = {
+                    "id":                      viewer.get("id", 0),
+                    "name":                    viewer.get("name", ""),
+                    "about":                   viewer.get("about") or "",
+                    "avatar":                  (viewer.get("avatar") or {}).get("large", ""),
+                    "bannerImage":             viewer.get("bannerImage") or "",
+                    "unreadNotificationCount": viewer.get("unreadNotificationCount") or 0,
+                    "donatorTier":             viewer.get("donatorTier") or 0,
+                    "donatorBadge":            viewer.get("donatorBadge") or "",
+                    "moderatorRoles":          viewer.get("moderatorRoles") or [],
+                    "titleLanguage":           options.get("titleLanguage") or "",
+                    "displayAdultContent":     options.get("displayAdultContent", False),
+                    "profileColor":            options.get("profileColor") or "blue",
+                    "scoreFormat":             self._score_format,
+
+                    "animeCount":     anime_stats.get("count") or 0,
+                    "mangaCount":     manga_stats.get("count") or 0,
+                    "followingCount": following_total,
+                    "followersCount": followers_total,
+
+                    "episodesWatched": anime_stats.get("episodesWatched") or 0,
+                    "daysWatched":     (anime_stats.get("minutesWatched") or 0) / 1440,
+                    "animeMeanScore":  anime_stats.get("meanScore") or 0,
+                    "chaptersRead":    manga_stats.get("chaptersRead") or 0,
+                    "volumesRead":     manga_stats.get("volumesRead") or 0,
+                    "mangaMeanScore":  manga_stats.get("meanScore") or 0,
+
+                    "favouriteAnime":      _flatten_favourite_media((favourites.get("anime") or {}).get("edges")),
+                    "favouriteManga":      _flatten_favourite_media((favourites.get("manga") or {}).get("edges")),
+                    "favouriteCharacters": _flatten_favourite_people((favourites.get("characters") or {}).get("edges")),
+                    "favouriteStaff":      _flatten_favourite_people((favourites.get("staff") or {}).get("edges")),
+                    "favouriteStudios":    _flatten_favourite_studios((favourites.get("studios") or {}).get("edges")),
+
+                    "tendencies": _compute_tendencies(anime_stats),
+                }
+                self.profileLoaded.emit(json.dumps(payload))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
 
     # Anime slots
 

@@ -7,6 +7,7 @@ ColumnLayout {
     id: root
 
     property var characters: []
+    property bool headingVisible: true
 
     signal characterClicked(int characterId, string name, string image, string role)
     signal characterHeadingClicked()
@@ -21,6 +22,7 @@ ColumnLayout {
         Layout.rightMargin: Kirigami.Units.largeSpacing
         level: 3
         text:  "Characters"
+        visible: headingVisible
 
         opacity: producerHover.hovered ? 1.0 : 0.85
         color: producerHover.hovered ? Kirigami.Theme.linkColor : Kirigami.Theme.textColor
