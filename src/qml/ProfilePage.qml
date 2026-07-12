@@ -456,12 +456,53 @@ Kirigami.Page {
                                 Layout.fillWidth: true
                                 spacing: Kirigami.Units.smallSpacing
 
-                                Controls.Label { text: "•" }
                                 Controls.Label {
+                                    Layout.alignment: Qt.AlignTop
+                                    text: "•"
+                                }
+
+                                Flow {
                                     Layout.fillWidth: true
-                                    text: profilePage.tendencyLineHtml(modelData)
-                                    textFormat: Text.StyledText
-                                    wrapMode: Text.Wrap
+                                    spacing: 0
+
+                                    Controls.Label {
+                                        text: profilePage.tendencyPrefix(modelData.kind)
+                                    }
+
+                                    Repeater {
+                                        model: modelData.values || []
+
+                                        delegate: RowLayout {
+                                            spacing: 0
+
+                                            Controls.Label {
+                                                text: index > 0 ? "/" : ""
+                                                visible: index > 0
+                                            }
+
+                                            Controls.Label {
+                                                text: modelData
+
+                                                opacity: tendencyValueHover.hovered ? 1.0 : 0.85
+                                                color: tendencyValueHover.hovered ? Kirigami.Theme.linkColor : Kirigami.Theme.highlightColor
+
+                                                TapHandler {
+                                                    onTapped: {
+                                                        console.log(modelData + " Tapped!")
+                                                    }
+                                                }
+
+                                                HoverHandler {
+                                                    id: tendencyValueHover
+                                                    cursorShape: Qt.PointingHandCursor
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Controls.Label {
+                                        text: profilePage.tendencySuffix(modelData.kind)
+                                    }
                                 }
                             }
                         }
@@ -559,19 +600,22 @@ Kirigami.Page {
         }
     }
 
-    function tendencyLineHtml(entry) {
-        var accent = Kirigami.Theme.highlightColor
-        var colored = (entry.values || []).map(function (v) {
-            return "<font color=\"" + accent + "\">" + v + "</font>"
-        }).join("/")
+    function tendencyPrefix(kind) {
+        switch (kind) {
+            case "genresLoved":    return "Seems to love "
+            case "genresHated":    return "Seems to hate "
+            case "tagsLoved":      return "Tends to like "
+            case "yearsLoved":     return "Love "
+            case "firstYear":      return "First recorded watching Anime in "
+            case "completionRate": return "Ends up completing "
+            default:               return ""
+        }
+    }
 
-        switch (entry.kind) {
-            case "genresLoved":    return "Seems to love " + colored
-            case "genresHated":    return "Seems to hate " + colored
-            case "tagsLoved":      return "Tends to like " + colored
-            case "yearsLoved":     return "Love " + colored + " series"
-            case "firstYear":      return "First recorded watching Anime in " + colored
-            case "completionRate": return "Ends up completing " + colored + "% of Anime started"
+    function tendencySuffix(kind) {
+        switch (kind) {
+            case "yearsLoved":     return " series"
+            case "completionRate": return "% of Anime started"
             default:               return ""
         }
     }
