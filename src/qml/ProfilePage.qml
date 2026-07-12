@@ -109,8 +109,8 @@ Kirigami.Page {
                             anchors.right: parent.right
                             height: profilePage.bannerHeight
                             gradient: Gradient {
-                                GradientStop { position: 0.0; color: profilePage.accentColor() }
-                                GradientStop { position: 1.0; color: Qt.darker(profilePage.accentColor(), 1.6) }
+                                GradientStop { position: 0.0; color: Kirigami.Theme.highlightColor }
+                                GradientStop { position: 1.0; color: Qt.darker(Kirigami.Theme.highlightColor, 1.6) }
                             }
                         }
 
@@ -177,7 +177,7 @@ Kirigami.Page {
 
                                 delegate: Rectangle {
                                     radius: height / 2
-                                    color: profilePage.accentColor()
+                                    color: Kirigami.Theme.highlightColor
                                     height: badgeLabel.implicitHeight + Kirigami.Units.smallSpacing
                                     width: badgeLabel.implicitWidth + Kirigami.Units.largeSpacing
 
@@ -413,7 +413,7 @@ Kirigami.Page {
 
                                 delegate: Rectangle {
                                     radius: height / 2
-                                    color: profilePage.accentColor()
+                                    color: Kirigami.Theme.highlightColor
                                     height: studioLabel.implicitHeight + Kirigami.Units.smallSpacing
                                     width: studioLabel.implicitWidth + Kirigami.Units.largeSpacing
 
@@ -559,28 +559,8 @@ Kirigami.Page {
         }
     }
 
-    function accentColor() {
-        var c = profile.profileColor || ""
-        if (c.length === 0) {
-            return Kirigami.Theme.highlightColor
-        }
-        if (c.charAt(0) === "#") {
-            return c
-        }
-        var presets = {
-            "blue":   "#3DB4F2",
-            "purple": "#C063FF",
-            "pink":   "#FC9DD6",
-            "orange": "#EF881A",
-            "red":    "#E13333",
-            "green":  "#4CCA51",
-            "gray":   "#667380"
-        }
-        return presets[c] || Kirigami.Theme.highlightColor
-    }
-
     function tendencyLineHtml(entry) {
-        var accent = profilePage.accentColor()
+        var accent = Kirigami.Theme.highlightColor
         var colored = (entry.values || []).map(function (v) {
             return "<font color=\"" + accent + "\">" + v + "</font>"
         }).join("/")
