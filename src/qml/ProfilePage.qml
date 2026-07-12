@@ -29,6 +29,13 @@ Kirigami.Page {
         return chips
     }
 
+    // AniList favourites come back as {id, name, image} — shared with Favorite
+    // Staff — but CharacterCard/CharactersSection (used as-is by AnimePage/
+    // MangaPage) hardcode "characterId". Remap here instead of touching those.
+    readonly property var favouriteCharactersMapped: (profile.favouriteCharacters || []).map(function (c) {
+        return { characterId: c.id, name: c.name, image: c.image, role: "" }
+    })
+
     actions: [
         Kirigami.Action {
             icon.name: "view-refresh"
@@ -346,75 +353,31 @@ Kirigami.Page {
                     }
 
                     // ── Favorite Anime ───────────────────────────────────────────
-                    ColumnLayout {
-                        Layout.fillWidth: true
+                    MediaCoverCardsSection {
                         Layout.leftMargin: Kirigami.Units.largeSpacing * 2
                         Layout.rightMargin: Kirigami.Units.largeSpacing * 2
                         Layout.bottomMargin: Kirigami.Units.largeSpacing * 2
-                        spacing: Kirigami.Units.smallSpacing
-                        visible: (profilePage.profile.favouriteAnime || []).length > 0
 
-                        Kirigami.Heading {
-                            level: 3
-                            text: "Favorite Anime"
-                        }
+                        heading: "Favorite Anime"
+                        model: profilePage.profile.favouriteAnime || []
 
-                        Kirigami.Separator { Layout.fillWidth: true }
-
-                        Flow {
-                            Layout.fillWidth: true
-                            Layout.topMargin: Kirigami.Units.smallSpacing
-                            spacing: Kirigami.Units.largeSpacing
-
-                            Repeater {
-                                model: profilePage.profile.favouriteAnime || []
-
-                                MediaCoverCard {
-                                    mediaId: modelData.mediaId
-                                    title: modelData.title || ""
-                                    imageURL: modelData.coverImage || ""
-                                    onTapped: applicationWindow().pageStack.layers.push(
-                                        Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId }
-                                    )
-                                }
-                            }
-                        }
+                        onCardTapped: (entry) => applicationWindow().pageStack.layers.push(
+                            Qt.resolvedUrl("AnimePage.qml"), { animeId: entry.mediaId }
+                        )
                     }
 
                     // ── Favorite Manga ───────────────────────────────────────────
-                    ColumnLayout {
-                        Layout.fillWidth: true
+                    MediaCoverCardsSection {
                         Layout.leftMargin: Kirigami.Units.largeSpacing * 2
                         Layout.rightMargin: Kirigami.Units.largeSpacing * 2
                         Layout.bottomMargin: Kirigami.Units.largeSpacing * 2
-                        spacing: Kirigami.Units.smallSpacing
-                        visible: (profilePage.profile.favouriteManga || []).length > 0
 
-                        Kirigami.Heading {
-                            level: 3
-                            text: "Favorite Manga"
-                        }
+                        heading: "Favorite Manga"
+                        model: profilePage.profile.favouriteManga || []
 
-                        Kirigami.Separator { Layout.fillWidth: true }
-
-                        Flow {
-                            Layout.fillWidth: true
-                            Layout.topMargin: Kirigami.Units.smallSpacing
-                            spacing: Kirigami.Units.largeSpacing
-
-                            Repeater {
-                                model: profilePage.profile.favouriteManga || []
-
-                                MediaCoverCard {
-                                    mediaId: modelData.mediaId
-                                    title: modelData.title || ""
-                                    imageURL: modelData.coverImage || ""
-                                    onTapped: applicationWindow().pageStack.layers.push(
-                                        Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId }
-                                    )
-                                }
-                            }
-                        }
+                        onCardTapped: (entry) => applicationWindow().pageStack.layers.push(
+                            Qt.resolvedUrl("MangaPage.qml"), { anilistId: entry.mediaId }
+                        )
                     }
 
                     // ── Favorite Characters ──────────────────────────────────────
@@ -435,8 +398,9 @@ Kirigami.Page {
 
                         CharactersSection {
                             Layout.fillWidth: true
-                            characters: profilePage.profile.favouriteCharacters || []
+                            characters: profilePage.favouriteCharactersMapped
                             onCharacterClicked: (characterId, name, image, role) => {
+                                console.log("Character ID: " + characterId)
                                 pageStack.layers.push(Qt.resolvedUrl("CharacterPage.qml"), {
                                     characterId: characterId
                                 })
@@ -446,39 +410,20 @@ Kirigami.Page {
                     }
 
                     // ── Favorite Staff ────────────────────────────────────────────
-                    ColumnLayout {
-                        Layout.fillWidth: true
+                    MediaCoverCardsSection {
                         Layout.leftMargin: Kirigami.Units.largeSpacing * 2
                         Layout.rightMargin: Kirigami.Units.largeSpacing * 2
                         Layout.bottomMargin: Kirigami.Units.largeSpacing * 2
-                        spacing: Kirigami.Units.smallSpacing
-                        visible: (profilePage.profile.favouriteStaff || []).length > 0
 
-                        Kirigami.Heading {
-                            level: 3
-                            text: "Favorite Staff"
-                        }
+                        heading: "Favorite Staff"
+                        model: profilePage.profile.favouriteStaff || []
+                        idKey: "id"
+                        titleKey: "name"
+                        imageKey: "image"
 
-                        Kirigami.Separator { Layout.fillWidth: true }
-
-                        Flow {
-                            Layout.fillWidth: true
-                            Layout.topMargin: Kirigami.Units.smallSpacing
-                            spacing: Kirigami.Units.largeSpacing
-
-                            Repeater {
-                                model: profilePage.profile.favouriteStaff || []
-
-                                MediaCoverCard {
-                                    mediaId: modelData.id
-                                    title: modelData.name || ""
-                                    imageURL: modelData.image || ""
-                                    onTapped: applicationWindow().pageStack.layers.push(
-                                        Qt.resolvedUrl("StaffPage.qml"), { staffId: modelData.id }
-                                    )
-                                }
-                            }
-                        }
+                        onCardTapped: (entry) => applicationWindow().pageStack.layers.push(
+                            Qt.resolvedUrl("StaffPage.qml"), { staffId: entry.id }
+                        )
                     }
 
                     // ── Favorite Studios (chips) ─────────────────────────────────

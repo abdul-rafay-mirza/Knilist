@@ -134,7 +134,7 @@ def _parse_studio_media_edges(edges: list | None) -> list[dict]:
     return media_list
 
 def _flatten_favourite_media(edges: list | None) -> list[dict]:
-    """Flatten Favourites.anime/manga edges into flat dicts for the profile grids."""
+    """Flatten Favourites.anime/manga edges into flat dicts"""
     result = []
     for edge in edges or []:
         node = edge.get("node")
@@ -150,7 +150,7 @@ def _flatten_favourite_media(edges: list | None) -> list[dict]:
 
 
 def _flatten_favourite_people(edges: list | None) -> list[dict]:
-    """Flatten Favourites.characters/staff edges into flat dicts for the profile grids."""
+    """Flatten Favourites.characters/staff edges into flat dicts"""
     result = []
     for edge in edges or []:
         node = edge.get("node")

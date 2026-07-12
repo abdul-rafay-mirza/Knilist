@@ -304,43 +304,20 @@ Kirigami.Page {
                 }
 
                 // ── Appearances ───────────────────────────────────────────────
-                // Cards wrap freely; the outer Flickable handles scrolling
-                ColumnLayout {
-                    Layout.fillWidth:    true
+                MediaCoverCardsSection {
                     Layout.leftMargin:   Kirigami.Units.largeSpacing
                     Layout.rightMargin:  Kirigami.Units.largeSpacing
                     Layout.bottomMargin: Kirigami.Units.largeSpacing
-                    spacing:             Kirigami.Units.smallSpacing
-                    visible:             Boolean(_data && _data.media && _data.media.length > 0)
 
-                    Kirigami.Heading {
-                        level: 3
-                        text:  "Appearances"
-                    }
+                    heading:  "Appearances"
+                    model:    (_data && _data.media) ? _data.media : []
+                    imageKey: "cover"
 
-                    Kirigami.Separator { Layout.fillWidth: true }
-
-                    Flow {
-                        Layout.fillWidth: true
-                        Layout.topMargin: Kirigami.Units.smallSpacing
-                        spacing:          Kirigami.Units.largeSpacing
-
-                        Repeater {
-                            model: (_data && _data.media) ? _data.media : []
-
-                            MediaCoverCard {
-                                mediaId:  modelData.mediaId
-                                title:    modelData.title || ""
-                                imageURL: modelData.cover || ""
-                                onTapped: {
-                                    console.log("MediaCoverCard Clicked!")
-                                    if (modelData.type === "ANIME")
-                                        pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
-                                    else if (modelData.type === "MANGA")
-                                        pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId })
-                                }
-                            }
-                        }
+                    onCardTapped: (entry) => {
+                        if (entry.type === "ANIME")
+                            pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: entry.mediaId })
+                        else if (entry.type === "MANGA")
+                            pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: entry.mediaId })
                     }
                 }
 
