@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
-import org.kde.kirigamiaddons.components as Addons
+// import org.kde.kirigamiaddons.components as Addons
 import "components"
 
 Kirigami.Page {
@@ -12,8 +12,8 @@ Kirigami.Page {
     property var profile: ({})
     property bool profileReady: false
 
-    readonly property int bannerHeight: Kirigami.Units.gridUnit * 6
-    readonly property int avatarSize: Kirigami.Units.gridUnit * 5
+    readonly property int bannerHeight: Kirigami.Units.gridUnit * 10
+    readonly property int avatarSize: Kirigami.Units.gridUnit * 7
 
     // Donator badge + moderator role chips, derived from profile.
     readonly property var badgeList: {
@@ -138,24 +138,26 @@ Kirigami.Page {
                             visible: status === Image.Ready
                         }
 
-                        Rectangle {
-                            id: avatarRing
-                            x: avatarImage.x - 4
-                            y: avatarImage.y - 4
-                            width: avatarImage.width + 8
-                            height: avatarImage.height + 8
-                            radius: width / 2
-                            color: Kirigami.Theme.backgroundColor
-                        }
-
-                        Addons.Avatar {
+                        Image {
                             id: avatarImage
-                            x: Kirigami.Units.largeSpacing * 2
-                            y: profilePage.bannerHeight - profilePage.avatarSize / 2
+
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: profilePage.bannerHeight - height / 2
+
                             width: profilePage.avatarSize
                             height: profilePage.avatarSize
-                            name: profilePage.profile.name || ""
+
                             source: profilePage.profile.avatar || ""
+                            fillMode: Image.PreserveAspectCrop
+
+                            layer.enabled: true
+                            layer.smooth: true
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: width / 2
+                                visible: false
+                            }
                         }
                     }
 
@@ -172,6 +174,7 @@ Kirigami.Page {
                             level: 1
                             text: profilePage.profile.name || ""
                             elide: Text.ElideRight
+                            horizontalAlignment: Text.AlignHCenter
                         }
 
                         Flow {
