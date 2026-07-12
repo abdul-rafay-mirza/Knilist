@@ -197,7 +197,7 @@ Kirigami.Page {
                     // ── Stat bar: Anime / Manga / Following / Followers ─────────
                     StatBar {
                         Layout.margins: Kirigami.Units.largeSpacing * 2
-                        accentColor: profilePage.accentColor()
+                        Layout.alignment: Qt.AlignHCenter
                         stats: [
                             { value: profilePage.profile.animeCount, label: "Anime" },
                             { value: profilePage.profile.mangaCount, label: "Manga" },

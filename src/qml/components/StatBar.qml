@@ -8,28 +8,25 @@ Rectangle {
 
     // Each entry: { value: <number>, label: <string> }
     property var stats: []
-    property color accentColor: Kirigami.Theme.highlightColor
 
-    Layout.fillWidth: true
+    Layout.preferredWidth: statBarRow.implicitWidth + Kirigami.Units.largeSpacing * 4
     Layout.preferredHeight: statBarRow.implicitHeight + Kirigami.Units.largeSpacing * 2
+
     radius: Kirigami.Units.cornerRadius
     color: Kirigami.Theme.alternateBackgroundColor
 
     RowLayout {
         id: statBarRow
-        anchors.fill: parent
-        anchors.margins: Kirigami.Units.largeSpacing
-        spacing: 0
+        anchors.centerIn: parent
+        spacing: Kirigami.Units.largeSpacing * 2
 
         Repeater {
             model: root.stats
 
             delegate: RowLayout {
-                Layout.fillWidth: true
-                spacing: 0
+                spacing: Kirigami.Units.largeSpacing
 
                 ColumnLayout {
-                    Layout.fillWidth: true
                     spacing: 0
 
                     Controls.Label {
@@ -37,7 +34,7 @@ Rectangle {
                         text: String(modelData.value || 0)
                         font.bold: true
                         font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.2
-                        color: root.accentColor
+                        color: Kirigami.Theme.highlightColor
                     }
                     Controls.Label {
                         Layout.alignment: Qt.AlignHCenter
