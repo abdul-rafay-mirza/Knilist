@@ -195,59 +195,15 @@ Kirigami.Page {
                     }
 
                     // ── Stat bar: Anime / Manga / Following / Followers ─────────
-                    Rectangle {
-                        Layout.fillWidth: true
+                    StatBar {
                         Layout.margins: Kirigami.Units.largeSpacing * 2
-                        Layout.preferredHeight: statBarRow.implicitHeight + Kirigami.Units.largeSpacing * 2
-                        radius: Kirigami.Units.cornerRadius
-                        color: Kirigami.Theme.alternateBackgroundColor
-
-                        RowLayout {
-                            id: statBarRow
-                            anchors.fill: parent
-                            anchors.margins: Kirigami.Units.largeSpacing
-                            spacing: 0
-
-                            Repeater {
-                                model: [
-                                    { value: profilePage.profile.animeCount, label: "Anime" },
-                                    { value: profilePage.profile.mangaCount, label: "Manga" },
-                                    { value: profilePage.profile.followingCount, label: "Following" },
-                                    { value: profilePage.profile.followersCount, label: "Followers" }
-                                ]
-
-                                delegate: RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 0
-
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 0
-
-                                        Controls.Label {
-                                            Layout.alignment: Qt.AlignHCenter
-                                            text: String(modelData.value || 0)
-                                            font.bold: true
-                                            font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.2
-                                            color: profilePage.accentColor()
-                                        }
-                                        Controls.Label {
-                                            Layout.alignment: Qt.AlignHCenter
-                                            text: modelData.label
-                                            opacity: 0.7
-                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                        }
-                                    }
-
-                                    Kirigami.Separator {
-                                        Layout.fillHeight: true
-                                        Layout.topMargin: Kirigami.Units.smallSpacing
-                                        Layout.bottomMargin: Kirigami.Units.smallSpacing
-                                        visible: index < 3
-                                    }
-                                }
-                            }
-                        }
+                        accentColor: profilePage.accentColor()
+                        stats: [
+                            { value: profilePage.profile.animeCount, label: "Anime" },
+                            { value: profilePage.profile.mangaCount, label: "Manga" },
+                            { value: profilePage.profile.followingCount, label: "Following" },
+                            { value: profilePage.profile.followersCount, label: "Followers" }
+                        ]
                     }
 
                     Kirigami.Separator {
