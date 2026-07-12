@@ -83,24 +83,6 @@ Kirigami.Page {
                     visible: false
                 }
 
-                // ── Loading state (first load only) ─────────────────────────────
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: Kirigami.Units.gridUnit * 6
-                    spacing: Kirigami.Units.largeSpacing
-                    visible: !profilePage.profileReady && anilistService.loading
-
-                    Controls.BusyIndicator {
-                        Layout.alignment: Qt.AlignHCenter
-                        running: parent.visible
-                    }
-                    Controls.Label {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: "Loading profile…"
-                        opacity: 0.7
-                    }
-                }
-
                 // ── Profile content ──────────────────────────────────────────────
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -625,6 +607,26 @@ Kirigami.Page {
 
                     Item { Layout.preferredHeight: Kirigami.Units.largeSpacing * 2 }
                 }
+            }
+        }
+
+        // ── Loading overlay (first load + refresh) ────────────────────────
+        Rectangle {
+            anchors.fill: parent
+            visible: anilistService.loading
+            color: Kirigami.Theme.backgroundColor
+            opacity: 0.6
+            z: 2
+ 
+            MouseArea {
+                anchors.fill: parent
+                enabled: anilistService.loading
+                hoverEnabled: true
+            }
+ 
+            Controls.BusyIndicator {
+                anchors.centerIn: parent
+                running: true
             }
         }
     }
