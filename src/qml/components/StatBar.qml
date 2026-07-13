@@ -6,8 +6,17 @@ import org.kde.kirigami as Kirigami
 Rectangle {
     id: root
 
-    // Each entry: { value: <number>, label: <string> }
+    // Each entry: { value: <number>, label: <string>, target: <string> }
+    // target is a page filename Main.qml's switchToPage() can resolve, e.g.
+    // "AnimeListPage.qml". Leave target === "" (or omit it) for a
+    // non-interactive entry — matches Following/Followers, which have no
+    // destination page yet.
     property var stats: []
+
+    // Emitted on tap of any entry whose target is non-empty. This component
+    // only reports intent — the caller decides what to do with it, same
+    // division of responsibility as CharactersSection.onCharacterClicked.
+    signal entryActivated(string target)
 
     Layout.preferredWidth: statBarRow.implicitWidth + Kirigami.Units.largeSpacing * 4
     Layout.preferredHeight: statBarRow.implicitHeight + Kirigami.Units.largeSpacing * 2
@@ -24,7 +33,10 @@ Rectangle {
             model: root.stats
 
             delegate: RowLayout {
+                id: statDelegate
                 spacing: Kirigami.Units.largeSpacing
+
+                readonly property bool interactive: !!(modelData.target && modelData.target.length > 0)
 
                 ColumnLayout {
                     spacing: 0
@@ -34,7 +46,9 @@ Rectangle {
                         text: String(modelData.value || 0)
                         font.bold: true
                         font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.2
-                        color: Kirigami.Theme.highlightColor
+                        color: statHover.hovered && statDelegate.interactive
+                               ? Kirigami.Theme.linkColor
+                               : Kirigami.Theme.highlightColor
                     }
                     Controls.Label {
                         Layout.alignment: Qt.AlignHCenter
@@ -42,10 +56,16 @@ Rectangle {
                         opacity: 0.7
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                     }
+
                     TapHandler {
-                        onTapped: {
-                            console.log(modelData.label + " Clicked!")
-                        }
+                        enabled: statDelegate.interactive
+                        onTapped: root.entryActivated(modelData.target)
+                    }
+
+                    HoverHandler {
+                        id: statHover
+                        enabled: statDelegate.interactive
+                        cursorShape: Qt.PointingHandCursor
                     }
                 }
 

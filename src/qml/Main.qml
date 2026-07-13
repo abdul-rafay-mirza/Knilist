@@ -9,8 +9,33 @@ Kirigami.ApplicationWindow {
     height: 600
     title: "Knilist"
 
+    // Exposed so child pages (e.g. ProfilePage's StatBar) can reach it — QML
+    // ids are only visible within the file that declares them and that
+    // file's own children, so without this alias appPagePool is invisible
+    // to anything pushed onto pageStack.
+    property alias appPagePool: appPagePool
+
     Kirigami.PagePool {
         id: appPagePool
+    }
+
+    // Switches the main pageStack to a fresh instance of the page at `url`,
+    // replicating exactly what Kirigami.PagePoolAction does internally for
+    // the actions below (basePage unset, useLayers false):
+    //   stack.clear(); stack.push(pagePool.loadPage(url))
+    // — verified against KDE/kirigami's PagePoolAction.qml (master), not
+    // pageStack.replace(). Doing it this exact way also keeps the
+    // GlobalDrawer's own checked/highlighted state correct, since that's
+    // driven by pageStack's onCurrentItemChanged signal, not by which code
+    // triggered the change.
+    function switchToPage(url) {
+        const resolved = Qt.resolvedUrl(url)
+        const target = appPagePool.pageForUrl(resolved)
+        if (target !== null && pageStack.currentItem === target) {
+            return
+        }
+        pageStack.clear()
+        pageStack.push(appPagePool.loadPage(resolved))
     }
 
     // Use Component.onCompleted to push after the window is fully ready

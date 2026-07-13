@@ -195,15 +195,21 @@ Kirigami.Page {
                     }
 
                     // ── Stat bar: Anime / Manga / Following / Followers ─────────
+                    // target is consumed by StatBar's own TapHandler (see
+                    // StatBar.qml) — it's a routing key, not display data.
+                    // Entries with target: "" render as non-interactive,
+                    // matching Following/Followers, which have no list page yet.
                     StatBar {
                         Layout.margins: Kirigami.Units.largeSpacing * 2
                         Layout.alignment: Qt.AlignHCenter
                         stats: [
-                            { value: profilePage.profile.animeCount, label: "Anime" },
-                            { value: profilePage.profile.mangaCount, label: "Manga" },
-                            { value: profilePage.profile.followingCount, label: "Following" },
-                            { value: profilePage.profile.followersCount, label: "Followers" }
+                            { value: profilePage.profile.animeCount, label: "Anime", target: "AnimeListPage.qml" },
+                            { value: profilePage.profile.mangaCount, label: "Manga", target: "MangaListPage.qml" },
+                            { value: profilePage.profile.followingCount, label: "Following", target: "" },
+                            { value: profilePage.profile.followersCount, label: "Followers", target: "" }
                         ]
+
+                        onEntryActivated: (target) => applicationWindow().switchToPage(target)
                     }
 
                     Kirigami.Separator {
