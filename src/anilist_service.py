@@ -347,22 +347,61 @@ class AniListService(QObject):
     def fetchProfile(self) -> None:
         """Fetch the full profile payload — avatar, banner, about, badges,
         stats, favourites, follow counts, and derived tendencies — for the
-        profile page."""
+        profile page.
+
+        Favourites (anime/manga/characters/staff/studios) are paginated
+        independently by AniList, so we loop page-by-page per connection,
+        accumulating edges, until every connection reports hasNextPage:
+        false. _MAX_FAVOURITE_PAGES caps the loop as a safety net against
+        a runaway request in case of an unexpected API response shape."""
+        _MAX_FAVOURITE_PAGES = 200   # 200 * 25 = 5000 entries per connection, generous headroom
+
         def _run():
             try:
                 self._begin_loading()
                 uid, _ = self._fetch_viewer()
 
-                data    = self._gql(_PROFILE_PAGE_QUERY, {"userId": int(uid)})
-                viewer  = data.get("Viewer") or {}
-                options = viewer.get("options") or {}
-                stats       = viewer.get("statistics") or {}
-                anime_stats = stats.get("anime") or {}
-                manga_stats = stats.get("manga") or {}
-                favourites  = viewer.get("favourites") or {}
+                pages = {"animePage": 1, "mangaPage": 1, "charPage": 1,
+                        "staffPage": 1, "studioPage": 1}
+                has_next = {"anime": True, "manga": True, "characters": True,
+                            "staff": True, "studios": True}
+                accumulated_edges = {"anime": [], "manga": [], "characters": [],
+                                    "staff": [], "studios": []}
 
-                following_total = ((data.get("followingPage") or {}).get("pageInfo") or {}).get("total", 0)
-                followers_total = ((data.get("followersPage") or {}).get("pageInfo") or {}).get("total", 0)
+                viewer      = {}
+                options     = {}
+                anime_stats = {}
+                manga_stats = {}
+                following_total = 0
+                followers_total = 0
+
+                for loop_count in range(_MAX_FAVOURITE_PAGES):
+                    variables  = {"userId": int(uid), **pages}
+                    data       = self._gql(_PROFILE_PAGE_QUERY, variables)
+                    viewer     = data.get("Viewer") or {}
+                    favourites = viewer.get("favourites") or {}
+
+                    if loop_count == 0:
+                        options     = viewer.get("options") or {}
+                        stats       = viewer.get("statistics") or {}
+                        anime_stats = stats.get("anime") or {}
+                        manga_stats = stats.get("manga") or {}
+                        following_total = ((data.get("followingPage") or {}).get("pageInfo") or {}).get("total", 0)
+                        followers_total = ((data.get("followersPage") or {}).get("pageInfo") or {}).get("total", 0)
+
+                    for key, page_var in (("anime", "animePage"), ("manga", "mangaPage"),
+                                        ("characters", "charPage"), ("staff", "staffPage"),
+                                        ("studios", "studioPage")):
+                        if not has_next[key]:
+                            continue
+                        conn = favourites.get(key) or {}
+                        accumulated_edges[key].extend(conn.get("edges") or [])
+                        has_next[key] = (conn.get("pageInfo") or {}).get("hasNextPage", False)
+                        if has_next[key]:
+                            pages[page_var] += 1
+
+                    if not any(has_next.values()):
+                        break
 
                 payload = {
                     "id":                      viewer.get("id", 0),
@@ -391,11 +430,11 @@ class AniListService(QObject):
                     "volumesRead":     manga_stats.get("volumesRead") or 0,
                     "mangaMeanScore":  manga_stats.get("meanScore") or 0,
 
-                    "favouriteAnime":      _flatten_favourite_media((favourites.get("anime") or {}).get("edges")),
-                    "favouriteManga":      _flatten_favourite_media((favourites.get("manga") or {}).get("edges")),
-                    "favouriteCharacters": _flatten_favourite_people((favourites.get("characters") or {}).get("edges")),
-                    "favouriteStaff":      _flatten_favourite_people((favourites.get("staff") or {}).get("edges")),
-                    "favouriteStudios":    _flatten_favourite_studios((favourites.get("studios") or {}).get("edges")),
+                    "favouriteAnime":      _flatten_favourite_media(accumulated_edges["anime"]),
+                    "favouriteManga":      _flatten_favourite_media(accumulated_edges["manga"]),
+                    "favouriteCharacters": _flatten_favourite_people(accumulated_edges["characters"]),
+                    "favouriteStaff":      _flatten_favourite_people(accumulated_edges["staff"]),
+                    "favouriteStudios":    _flatten_favourite_studios(accumulated_edges["studios"]),
 
                     "tendencies": _compute_tendencies(anime_stats),
                 }

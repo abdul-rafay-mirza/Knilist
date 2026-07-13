@@ -236,7 +236,14 @@ query ($id: Int, $name: String) {
 """
 
 _PROFILE_PAGE_QUERY = """
-query ($userId: Int!) {
+query (
+  $userId:     Int!,
+  $animePage:  Int = 1,
+  $mangaPage:  Int = 1,
+  $charPage:   Int = 1,
+  $staffPage:  Int = 1,
+  $studioPage: Int = 1
+) {
   Viewer {
     id
     name
@@ -293,31 +300,36 @@ query ($userId: Int!) {
     }
 
     favourites {
-      anime(perPage: 25) {
+      anime(page: $animePage, perPage: 25) {
+        pageInfo { hasNextPage }
         edges {
           favouriteOrder
           node { id title { userPreferred } coverImage { large } }
         }
       }
-      manga(perPage: 25) {
+      manga(page: $mangaPage, perPage: 25) {
+        pageInfo { hasNextPage }
         edges {
           favouriteOrder
           node { id title { userPreferred } coverImage { large } }
         }
       }
-      characters(perPage: 25) {
+      characters(page: $charPage, perPage: 25) {
+        pageInfo { hasNextPage }
         edges {
           favouriteOrder
           node { id name { userPreferred } image { large } }
         }
       }
-      staff(perPage: 25) {
+      staff(page: $staffPage, perPage: 25) {
+        pageInfo { hasNextPage }
         edges {
           favouriteOrder
           node { id name { userPreferred } image { large } }
         }
       }
-      studios(perPage: 25) {
+      studios(page: $studioPage, perPage: 25) {
+        pageInfo { hasNextPage }
         edges {
           favouriteOrder
           node { id name }
