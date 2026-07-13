@@ -1057,3 +1057,43 @@ query ($id: Int) {
   }
 }
 """
+
+_FOLLOWING_LIST_QUERY = """
+query ($userId: Int!, $page: Int = 1) {
+  Page(page: $page, perPage: 25) {
+    pageInfo {
+      hasNextPage
+    }
+    following(userId: $userId, sort: [USERNAME]) {
+      id
+      name
+      avatar {
+        large
+      }
+      bannerImage
+      isFollowing
+      isFollower
+    }
+  }
+}
+"""
+
+_FOLLOWERS_LIST_QUERY = """
+query ($userId: Int!, $page: Int = 1) {
+  Page(page: $page, perPage: 25) {
+    pageInfo {
+      hasNextPage
+    }
+    followers(userId: $userId, sort: [USERNAME]) {
+      id
+      name
+      avatar {
+        large
+      }
+      bannerImage
+      isFollowing
+      isFollower
+    }
+  }
+}
+"""
