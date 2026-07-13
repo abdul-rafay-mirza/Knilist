@@ -42,6 +42,11 @@ Rectangle {
                         opacity: 0.7
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                     }
+                    TapHandler {
+                        onTapped: {
+                            console.log(modelData.label + " Clicked!")
+                        }
+                    }
                 }
 
                 Kirigami.Separator {
