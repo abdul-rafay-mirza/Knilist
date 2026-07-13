@@ -205,11 +205,17 @@ Kirigami.Page {
                         stats: [
                             { value: profilePage.profile.animeCount, label: "Anime", target: "AnimeListPage.qml" },
                             { value: profilePage.profile.mangaCount, label: "Manga", target: "MangaListPage.qml" },
-                            { value: profilePage.profile.followingCount, label: "Following", target: "" },
-                            { value: profilePage.profile.followersCount, label: "Followers", target: "" }
+                            { value: profilePage.profile.followingCount, label: "Following", target: "FollowingPage.qml", asLayer: true },
+                            { value: profilePage.profile.followersCount, label: "Followers", target: "FollowersPage.qml", asLayer: true }
                         ]
 
-                        onEntryActivated: (target) => applicationWindow().switchToPage(target)
+                        onEntryActivated: (target, asLayer) => {
+                            if (asLayer) {
+                                applicationWindow().pageStack.layers.push(Qt.resolvedUrl(target))
+                            } else {
+                                applicationWindow().switchToPage(target)
+                            }
+                        }
                     }
 
                     Kirigami.Separator {

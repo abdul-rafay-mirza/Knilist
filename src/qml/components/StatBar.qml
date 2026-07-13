@@ -16,7 +16,7 @@ Rectangle {
     // Emitted on tap of any entry whose target is non-empty. This component
     // only reports intent — the caller decides what to do with it, same
     // division of responsibility as CharactersSection.onCharacterClicked.
-    signal entryActivated(string target)
+    signal entryActivated(string target, bool asLayer)
 
     Layout.preferredWidth: statBarRow.implicitWidth + Kirigami.Units.largeSpacing * 4
     Layout.preferredHeight: statBarRow.implicitHeight + Kirigami.Units.largeSpacing * 2
@@ -59,7 +59,7 @@ Rectangle {
 
                     TapHandler {
                         enabled: statDelegate.interactive
-                        onTapped: root.entryActivated(modelData.target)
+                        onTapped: root.entryActivated(modelData.target, !!modelData.asLayer)
                     }
 
                     HoverHandler {
