@@ -46,7 +46,7 @@ Kirigami.Page {
 
             // Freshly loaded content might still not fill the viewport —
             // atYEndChanged won't refire in that case, so check directly.
-            if (listView.atYEnd) {
+            if (grid.atYEnd) {
                 followingPage.loadMore()
             }
         }
@@ -67,12 +67,26 @@ Kirigami.Page {
     Item {
         anchors.fill: parent
 
-        ListView {
-            id: listView
+        GridView {
+            id: grid
             anchors.fill: parent
             clip: true
-            spacing: Kirigami.Units.smallSpacing
             model: followingPage.users
+
+            flickableDirection: Flickable.VerticalFlick
+            interactive: true
+            boundsBehavior: Flickable.DragAndOvershootBounds
+
+            // FollowersAndFollowingCard's own footprint, plus breathing room
+            // on each side (GridView has no `spacing` property, unlike
+            // ListView — same cell-padding technique AllStaffPage uses for
+            // StaffCard). Placeholder values — swap for the card's real size.
+            readonly property int cardWidth:  300
+            readonly property int cardHeight: 150
+            readonly property int minCellWidth: cardWidth + Kirigami.Units.largeSpacing * 2
+            readonly property int columns: Math.max(1, Math.floor(width / minCellWidth))
+            cellWidth:  width / columns
+            cellHeight: cardHeight + Kirigami.Units.largeSpacing * 2
 
             Controls.ScrollBar.vertical: Controls.ScrollBar {
                 policy: Controls.ScrollBar.AsNeeded
@@ -80,29 +94,35 @@ Kirigami.Page {
 
             header: Kirigami.InlineMessage {
                 id: errorMessage
-                width: listView.width
+                width: grid.width
                 type: Kirigami.MessageType.Error
                 showCloseButton: true
                 visible: false
             }
 
-            delegate: FollowersAndFollowingCard {
-                width: listView.width
-                height: implicitHeight
-                userId:      modelData.id
-                name:        modelData.name
-                avatar:      modelData.avatar
-                bannerImage: modelData.bannerImage
-                isFollowing: modelData.isFollowing
-                isFollower:  modelData.isFollower
+            delegate: Item {
+                width:  grid.cellWidth
+                height: grid.cellHeight
 
-                // No UserPage yet, so these are no-ops for now
-                onCardTapped: {}
-                onMoreRequested: {}
+                FollowersAndFollowingCard {
+                    anchors.centerIn: parent
+                    width: grid.cardWidth
+                    height: grid.cardHeight
+                    userId:      modelData.id
+                    name:        modelData.name
+                    avatar:      modelData.avatar
+                    bannerImage: modelData.bannerImage
+                    isFollowing: modelData.isFollowing
+                    isFollower:  modelData.isFollower
+
+                    // No UserPage yet, so these are no-ops for now
+                    onCardTapped: {}
+                    onMoreRequested: {}
+                }
             }
 
             footer: Item {
-                width: listView.width
+                width: grid.width
                 height: followingPage.isFetchingMore ? Kirigami.Units.gridUnit * 3 : 0
 
                 Controls.BusyIndicator {
@@ -117,7 +137,7 @@ Kirigami.Page {
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
                 width: parent.width - Kirigami.Units.largeSpacing * 4
-                visible: listView.count === 0 && !anilistService.loading && !errorMessage.visible
+                visible: grid.count === 0 && !anilistService.loading && !errorMessage.visible
                 text: "Not following anyone yet"
                 icon.name: "im-user"
             }

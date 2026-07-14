@@ -4,7 +4,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Effects
 import org.kde.kirigami as Kirigami
 
-Kirigami.Card {
+Kirigami.AbstractCard {
     id: root
 
     // ── Public API ───────────────────────────────────────────────────────
