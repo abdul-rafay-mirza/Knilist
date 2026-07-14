@@ -1101,3 +1101,13 @@ query ($userId: Int!, $page: Int = 1) {
   }
 }
 """
+
+_TOGGLE_FOLLOW_MUTATION = """
+mutation ($userId: Int) {
+  ToggleFollow(userId: $userId) {
+    id
+    isFollowing
+    isFollower
+  }
+}
+"""

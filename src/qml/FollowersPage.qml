@@ -110,6 +110,7 @@ Kirigami.Page {
                     isFollower:  modelData.isFollower
                     createdAt:   modelData.createdAt
                     updatedAt:   modelData.updatedAt
+                    context: "followers"
 
                     onCardTapped: {
                         console.log("FollowersAndFollowingCard Tapped from FollowersPage!")
@@ -121,8 +122,19 @@ Kirigami.Page {
                         )
                     }
 
-                    onMoreRequested: {
-                        console.log("More Tapped from from FollowersPage!")
+                    onActionRequested: (action) => {
+                        switch (action) {
+                            case "follow":
+                                // TODO: Do follow mutation
+                                break
+                            case "unfollow":
+                                // TODO: anilistService.toggleFollow(userId) — see note below
+                                console.log(action, "requested for", name, "(userId:", userId + ")")
+                                break
+                            case "viewOnAnilist":
+                                Qt.openUrlExternally("https://anilist.co/user/" + userId)
+                                break
+                        }
                     }
                 }
             }

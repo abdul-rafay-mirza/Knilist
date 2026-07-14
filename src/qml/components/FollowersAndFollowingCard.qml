@@ -22,8 +22,23 @@ Kirigami.AbstractCard {
     property var createdAt: ""
     property var updatedAt: ""
 
+    // Which page this card is displayed on — "followers" or "following".
+    // On the Following page the follow-menu item is always "Unfollow"
+    // (you're following them, full stop — mutual or not doesn't change
+    // that action). On the Followers page it depends on isFollowing: a
+    // mutual gets "Unfollow" (you also follow them, so ToggleFollow would
+    // unfollow), a one-way follower gets "Follow" (you don't follow them
+    // yet, so ToggleFollow would follow). Either way it's the same
+    // ToggleFollow(userId) call underneath — only the label differs.
+    property string context: "followers"
+
+    readonly property bool showsUnfollow: root.context === "following" || root.isFollowing
+    readonly property string followMenuLabel: root.showsUnfollow ? "Unfollow" : "Follow"
+    readonly property string followMenuAction: root.showsUnfollow ? "unfollow" : "follow"
+
     signal cardTapped()
-    signal moreRequested()
+    // action: "unfollow" | "follow" | "viewOnAnilist"
+    signal actionRequested(string action)
 
     readonly property int bannerHeight: Kirigami.Units.gridUnit * 4
     readonly property int avatarSize: Kirigami.Units.gridUnit * 3.5
@@ -115,8 +130,25 @@ Kirigami.AbstractCard {
             Item { Layout.fillWidth: true }   // pushes the overflow button to the edge
 
             Controls.ToolButton {
+                id: overflowButton
                 icon.name: "overflow-menu"
-                onClicked: root.moreRequested()
+                onClicked: overflowMenu.popup()
+
+                Controls.Menu {
+                    id: overflowMenu
+
+                    Controls.MenuItem {
+                        text: root.followMenuLabel
+                        icon.name: root.showsUnfollow ? "list-remove-user" : "list-add-user"
+                        onTriggered: root.actionRequested(root.followMenuAction)
+                    }
+
+                    Controls.MenuItem {
+                        text: "View on AniList"
+                        icon.name: "internet-services"
+                        onTriggered: root.actionRequested("viewOnAnilist")
+                    }
+                }
             }
         }
 
