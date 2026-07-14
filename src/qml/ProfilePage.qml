@@ -127,7 +127,7 @@ Kirigami.Page {
                             visible: status === Image.Ready
                         }
 
-                        Image {
+                        AnimatedImage {
                             id: avatarImage
 
                             anchors.horizontalCenter: parent.horizontalCenter

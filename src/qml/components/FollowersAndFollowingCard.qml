@@ -61,46 +61,22 @@ Kirigami.AbstractCard {
                 visible: status === Image.Ready
             }
 
-            // Fallback disc — visible while avatarImg loads, or if there's no avatar at all
-            Rectangle {
-                x: root.avatarLeftMargin
-                y: root.bannerHeight - height / 2
-                width: root.avatarSize
-                height: root.avatarSize
-                radius: width / 2
-                color: Kirigami.Theme.backgroundColor
-            }
-
             AnimatedImage {
                 id: avatarImg
                 x: root.avatarLeftMargin
                 y: root.bannerHeight - height / 2
                 width: root.avatarSize
                 height: root.avatarSize
-                source: root.avatar
+                source: root.avatar || ""
                 fillMode: Image.PreserveAspectCrop
+                layer.enabled: true
+                layer.smooth: true
                 asynchronous: true
-                layer.enabled: true
-                visible: false   // only ever drawn through the MultiEffect below
-            }
-
-            Item {
-                id: avatarMask
-                width: avatarImg.width
-                height: avatarImg.height
-                layer.enabled: true
-                visible: false
-                Rectangle { anchors.fill: parent; radius: width / 2 }
-            }
-
-            // avatarImg cropped to avatarMask's circle. Everything outside the
-            // circle is transparent, so whatever's underneath — banner above
-            // the fold, plain background below it — shows through.
-            MultiEffect {
-                anchors.fill: avatarImg
-                source: avatarImg
-                maskEnabled: true
-                maskSource: avatarMask
+                Rectangle {
+                    anchors.fill: parent
+                    radius: width / 2
+                    visible: false
+                }
             }
         }
 
