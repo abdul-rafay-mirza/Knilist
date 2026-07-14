@@ -44,8 +44,6 @@ Kirigami.Page {
             followingPage.hasNextPage = data.hasNextPage
             errorMessage.visible = false
 
-            // Freshly loaded content might still not fill the viewport —
-            // atYEndChanged won't refire in that case, so check directly.
             if (grid.atYEnd) {
                 followingPage.loadMore()
             }
@@ -77,10 +75,6 @@ Kirigami.Page {
             interactive: true
             boundsBehavior: Flickable.DragAndOvershootBounds
 
-            // FollowersAndFollowingCard's own footprint, plus breathing room
-            // on each side (GridView has no `spacing` property, unlike
-            // ListView — same cell-padding technique AllStaffPage uses for
-            // StaffCard). Placeholder values — swap for the card's real size.
             readonly property int cardWidth:  300
             readonly property int cardHeight: 190
             readonly property int minCellWidth: cardWidth + Kirigami.Units.largeSpacing * 2
@@ -117,9 +111,19 @@ Kirigami.Page {
                     createdAt:   modelData.createdAt
                     updatedAt:   modelData.updatedAt
 
-                    // No UserPage yet, so these are no-ops for now
-                    onCardTapped: {}
-                    onMoreRequested: {}
+                    onCardTapped: {
+                        console.log("FollowersAndFollowingCard Tapped from FollowingPage!")
+                        pageStack.layers.push(
+                            Qt.resolvedUrl("UsersPage.qml"),{
+                                userId: userId,
+                                userName: name
+                            }
+                        )
+                    }
+
+                    onMoreRequested: {
+                        console.log("More Tapped from from FollowingPage!")
+                    }
                 }
             }
 
@@ -145,9 +149,6 @@ Kirigami.Page {
             }
         }
 
-        // Loading overlay (first load / refresh only — anilistService.loading
-        // stays false during "load more", since fetchFollowing only toggles
-        // it for page 1)
         Rectangle {
             anchors.fill: parent
             visible: anilistService.loading

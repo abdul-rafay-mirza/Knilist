@@ -75,7 +75,6 @@ Kirigami.Page {
             interactive: true
             boundsBehavior: Flickable.DragAndOvershootBounds
 
-            // Same placeholder sizing as FollowingPage — see note there.
             readonly property int cardWidth:  300
             readonly property int cardHeight: 190
             readonly property int minCellWidth: cardWidth + Kirigami.Units.largeSpacing * 2
@@ -112,8 +111,19 @@ Kirigami.Page {
                     createdAt:   modelData.createdAt
                     updatedAt:   modelData.updatedAt
 
-                    onCardTapped: {}
-                    onMoreRequested: {}
+                    onCardTapped: {
+                        console.log("FollowersAndFollowingCard Tapped from FollowersPage!")
+                        pageStack.layers.push(
+                            Qt.resolvedUrl("UsersPage.qml"),{
+                                userId: userId,
+                                userName: name
+                            }
+                        )
+                    }
+
+                    onMoreRequested: {
+                        console.log("More Tapped from from FollowersPage!")
+                    }
                 }
             }
 
