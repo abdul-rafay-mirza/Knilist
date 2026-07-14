@@ -19,9 +19,8 @@ Kirigami.AbstractCard {
     property bool isFollower: false
     readonly property bool isMutual: isFollowing && isFollower
 
-    // Not populated by the backend yet — empty string just hides the line.
-    property string followingSince: ""
-    property string followerSince: ""
+    property var createdAt: ""
+    property var updatedAt: ""
 
     signal cardTapped()
     signal moreRequested()
@@ -155,14 +154,14 @@ Kirigami.AbstractCard {
             spacing: Kirigami.Units.smallSpacing / 2
 
             Controls.Label {
-                visible: root.followingSince.length > 0
-                text: "Following Since: " + root.followingSince
+                visible: root.createdAt !== ""
+                text: "Date Created: " + root.createdAt
                 opacity: 0.7
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
             Controls.Label {
-                visible: root.followerSince.length > 0
-                text: "Follower Since: " + root.followerSince
+                visible: root.updatedAt !== ""
+                text: "Date Updated: " + root.updatedAt
                 opacity: 0.7
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }

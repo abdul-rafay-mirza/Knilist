@@ -1073,6 +1073,8 @@ query ($userId: Int!, $page: Int = 1) {
       bannerImage
       isFollowing
       isFollower
+      createdAt
+      updatedAt
     }
   }
 }
@@ -1093,6 +1095,8 @@ query ($userId: Int!, $page: Int = 1) {
       bannerImage
       isFollowing
       isFollower
+      createdAt
+      updatedAt
     }
   }
 }

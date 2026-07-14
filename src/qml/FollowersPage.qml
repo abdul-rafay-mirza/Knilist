@@ -77,7 +77,7 @@ Kirigami.Page {
 
             // Same placeholder sizing as FollowingPage — see note there.
             readonly property int cardWidth:  300
-            readonly property int cardHeight: 150
+            readonly property int cardHeight: 190
             readonly property int minCellWidth: cardWidth + Kirigami.Units.largeSpacing * 2
             readonly property int columns: Math.max(1, Math.floor(width / minCellWidth))
             cellWidth:  width / columns
@@ -109,6 +109,8 @@ Kirigami.Page {
                     bannerImage: modelData.bannerImage
                     isFollowing: modelData.isFollowing
                     isFollower:  modelData.isFollower
+                    createdAt:   modelData.createdAt
+                    updatedAt:   modelData.updatedAt
 
                     onCardTapped: {}
                     onMoreRequested: {}

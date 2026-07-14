@@ -82,7 +82,7 @@ Kirigami.Page {
             // ListView — same cell-padding technique AllStaffPage uses for
             // StaffCard). Placeholder values — swap for the card's real size.
             readonly property int cardWidth:  300
-            readonly property int cardHeight: 150
+            readonly property int cardHeight: 190
             readonly property int minCellWidth: cardWidth + Kirigami.Units.largeSpacing * 2
             readonly property int columns: Math.max(1, Math.floor(width / minCellWidth))
             cellWidth:  width / columns
@@ -114,6 +114,8 @@ Kirigami.Page {
                     bannerImage: modelData.bannerImage
                     isFollowing: modelData.isFollowing
                     isFollower:  modelData.isFollower
+                    createdAt:   modelData.createdAt
+                    updatedAt:   modelData.updatedAt
 
                     // No UserPage yet, so these are no-ops for now
                     onCardTapped: {}

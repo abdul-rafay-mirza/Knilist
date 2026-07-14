@@ -13,6 +13,7 @@ import threading
 import requests
 from PySide6.QtCore import QObject, Signal, Slot, Property
 from .config import GRAPHQL_URL
+from datetime import datetime, timezone
 from .graphql_queries import (
     _VIEWER_QUERY, _USER_QUERY, _ANIME_LIST_QUERY, _MANGA_LIST_QUERY,
     _SAVE_ANIME_ENTRY_MUTATION, _SAVE_MANGA_ENTRY_MUTATION,
@@ -29,6 +30,28 @@ from .graphql_queries import (
 )
 
 # Helper functions
+
+def _get_ordinal_suffix(day: int) -> str:
+    """Returns the correct English ordinal suffix (st, nd, rd, th) for a day."""
+    if 11 <= day <= 13:
+        return "th"
+    return {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+
+def _format_timestamp(timestamp: int) -> str:
+    """Converts a Unix timestamp (e.g., 1561983210) into '1st July, 2019'."""
+    if not timestamp:
+        return ""
+    try:
+        dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        
+        day = dt.day
+        suffix = _get_ordinal_suffix(day)
+        month = dt.strftime("%B")  # Full month name (e.g., "July")
+        year = dt.strftime("%Y")   # 4-digit year (e.g., "2019")
+        
+        return f"{day}{suffix} {month}, {year}"
+    except (ValueError, OSError, OverflowError):
+        return ""
 
 def _format_score(score: float, fmt: str) -> str:
     if score == 0:
@@ -192,6 +215,8 @@ def _flatten_user_list(users: list | None) -> list[dict]:
             "isFollowing": is_following,
             "isFollower":  is_follower,
             "isMutual":    bool(is_following) and bool(is_follower),
+            "createdAt":   _format_timestamp(u.get("createdAt")),
+            "updatedAt":   _format_timestamp(u.get("updatedAt"))
         })
     return result
 
