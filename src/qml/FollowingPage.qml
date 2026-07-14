@@ -49,6 +49,11 @@ Kirigami.Page {
             }
         }
 
+        function onFollowToggled(userId, isFollowing, isFollower) {
+            followingPage.currentPage = 1
+            anilistService.fetchFollowing(1)
+        }
+
         function onErrorOccurred(message) {
             errorMessage.text = message
             errorMessage.visible = true
@@ -125,8 +130,8 @@ Kirigami.Page {
                     onActionRequested: (action) => {
                         switch (action) {
                             case "unfollow":
-                                // TODO: anilistService.toggleFollow(userId) — see note below
                                 console.log("Unfollow requested for", name, "(userId:", userId + ")")
+                                anilistService.toggleFollow(userId)
                                 break
                             case "viewOnAnilist":
                                 Qt.openUrlExternally("https://anilist.co/user/" + userId)

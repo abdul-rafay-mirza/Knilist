@@ -305,6 +305,7 @@ class AniListService(QObject):
     profileLoaded = Signal(str)   # full JSON payload for the profile page
     followingPageLoaded = Signal(str)   # full JSON payload for the following list page
     followersPageLoaded = Signal(str)   # full JSON payload for the followers list page
+    followToggled = Signal(int, bool, bool)   # userId, isFollowing, isFollower
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -568,6 +569,28 @@ class AniListService(QObject):
             finally:
                 if is_first_page:
                     self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def toggleFollow(self, user_id: int) -> None:
+        """Follow/unfollow a user. AniList's ToggleFollow mutation returns the
+        resulting isFollowing/isFollower state directly on the mutation
+        response, so — unlike the favourite toggles — no follow-up query is
+        needed to confirm the new state."""
+        def _run():
+            try:
+                self._begin_loading()
+                data         = self._gql(_TOGGLE_FOLLOW_MUTATION, {"userId": user_id})
+                result       = data.get("ToggleFollow") or {}
+                is_following = result.get("isFollowing", False)
+                is_follower  = result.get("isFollower", False)
+                print("Follow toggled:", user_id, "isFollowing:", is_following, "isFollower:", is_follower)
+                self.followToggled.emit(user_id, is_following, is_follower)
+            except Exception as exc:
+                self._emit_update_failure(exc)
+            finally:
+                self._end_loading()
 
         threading.Thread(target=_run, daemon=True).start()
 
