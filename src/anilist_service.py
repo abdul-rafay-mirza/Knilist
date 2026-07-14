@@ -24,7 +24,8 @@ from .graphql_queries import (
     _STUDIO_PAGE_QUERY, _TOGGLE_STUDIO_FAVOURITE_MUTATION, _STUDIO_FAVOURITE_QUERY,
     _ALL_CHARACTERS_QUERY, _ALL_STAFF_QUERY,
     _MANGA_PAGE_QUERY, _MANGA_FAVOURITE_QUERY, _TOGGLE_MANGA_FAVOURITE_MUTATION,
-    _PROFILE_PAGE_QUERY
+    _PROFILE_PAGE_QUERY,
+    _FOLLOWING_LIST_QUERY, _FOLLOWERS_LIST_QUERY
 )
 
 # Helper functions
@@ -175,6 +176,25 @@ def _flatten_favourite_studios(edges: list | None) -> list[dict]:
         result.append({"id": node.get("id", 0), "name": node.get("name") or ""})
     return result
 
+def _flatten_user_list(users: list | None) -> list[dict]:
+    """Flatten Page.following/Page.followers results into flat dicts.
+    Unlike Favourites/Studio.media, these fields return plain User objects
+    directly — no edges/node wrapper."""
+    result = []
+    for u in users or []:
+        is_following = u.get("isFollowing", False)
+        is_follower  = u.get("isFollower", False)
+        result.append({
+            "id":          u.get("id", 0),
+            "name":        u.get("name") or "",
+            "avatar":      (u.get("avatar") or {}).get("large", ""),
+            "bannerImage": u.get("bannerImage") or "",
+            "isFollowing": is_following,
+            "isFollower":  is_follower,
+            "isMutual":    bool(is_following) and bool(is_follower),
+        })
+    return result
+
 
 def _compute_tendencies(anime_stats: dict) -> list[dict]:
     """Turn statistics.anime breakdowns into 'Anime Tendencies' lines.
@@ -258,6 +278,8 @@ class AniListService(QObject):
     mangaEntryLoaded = Signal(int, str)   # JSON of entry fields, or {"onList": false}
     mangaFavouriteToggled = Signal(int, bool)
     profileLoaded = Signal(str)   # full JSON payload for the profile page
+    followingPageLoaded = Signal(str)   # full JSON payload for the following list page
+    followersPageLoaded = Signal(str)   # full JSON payload for the followers list page
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -269,6 +291,9 @@ class AniListService(QObject):
         self._manga_entry_id_map:   dict[int, int]  = {}
         self._anime_entry_cache:    dict[int, dict] = {}  # anilistId → full normalised entry
         self._manga_entry_cache:    dict[int, dict] = {}  # anilistId → full normalised entry
+        self._anime_entry_cache:    dict[int, dict] = {}  # anilistId → full normalised entry
+        self._manga_entry_cache:    dict[int, dict] = {}  # anilistId → full normalised entry
+        self._viewer_id:            int | None = None      # cached after first Viewer fetch
 
     def _begin_loading(self):
         self._loading_count += 1
@@ -324,10 +349,10 @@ class AniListService(QObject):
         return self._gql(_VIEWER_QUERY).get("Viewer") or {}
 
     def _apply_viewer_bookkeeping(self, viewer: dict) -> None:
-        """Shared side effects every Viewer fetch needs: sync auth info and
-        score format."""
         uid  = str(viewer.get("id", ""))
         name = viewer.get("name", "")
+        if uid:
+            self._viewer_id = int(uid)
         self._auth.setUserInfo(uid, name)
         self.userInfoReady.emit()
         fmt = (viewer.get("mediaListOptions") or {}).get("scoreFormat", "POINT_10")
@@ -340,6 +365,15 @@ class AniListService(QObject):
         viewer = self._fetch_viewer_raw()
         self._apply_viewer_bookkeeping(viewer)
         return str(viewer.get("id", "")), viewer.get("name", "")
+
+    def _get_viewer_id(self) -> int:
+        """Return the viewer's numeric id — cached after the first successful
+        Viewer fetch, so paging through Following/Followers doesn't re-fetch
+        Viewer on every 'load more'."""
+        if self._viewer_id is None:
+            uid, _ = self._fetch_viewer()
+            self._viewer_id = int(uid) if uid else 0
+        return self._viewer_id
 
     # Profile Slot
     
@@ -443,6 +477,72 @@ class AniListService(QObject):
                 self.errorOccurred.emit(str(exc))
             finally:
                 self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def fetchFollowing(self, page: int) -> None:
+        is_first_page = page <= 1   # QML passes 1 for the initial load, currentPage+1 to load more
+
+        def _run():
+            try:
+                if is_first_page:
+                    self._begin_loading()
+                user_id  = self._get_viewer_id()
+                data     = self._gql(_FOLLOWING_LIST_QUERY, {
+                    "userId": user_id,
+                    "page":   page if page > 0 else 1,
+                })
+                page_obj = data.get("Page") or {}
+                has_next = (page_obj.get("pageInfo") or {}).get("hasNextPage", False)
+
+                self.followingPageLoaded.emit(json.dumps({
+                    "page":        page,
+                    "users":       _flatten_user_list(page_obj.get("following")),
+                    "hasNextPage": has_next,
+                    "isError":     False,
+                }))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+                self.followingPageLoaded.emit(json.dumps({
+                    "page": page, "users": [], "hasNextPage": False, "isError": True,
+                }))
+            finally:
+                if is_first_page:
+                    self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def fetchFollowers(self, page: int) -> None:
+        is_first_page = page <= 1
+
+        def _run():
+            try:
+                if is_first_page:
+                    self._begin_loading()
+                user_id  = self._get_viewer_id()
+                data     = self._gql(_FOLLOWERS_LIST_QUERY, {
+                    "userId": user_id,
+                    "page":   page if page > 0 else 1,
+                })
+                page_obj = data.get("Page") or {}
+                has_next = (page_obj.get("pageInfo") or {}).get("hasNextPage", False)
+
+                self.followersPageLoaded.emit(json.dumps({
+                    "page":        page,
+                    "users":       _flatten_user_list(page_obj.get("followers")),
+                    "hasNextPage": has_next,
+                    "isError":     False,
+                }))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+                self.followersPageLoaded.emit(json.dumps({
+                    "page": page, "users": [], "hasNextPage": False, "isError": True,
+                }))
+            finally:
+                if is_first_page:
+                    self._end_loading()
 
         threading.Thread(target=_run, daemon=True).start()
 
