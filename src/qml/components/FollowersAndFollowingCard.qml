@@ -71,7 +71,7 @@ Kirigami.AbstractCard {
                 color: Kirigami.Theme.backgroundColor
             }
 
-            Image {
+            AnimatedImage {
                 id: avatarImg
                 x: root.avatarLeftMargin
                 y: root.bannerHeight - height / 2
