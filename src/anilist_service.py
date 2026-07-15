@@ -512,6 +512,9 @@ class AniListService(QObject):
     def fetchFollowing(self, page: int) -> None:
         is_first_page = page <= 1   # QML passes 1 for the initial load, currentPage+1 to load more
 
+        self._following_fetch_gen += 1
+        my_gen = self._following_fetch_gen
+
         def _run():
             try:
                 if is_first_page:
@@ -521,6 +524,8 @@ class AniListService(QObject):
                     "userId": user_id,
                     "page":   page if page > 0 else 1,
                 })
+                if my_gen != self._following_fetch_gen:
+                    return
                 page_obj = data.get("Page") or {}
                 has_next = (page_obj.get("pageInfo") or {}).get("hasNextPage", False)
 
@@ -531,6 +536,8 @@ class AniListService(QObject):
                     "isError":     False,
                 }))
             except Exception as exc:
+                if my_gen != self._following_fetch_gen:
+                    return
                 self.errorOccurred.emit(str(exc))
                 self.followingPageLoaded.emit(json.dumps({
                     "page": page, "users": [], "hasNextPage": False, "isError": True,
