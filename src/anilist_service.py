@@ -320,6 +320,8 @@ class AniListService(QObject):
         self._anime_entry_cache:    dict[int, dict] = {}  # anilistId → full normalised entry
         self._manga_entry_cache:    dict[int, dict] = {}  # anilistId → full normalised entry
         self._viewer_id:            int | None = None      # cached after first Viewer fetch
+        self._followers_fetch_gen: int = 0
+        self._following_fetch_gen: int = 0
 
     def _begin_loading(self):
         self._loading_count += 1
@@ -543,6 +545,13 @@ class AniListService(QObject):
     def fetchFollowers(self, page: int) -> None:
         is_first_page = page <= 1
 
+        # Bumped on every call. If a newer call (reload(), or another
+        # loadMore()) comes in while this one is still on the wire, my_gen
+        # won't match by the time the response comes back, so it's dropped
+        # instead of getting appended onto a freshly-reloaded model.
+        self._followers_fetch_gen += 1
+        my_gen = self._followers_fetch_gen
+
         def _run():
             try:
                 if is_first_page:
@@ -552,6 +561,8 @@ class AniListService(QObject):
                     "userId": user_id,
                     "page":   page if page > 0 else 1,
                 })
+                if my_gen != self._followers_fetch_gen:
+                    return
                 page_obj = data.get("Page") or {}
                 has_next = (page_obj.get("pageInfo") or {}).get("hasNextPage", False)
 
@@ -562,6 +573,8 @@ class AniListService(QObject):
                     "isError":     False,
                 }))
             except Exception as exc:
+                if my_gen != self._followers_fetch_gen:
+                    return
                 self.errorOccurred.emit(str(exc))
                 self.followersPageLoaded.emit(json.dumps({
                     "page": page, "users": [], "hasNextPage": False, "isError": True,

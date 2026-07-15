@@ -11,6 +11,8 @@ Kirigami.Page {
     property bool isLoadingMore:    false
     property bool hasNextPage:      true
     property int  currentPage:      1
+    property var  seenUserIds:      ({})   // dedupe guard
+
 
     actions: [
         Kirigami.Action {
@@ -25,8 +27,10 @@ Kirigami.Page {
 
     function reload() {
         isInitialLoading = true
+        isLoadingMore     = false
         hasNextPage       = true
         currentPage       = 1
+        seenUserIds       = ({})
         followersModel.clear()
         anilistService.fetchFollowers(1)
     }
@@ -74,6 +78,8 @@ Kirigami.Page {
             // without disturbing the items already on screen.
             for (let i = 0; i < data.users.length; i++) {
                 const u = data.users[i]
+                if (seenUserIds[u.id]) continue
+                seenUserIds[u.id] = true
                 followersModel.append({
                     userId:      u.id,
                     name:        u.name,
