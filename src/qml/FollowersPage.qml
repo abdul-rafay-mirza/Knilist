@@ -7,64 +7,102 @@ Kirigami.Page {
     id: followersPage
     title: "Followers"
 
-    property var users: []
-    property int currentPage: 1
-    property bool hasNextPage: false
-    property bool isFetchingMore: false
+    property bool isInitialLoading: true
+    property bool isLoadingMore:    false
+    property bool hasNextPage:      true
+    property int  currentPage:      1
 
     actions: [
         Kirigami.Action {
             icon.name: "view-refresh"
             text: "Refresh"
             enabled: !anilistService.loading
-            onTriggered: {
-                followersPage.currentPage = 1
-                anilistService.fetchFollowers(1)
-            }
+            onTriggered: reload()
         }
     ]
 
-    Component.onCompleted: anilistService.fetchFollowers(1)
+    Component.onCompleted: reload()
+
+    function reload() {
+        isInitialLoading = true
+        hasNextPage       = true
+        currentPage       = 1
+        followersModel.clear()
+        anilistService.fetchFollowers(1)
+    }
+
+    function loadMore() {
+        if (isLoadingMore || isInitialLoading || !hasNextPage) return
+        isLoadingMore = true
+        anilistService.fetchFollowers(currentPage + 1)
+    }
+
+    // In case the first page(s) don't fill the viewport, keep requesting
+    // more until either the view is full or the server has nothing left.
+    // Mirrors AllStaffPage.checkFillViewport().
+    function checkFillViewport() {
+        if (isLoadingMore || isInitialLoading || !hasNextPage)
+            return
+        if (grid.contentHeight <= grid.height)
+            loadMore()
+    }
+
+    ListModel {
+        id: followersModel
+    }
 
     Connections {
         target: anilistService
 
         function onFollowersPageLoaded(json) {
             const data = JSON.parse(json)
-            followersPage.isFetchingMore = false
+
+            const isFirstPage = data.page <= 1
+            if (isFirstPage)
+                followersPage.isInitialLoading = false
+            else
+                followersPage.isLoadingMore = false
 
             if (data.isError) {
                 return
             }
 
-            followersPage.users = data.page <= 1
-                ? data.users
-                : followersPage.users.concat(data.users)
+            // Append-only. Reassigning the whole backing array (the old
+            // approach) hands GridView a brand-new model object, so it
+            // rebuilds every delegate and resets contentY to 0. Appending
+            // to a ListModel is an incremental insert the view can apply
+            // without disturbing the items already on screen.
+            for (let i = 0; i < data.users.length; i++) {
+                const u = data.users[i]
+                followersModel.append({
+                    userId:      u.id,
+                    name:        u.name,
+                    avatar:      u.avatar,
+                    bannerImage: u.bannerImage,
+                    isFollowing: u.isFollowing,
+                    isFollower:  u.isFollower,
+                    createdAt:   u.createdAt,
+                    updatedAt:   u.updatedAt
+                })
+            }
+
             followersPage.currentPage = data.page
             followersPage.hasNextPage = data.hasNextPage
             errorMessage.visible = false
 
-            if (grid.atYEnd) {
-                followersPage.loadMore()
-            }
+            Qt.callLater(checkFillViewport)
         }
 
         function onFollowToggled(userId, isFollowing, isFollower) {
-            followersPage.currentPage = 1
-            anilistService.fetchFollowers(1)
+            reload()
         }
 
         function onErrorOccurred(message) {
             errorMessage.text = message
             errorMessage.visible = true
-            followersPage.isFetchingMore = false
+            followersPage.isInitialLoading = false
+            followersPage.isLoadingMore = false
         }
-    }
-
-    function loadMore() {
-        if (!hasNextPage || isFetchingMore) return
-        isFetchingMore = true
-        anilistService.fetchFollowers(currentPage + 1)
     }
 
     Item {
@@ -74,7 +112,7 @@ Kirigami.Page {
             id: grid
             anchors.fill: parent
             clip: true
-            model: followersPage.users
+            model: followersModel
 
             flickableDirection: Flickable.VerticalFlick
             interactive: true
@@ -107,14 +145,14 @@ Kirigami.Page {
                     anchors.centerIn: parent
                     width: grid.cardWidth
                     height: grid.cardHeight
-                    userId:      modelData.id
-                    name:        modelData.name
-                    avatar:      modelData.avatar
-                    bannerImage: modelData.bannerImage
-                    isFollowing: modelData.isFollowing
-                    isFollower:  modelData.isFollower
-                    createdAt:   modelData.createdAt
-                    updatedAt:   modelData.updatedAt
+                    userId:      model.userId
+                    name:        model.name
+                    avatar:      model.avatar
+                    bannerImage: model.bannerImage
+                    isFollowing: model.isFollowing
+                    isFollower:  model.isFollower
+                    createdAt:   model.createdAt
+                    updatedAt:   model.updatedAt
                     context: "followers"
 
                     onCardTapped: {
@@ -144,21 +182,26 @@ Kirigami.Page {
 
             footer: Item {
                 width: grid.width
-                height: followersPage.isFetchingMore ? Kirigami.Units.gridUnit * 3 : 0
+                height: followersPage.isLoadingMore ? Kirigami.Units.gridUnit * 3 : 0
 
                 Controls.BusyIndicator {
                     anchors.centerIn: parent
-                    running: followersPage.isFetchingMore
-                    visible: followersPage.isFetchingMore
+                    running: followersPage.isLoadingMore
+                    visible: followersPage.isLoadingMore
                 }
             }
 
-            onAtYEndChanged: if (atYEnd) followersPage.loadMore()
+            onContentYChanged: {
+                if (isLoadingMore || isInitialLoading || !hasNextPage)
+                    return
+                if (contentY + height >= contentHeight - Kirigami.Units.gridUnit * 8)
+                    loadMore()
+            }
 
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
                 width: parent.width - Kirigami.Units.largeSpacing * 4
-                visible: grid.count === 0 && !anilistService.loading && !errorMessage.visible
+                visible: grid.count === 0 && !followersPage.isInitialLoading && !errorMessage.visible
                 text: "No followers yet"
                 icon.name: "user-identity"
             }

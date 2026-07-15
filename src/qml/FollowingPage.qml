@@ -7,64 +7,94 @@ Kirigami.Page {
     id: followingPage
     title: "Following"
 
-    property var users: []
-    property int currentPage: 1
-    property bool hasNextPage: false
-    property bool isFetchingMore: false
+    property bool isInitialLoading: true
+    property bool isLoadingMore:    false
+    property bool hasNextPage:      true
+    property int  currentPage:      1
 
     actions: [
         Kirigami.Action {
             icon.name: "view-refresh"
             text: "Refresh"
             enabled: !anilistService.loading
-            onTriggered: {
-                followingPage.currentPage = 1
-                anilistService.fetchFollowing(1)
-            }
+            onTriggered: reload()
         }
     ]
 
-    Component.onCompleted: anilistService.fetchFollowing(1)
+    Component.onCompleted: reload()
+
+    function reload() {
+        isInitialLoading = true
+        hasNextPage       = true
+        currentPage       = 1
+        followingModel.clear()
+        anilistService.fetchFollowing(1)
+    }
+
+    function loadMore() {
+        if (isLoadingMore || isInitialLoading || !hasNextPage) return
+        isLoadingMore = true
+        anilistService.fetchFollowing(currentPage + 1)
+    }
+
+    function checkFillViewport() {
+        if (isLoadingMore || isInitialLoading || !hasNextPage)
+            return
+        if (grid.contentHeight <= grid.height)
+            loadMore()
+    }
+
+    ListModel {
+        id: followingModel
+    }
 
     Connections {
         target: anilistService
 
         function onFollowingPageLoaded(json) {
             const data = JSON.parse(json)
-            followingPage.isFetchingMore = false
+
+            const isFirstPage = data.page <= 1
+            if (isFirstPage)
+                followingPage.isInitialLoading = false
+            else
+                followingPage.isLoadingMore = false
 
             if (data.isError) {
                 return
             }
 
-            followingPage.users = data.page <= 1
-                ? data.users
-                : followingPage.users.concat(data.users)
+            for (let i = 0; i < data.users.length; i++) {
+                const u = data.users[i]
+                followingModel.append({
+                    userId:      u.id,
+                    name:        u.name,
+                    avatar:      u.avatar,
+                    bannerImage: u.bannerImage,
+                    isFollowing: u.isFollowing,
+                    isFollower:  u.isFollower,
+                    createdAt:   u.createdAt,
+                    updatedAt:   u.updatedAt
+                })
+            }
+
             followingPage.currentPage = data.page
             followingPage.hasNextPage = data.hasNextPage
             errorMessage.visible = false
 
-            if (grid.atYEnd) {
-                followingPage.loadMore()
-            }
+            Qt.callLater(checkFillViewport)
         }
 
         function onFollowToggled(userId, isFollowing, isFollower) {
-            followingPage.currentPage = 1
-            anilistService.fetchFollowing(1)
+            reload()
         }
 
         function onErrorOccurred(message) {
             errorMessage.text = message
             errorMessage.visible = true
-            followingPage.isFetchingMore = false
+            followingPage.isInitialLoading = false
+            followingPage.isLoadingMore = false
         }
-    }
-
-    function loadMore() {
-        if (!hasNextPage || isFetchingMore) return
-        isFetchingMore = true
-        anilistService.fetchFollowing(currentPage + 1)
     }
 
     Item {
@@ -74,7 +104,7 @@ Kirigami.Page {
             id: grid
             anchors.fill: parent
             clip: true
-            model: followingPage.users
+            model: followingModel
 
             flickableDirection: Flickable.VerticalFlick
             interactive: true
@@ -107,14 +137,14 @@ Kirigami.Page {
                     anchors.centerIn: parent
                     width: grid.cardWidth
                     height: grid.cardHeight
-                    userId:      modelData.id
-                    name:        modelData.name
-                    avatar:      modelData.avatar
-                    bannerImage: modelData.bannerImage
-                    isFollowing: modelData.isFollowing
-                    isFollower:  modelData.isFollower
-                    createdAt:   modelData.createdAt
-                    updatedAt:   modelData.updatedAt
+                    userId:      model.userId
+                    name:        model.name
+                    avatar:      model.avatar
+                    bannerImage: model.bannerImage
+                    isFollowing: model.isFollowing
+                    isFollower:  model.isFollower
+                    createdAt:   model.createdAt
+                    updatedAt:   model.updatedAt
                     context: "following"
 
                     onCardTapped: {
@@ -143,21 +173,26 @@ Kirigami.Page {
 
             footer: Item {
                 width: grid.width
-                height: followingPage.isFetchingMore ? Kirigami.Units.gridUnit * 3 : 0
+                height: followingPage.isLoadingMore ? Kirigami.Units.gridUnit * 3 : 0
 
                 Controls.BusyIndicator {
                     anchors.centerIn: parent
-                    running: followingPage.isFetchingMore
-                    visible: followingPage.isFetchingMore
+                    running: followingPage.isLoadingMore
+                    visible: followingPage.isLoadingMore
                 }
             }
 
-            onAtYEndChanged: if (atYEnd) followingPage.loadMore()
+            onContentYChanged: {
+                if (isLoadingMore || isInitialLoading || !hasNextPage)
+                    return
+                if (contentY + height >= contentHeight - Kirigami.Units.gridUnit * 8)
+                    loadMore()
+            }
 
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
                 width: parent.width - Kirigami.Units.largeSpacing * 4
-                visible: grid.count === 0 && !anilistService.loading && !errorMessage.visible
+                visible: grid.count === 0 && !followingPage.isInitialLoading && !errorMessage.visible
                 text: "Not following anyone yet"
                 icon.name: "im-user"
             }
