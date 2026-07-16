@@ -306,6 +306,7 @@ class AniListService(QObject):
     followingPageLoaded = Signal(str)   # full JSON payload for the following list page
     followersPageLoaded = Signal(str)   # full JSON payload for the followers list page
     followToggled = Signal(int, bool, bool)   # userId, isFollowing, isFollower
+    userProfileLoaded = Signal(str)   # full JSON payload for the "any user" page
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -501,6 +502,108 @@ class AniListService(QObject):
                     "tendencies": _compute_tendencies(anime_stats),
                 }
                 self.profileLoaded.emit(json.dumps(payload))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def fetchUserProfile(self, user_id: int) -> None:
+        """Fetch the full profile payload for ANY user (self or someone else)
+        via _USER_QUERY. Mirrors fetchProfile()'s favourites-pagination loop,
+        but targets User(id: $id) instead of Viewer, so it works for a
+        user page opened from someone's Followers/Following list too.
+
+        Note: _USER_QUERY's followingPage/followersPage sibling fields key
+        off $id (not $userId, unlike _PROFILE_PAGE_QUERY) — so the variables
+        dict below uses "id", matching the query's own variable name."""
+        _MAX_FAVOURITE_PAGES = 200   # same safety cap as fetchProfile()
+
+        def _run():
+            try:
+                self._begin_loading()
+
+                pages = {"animePage": 1, "mangaPage": 1, "charPage": 1,
+                        "staffPage": 1, "studioPage": 1}
+                has_next = {"anime": True, "manga": True, "characters": True,
+                            "staff": True, "studios": True}
+                accumulated_edges = {"anime": [], "manga": [], "characters": [],
+                                    "staff": [], "studios": []}
+
+                user = {}
+                anime_stats = {}
+                manga_stats = {}
+                following_total = 0
+                followers_total = 0
+
+                for loop_count in range(_MAX_FAVOURITE_PAGES):
+                    variables  = {"id": user_id, "perPage": 25, **pages}
+                    data       = self._gql(_USER_QUERY, variables)
+                    user       = data.get("User") or {}
+                    favourites = user.get("favourites") or {}
+
+                    if loop_count == 0:
+                        stats       = user.get("statistics") or {}
+                        anime_stats = stats.get("anime") or {}
+                        manga_stats = stats.get("manga") or {}
+                        following_total = ((data.get("followingPage") or {}).get("pageInfo") or {}).get("total", 0)
+                        followers_total = ((data.get("followersPage") or {}).get("pageInfo") or {}).get("total", 0)
+
+                    for key, page_var in (("anime", "animePage"), ("manga", "mangaPage"),
+                                        ("characters", "charPage"), ("staff", "staffPage"),
+                                        ("studios", "studioPage")):
+                        if not has_next[key]:
+                            continue
+                        conn = favourites.get(key) or {}
+                        accumulated_edges[key].extend(conn.get("edges") or [])
+                        has_next[key] = (conn.get("pageInfo") or {}).get("hasNextPage", False)
+                        if has_next[key]:
+                            pages[page_var] += 1
+
+                    if not any(has_next.values()):
+                        break
+
+                options = user.get("options") or {}
+
+                payload = {
+                    "id":                user.get("id", 0),
+                    "name":              user.get("name", ""),
+                    "about":             user.get("about") or "",
+                    "avatar":            (user.get("avatar") or {}).get("large", ""),
+                    "bannerImage":       user.get("bannerImage") or "",
+                    "previousNames":     [n.get("name", "") for n in (user.get("previousNames") or [])],
+                    "isFollowing":       user.get("isFollowing", False),
+                    "isFollower":        user.get("isFollower", False),
+                    "isBlocked":         user.get("isBlocked", False),
+                    "donatorTier":       user.get("donatorTier") or 0,
+                    "donatorBadge":      user.get("donatorBadge") or "",
+                    "createdAt":         user.get("createdAt") or 0,
+                    "moderatorRoles":    user.get("moderatorRoles") or [],
+                    "bans":              user.get("bans") or [],
+                    "profileColor":      options.get("profileColor") or "blue",
+                    "scoreFormat":       (user.get("mediaListOptions") or {}).get("scoreFormat", "POINT_10"),
+
+                    "animeCount":     anime_stats.get("count") or 0,
+                    "mangaCount":     manga_stats.get("count") or 0,
+                    "followingCount": following_total,
+                    "followersCount": followers_total,
+
+                    "episodesWatched": anime_stats.get("episodesWatched") or 0,
+                    "daysWatched":     (anime_stats.get("minutesWatched") or 0) / 1440,
+                    "animeMeanScore":  anime_stats.get("meanScore") or 0,
+                    "chaptersRead":    manga_stats.get("chaptersRead") or 0,
+                    "volumesRead":     manga_stats.get("volumesRead") or 0,
+                    "mangaMeanScore":  manga_stats.get("meanScore") or 0,
+
+                    "favouriteAnime":      _flatten_favourite_media(accumulated_edges["anime"]),
+                    "favouriteManga":      _flatten_favourite_media(accumulated_edges["manga"]),
+                    "favouriteCharacters": _flatten_favourite_people(accumulated_edges["characters"]),
+                    "favouriteStaff":      _flatten_favourite_people(accumulated_edges["staff"]),
+                    "favouriteStudios":    _flatten_favourite_studios(accumulated_edges["studios"]),
+                }
+                self.userProfileLoaded.emit(json.dumps(payload))
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
             finally:
