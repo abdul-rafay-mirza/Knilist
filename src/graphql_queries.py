@@ -1,3 +1,4 @@
+# This query is responsible for fetching the currently logged-in user’s (the viewer's) private settings, UI preferences, and system state.
 _VIEWER_QUERY = """
 query {
   Viewer {
@@ -58,21 +59,23 @@ query {
 }
 """
 
+# The query for any anilist user
 _USER_QUERY = """
-query ($id: Int, $name: String) {
+query (
+  $id:          Int,
+  $name:        String,
+  $animePage:   Int = 1,
+  $mangaPage:   Int = 1,
+  $charPage:    Int = 1,
+  $staffPage:   Int = 1,
+  $studioPage:  Int = 1,
+  $perPage:     Int = 25
+) {
   User(id: $id, name: $name) {
     id
     name
-
-    previousNames {
-      name
-      updatedAt
-    }
-
-    avatar {
-      large
-    }
-
+    previousNames { name updatedAt }
+    avatar { large }
     bannerImage
     about
     isFollowing
@@ -84,153 +87,68 @@ query ($id: Int, $name: String) {
     isBlocked
     bans
 
-    options {
-      profileColor
-      restrictMessagesToFollowing
-    }
-
-    mediaListOptions {
-      scoreFormat
-    }
+    options { profileColor restrictMessagesToFollowing }
+    mediaListOptions { scoreFormat }
 
     statistics {
       anime {
-        count
-        meanScore
-        standardDeviation
-        minutesWatched
-        episodesWatched
-
-        genrePreview: genres(limit: 10, sort: COUNT_DESC) {
-          genre
-          count
-        }
+        count meanScore standardDeviation minutesWatched episodesWatched
+        genrePreview: genres(limit: 10, sort: COUNT_DESC) { genre count }
       }
-
       manga {
-        count
-        meanScore
-        standardDeviation
-        chaptersRead
-        volumesRead
-
-        genrePreview: genres(limit: 10, sort: COUNT_DESC) {
-          genre
-          count
-        }
+        count meanScore standardDeviation chaptersRead volumesRead
+        genrePreview: genres(limit: 10, sort: COUNT_DESC) { genre count }
       }
     }
 
-    stats {
-      activityHistory {
-        date
-        amount
-        level
-      }
-    }
+    stats { activityHistory { date amount level } }
 
     favourites {
-      anime {
+      anime(page: $animePage, perPage: $perPage) {
+        pageInfo { hasNextPage }
         edges {
           favouriteOrder
-
           node {
-            id
-            type
-            status(version: 2)
-            format
-            isAdult
-            bannerImage
-
-            title {
-              userPreferred
-            }
-
-            coverImage {
-              large
-            }
-
-            startDate {
-              year
-            }
+            id type status(version: 2) format isAdult bannerImage
+            title { userPreferred }
+            coverImage { large }
           }
         }
       }
-
-      manga {
+      manga(page: $mangaPage, perPage: $perPage) {
+        pageInfo { hasNextPage }
         edges {
           favouriteOrder
-
           node {
-            id
-            type
-            status(version: 2)
-            format
-            isAdult
-            bannerImage
-
-            title {
-              userPreferred
-            }
-
-            coverImage {
-              large
-            }
-
-            startDate {
-              year
-            }
+            id type status(version: 2) format isAdult bannerImage
+            title { userPreferred }
+            coverImage { large }
           }
         }
       }
-
-      characters {
-        edges {
-          favouriteOrder
-
-          node {
-            id
-
-            name {
-              userPreferred
-            }
-
-            image {
-              large
-            }
-          }
-        }
+      characters(page: $charPage, perPage: $perPage) {
+        pageInfo { hasNextPage }
+        edges { favouriteOrder node { id name { userPreferred } image { large } } }
       }
-
-      staff {
-        edges {
-          favouriteOrder
-
-          node {
-            id
-
-            name {
-              userPreferred
-            }
-
-            image {
-              large
-            }
-          }
-        }
+      staff(page: $staffPage, perPage: $perPage) {
+        pageInfo { hasNextPage }
+        edges { favouriteOrder node { id name { userPreferred } image { large } } }
       }
-
-      studios {
-        edges {
-          favouriteOrder
-
-          node {
-            id
-            name
-          }
-        }
+      studios(page: $studioPage, perPage: $perPage) {
+        pageInfo { hasNextPage }
+        edges { favouriteOrder node { id name } }
       }
     }
+  }
+
+  followingPage: Page(perPage: 1) {
+    pageInfo { total }
+    following(userId: $id) { id }
+  }
+
+  followersPage: Page(perPage: 1) {
+    pageInfo { total }
+    followers(userId: $id) { id }
   }
 }
 """
