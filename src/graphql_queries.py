@@ -62,7 +62,7 @@ query {
 # The query for any anilist user
 _USER_QUERY = """
 query (
-  $id:          Int,
+  $id:          Int!,
   $name:        String,
   $animePage:   Int = 1,
   $mangaPage:   Int = 1,
