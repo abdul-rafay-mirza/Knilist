@@ -11,6 +11,7 @@ Kirigami.Page {
 
     property var profile: ({})
     property bool profileReady: false
+    property bool aboutExpanded: false
 
     readonly property int bannerHeight: Kirigami.Units.gridUnit * 10
     readonly property int avatarSize: Kirigami.Units.gridUnit * 7
@@ -231,14 +232,26 @@ Kirigami.Page {
                         spacing: Kirigami.Units.smallSpacing
                         visible: (profilePage.profile.about || "").length > 0
 
-                        Kirigami.Heading {
-                            level: 3
-                            text: "About"
+                        RowLayout {
+                            Layout.fillWidth: true
+
+                            Kirigami.Heading {
+                                Layout.fillWidth: true
+                                level: 3
+                                text: "About"
+                            }
+
+                            Controls.Switch {
+                                checked: profilePage.aboutExpanded
+                                onToggled: profilePage.aboutExpanded = checked
+                                text: "Visible"
+                            }
                         }
 
                         AniListMarkdownText {
                             Layout.fillWidth: true
                             rawMarkdown: profilePage.profile.about || ""
+                            visible: profilePage.aboutExpanded
                         }
                     }
 
