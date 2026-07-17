@@ -236,12 +236,9 @@ Kirigami.Page {
                             text: "About"
                         }
 
-                        Controls.Label {
+                        AniListMarkdownText {
                             Layout.fillWidth: true
-                            text: profilePage.profile.about || ""
-                            textFormat: Text.MarkdownText
-                            wrapMode: Text.Wrap
-                            onLinkActivated: (link) => Qt.openUrlExternally(link)
+                            rawMarkdown: profilePage.profile.about || ""
                         }
                     }
 

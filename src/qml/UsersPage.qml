@@ -67,6 +67,7 @@ Kirigami.Page {
             usersPage.profileReady = true
             usersPage.isFollowing = usersPage.profile.isFollowing || false
             errorMessage.visible = false
+            console.log(usersPage.profile.about)
         }
 
         function onFollowToggled(toggledUserId, isFollowingNow, isFollowerNow) {
@@ -308,12 +309,9 @@ Kirigami.Page {
                             text: "About"
                         }
 
-                        Controls.Label {
+                        AniListMarkdownText {
                             Layout.fillWidth: true
-                            text: usersPage.profile.about || ""
-                            textFormat: Text.MarkdownText
-                            wrapMode: Text.Wrap
-                            onLinkActivated: (link) => Qt.openUrlExternally(link)
+                            rawMarkdown: usersPage.profile.about || ""
                         }
                     }
 
