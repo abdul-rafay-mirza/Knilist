@@ -14,6 +14,7 @@ Kirigami.Page {
 
     property var userId: 0
     property var userName: "User Page"
+    property bool aboutExpanded: false
 
     property var profile: ({})
     property bool profileReady: false
@@ -304,14 +305,26 @@ Kirigami.Page {
                         spacing: Kirigami.Units.smallSpacing
                         visible: (usersPage.profile.about || "").length > 0
 
-                        Kirigami.Heading {
-                            level: 3
-                            text: "About"
+                        RowLayout {
+                            Layout.fillWidth: true
+
+                            Kirigami.Heading {
+                                Layout.fillWidth: true
+                                level: 3
+                                text: "About"
+                            }
+
+                            Controls.Switch {
+                                checked: usersPage.aboutExpanded
+                                onToggled: usersPage.aboutExpanded = checked
+                                text: "Visible"
+                            }
                         }
 
                         AniListMarkdownText {
                             Layout.fillWidth: true
                             rawMarkdown: usersPage.profile.about || ""
+                            visible: usersPage.aboutExpanded
                         }
                     }
 
