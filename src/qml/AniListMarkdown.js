@@ -32,6 +32,11 @@
 
 .pragma library
 
+// Fallback used only before a real container width is known (e.g. the
+// very first layout pass) or for direct toHtml()/toSegments() callers
+// that don't pass one.
+var DEFAULT_MAX_IMAGE_WIDTH = 480;
+
 // ── Stage 0: HTML protection ────────────────────────────────────────────
 //
 // AniList bios routinely contain raw HTML (<center>, <div align=right>,
@@ -48,9 +53,7 @@
 // documented subset.
 
 function _protectHtml(text, store) {
-    // Matches: <tag ...>, </tag>, or self-closing <tag ... />
-    // Deliberately broad - anything that looks like a tag gets protected.
-    return text.replace(/<\/?[a-zA-Z][a-zA-Z0-9]*(\s+[^<>]*)?\/?>/g, function (match) {
+    return text.replace(/<\/?[a-zA-Z][a-zA-Z0-9]*(?:\s+[a-zA-Z-]+(?:=(?:"[^"]*"|'[^']*'|[^\s>]*))?)*\s*\/?>/g, function (match) {
         var token = "\u0000HTML" + store.length + "\u0000";
         store.push(match);
         return token;
@@ -98,6 +101,25 @@ function _convertCenteredBlocks(text) {
     });
 }
 
+function _safeImageWidth(digits, isPercent, maxWidth) {
+    var safeMax = maxWidth > 0 ? maxWidth : DEFAULT_MAX_IMAGE_WIDTH;
+    var requested;
+
+    if (digits.length > 0 && isPercent) {
+        requested = safeMax * (parseFloat(digits) / 100);
+    } else if (digits.length > 0) {
+        requested = parseFloat(digits);
+    } else {
+        requested = safeMax;
+    }
+
+    if (isNaN(requested)) {
+        requested = safeMax;
+    }
+
+    return Math.max(1, Math.round(Math.min(requested, safeMax)));
+}
+
 // ── Stage 3: inline AniList syntax ──────────────────────────────────────
 
 // img(url), img275(url), img100%(url)
@@ -107,17 +129,13 @@ function _convertCenteredBlocks(text) {
 //     don't blow out a profile layout)
 //   - Digit run only -> treated as a pixel width
 //   - Digit run + % -> treated as a percentage width
-function _convertImageTags(text) {
+function _convertImageTags(text, maxWidth) {
     return text.replace(/img(\d*)(%?)\((https?:\/\/[^\s()]+)\)/g, function (_, digits, pct, url) {
-        var style;
-        if (digits.length > 0 && pct === "%") {
-            style = "width:" + digits + "%;height:auto;";
-        } else if (digits.length > 0) {
-            style = "width:" + digits + "px;height:auto;";
-        } else {
-            style = "max-width:100%;height:auto;";
-        }
-        return '<img src="' + url + '" style="' + style + '">';
+        var width = _safeImageWidth(digits, pct === "%", maxWidth);
+        // Plain width ATTRIBUTE, not a CSS style declaration - see the img
+        // vs hr/table attribute note above. Height stays unset so Qt scales
+        // it to preserve the image's own aspect ratio.
+        return '<img src="' + url + '" width="' + width + '">';
     });
 }
 
@@ -234,6 +252,37 @@ function _convertBlockquotes(text) {
     return text.replace(/^>\s?(.+)$/gm, '<blockquote>$1</blockquote>');
 }
 
+// ── Stage 5b: constrain raw passthrough <img> tags ──────────────────────
+//
+// Raw <img> tags survive _protectHtml/_restoreHtml byte-for-byte, so
+// whatever width the original bio declared - almost always a percentage,
+// sometimes nothing at all - reaches this string unconstrained. Re-derive
+// it and run it through the same _safeImageWidth the shorthand syntax
+// uses above, so every image is capped identically regardless of how it
+// was written in the original bio.
+function _constrainRawImageSizes(text, maxWidth) {
+    return text.replace(/<img\b(?:\s+[a-zA-Z-]+(?:=(?:"[^"]*"|'[^']*'|[^\s>]*))?)*\s*\/?>/gi, function (tag) {
+        var srcMatch = tag.match(/\ssrc\s*=\s*"([^"]*)"/i) || tag.match(/\ssrc\s*=\s*'([^']*)'/i);
+        var src = srcMatch ? srcMatch[1] : "";
+        if (!src) {
+            return tag;
+        }
+
+        var widthMatch = tag.match(/\swidth\s*=\s*["']?([\d.]+)(%?)["']?/i);
+        var digits = widthMatch ? widthMatch[1] : "";
+        var isPercent = widthMatch ? widthMatch[2] === "%" : false;
+        var width = _safeImageWidth(digits, isPercent, maxWidth);
+
+        // align isn't in Qt's documented <img> attribute list, but float
+        // is explicitly documented as supported for images, so this is
+        // the reliable way to keep bios that float a banner left/right.
+        var alignMatch = tag.match(/\salign\s*=\s*["']?(left|right)["']?/i);
+        var floatStyle = alignMatch ? ' style="float:' + alignMatch[1] + ';"' : "";
+
+        return '<img src="' + src + '" width="' + width + '"' + floatStyle + '>';
+    });
+}
+
 // ── Stage 6: paragraph / line-break normalisation ───────────────────────
 //
 // TextEdit's RichText mode respects block tags but plain "\n" is
@@ -258,12 +307,12 @@ function _normaliseLineBreaks(text) {
 // simple/non-interactive callers, e.g. a plain-text preview) bakes them
 // in as static dark-on-dark spans; toSegments() (used by
 // AniListMarkdownText.qml) pulls them out as real interactive delegates.
-function _convertCore(rawText, htmlStore) {
+function _convertCore(rawText, htmlStore, maxWidth) {
     var text = rawText;
 
     // 0. Escape stray entities in the fully raw string (before anything
     //    else touches it), then protect real HTML tags.
-    text = _escapeStrayEntities(text);
+    text = _escapeStrayEntities(text, maxWidth);
     text = _protectHtml(text, htmlStore);
 
     // 2. Block-level AniList wrappers
@@ -287,6 +336,7 @@ function _convertCore(rawText, htmlStore) {
 
     // 5. Restore protected HTML verbatim
     text = _restoreHtml(text, htmlStore);
+    text = _constrainRawImageSizes(text, maxWidth);
 
     // 6. Line breaks last, so it doesn't interfere with the multi-line
     //    regexes above (centered blocks, headers-per-line, etc.)
@@ -314,8 +364,8 @@ function _convertCore(rawText, htmlStore) {
 // string and don't need spoilers to be interactive (e.g. a tooltip
 // preview). The real UI (AniListMarkdownText.qml) uses toSegments()
 // directly instead, so spoilers stay interactive there.
-function toHtml(rawText) {
-    var segments = toSegments(rawText);
+function toHtml(rawText, maxWidth) {
+    var segments = toSegments(rawText, maxWidth);
     var parts = [];
     for (var i = 0; i < segments.length; i++) {
         var seg = segments[i];
@@ -338,7 +388,7 @@ function toHtml(rawText) {
 // "spoiler" segments as a real tappable delegate, laid out together in a
 // Flow so they read as one continuous block of text with an interactive
 // spoiler bar inline - not a separate disconnected widget.
-function toSegments(rawText) {
+function toSegments(rawText, maxWidth) {
     if (!rawText || rawText.length === 0) {
         return [];
     }
@@ -351,7 +401,7 @@ function toSegments(rawText) {
     // so they pass through every stage completely untouched and land in
     // the final HTML string exactly where they started.
     var htmlStore = [];
-    var htmlWithPlaceholders = _convertCore(withPlaceholders, htmlStore);
+    var htmlWithPlaceholders = _convertCore(withPlaceholders, htmlStore, maxWidth);
 
     // Now split that HTML string on the spoiler tokens to produce the
     // final segment array. Each spoiler's own inner text is converted
@@ -378,7 +428,7 @@ function toSegments(rawText) {
         var spoilerRawInner = spoilerStore[spoilerIndex];
         segments.push({
             type: "spoiler",
-            content: _convertCore(spoilerRawInner, [])
+            content: _convertCore(spoilerRawInner, [], maxWidth)
         });
         remaining = remaining.substring(match.index + match[0].length);
     }

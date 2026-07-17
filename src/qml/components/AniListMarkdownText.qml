@@ -38,13 +38,24 @@ ColumnLayout {
 
     // Public API
     property string rawMarkdown: ""
+    property string rawHtml: ""   // NEW — pre-rendered HTML from AniList's asHtml:true.
+                                   // When set (non-empty), takes priority over rawMarkdown
+                                   // and skips the AniListMarkdown.js conversion pipeline
+                                   // entirely, since the content is already HTML and running
+                                   // it through the markdown converter again would corrupt it
+                                   // (double-escaped entities, spoilers no longer recognised,
+                                   // stray literal */_ in prose misread as emphasis).
 
     spacing: 0
 
-    // Recomputed only when the raw text actually changes, not on every
-    // theme/resize pass - parsing is regex-heavy and there's no reason to
-    // redo it just because the page width changed.
-    readonly property var _segments: AniListMarkdown.toSegments(root.rawMarkdown)
+    // When rawHtml is provided, wrap it as a single non-spoiler segment so the
+    // same Flow/Repeater rendering below handles both paths uniformly — no
+    // spoiler delegate is produced this way (see file-level note below), but
+    // links, images, and everything else render through the identical
+    // htmlDelegate used by the markdown path.
+    readonly property var _segments: root.rawHtml.length > 0
+        ? [{ type: "html", content: root.rawHtml }]
+        : AniListMarkdown.toSegments(root.rawMarkdown, root.width)
 
     Flow {
         id: flow
@@ -86,6 +97,7 @@ ColumnLayout {
             selectByMouse: true
             wrapMode: TextEdit.Wrap
             textFormat: TextEdit.RichText
+            clip: true
 
             // implicitWidth left unconstrained deliberately: sitting
             // inside a Flow, each TextEdit should size to its own content
@@ -208,4 +220,14 @@ ColumnLayout {
     //    seamless reflow across the html/spoiler boundary would require
     //    a custom single text-layout engine, well beyond what TextEdit
     //    + Flow can offer.
+    // 4. When rawHtml is used instead of rawMarkdown (AniList's asHtml:true
+    //    output), spoilers (~!...!~) are NOT interactive — AniList's server-
+    //    rendered HTML wraps them in its own markup (not ~!...!~ syntax,
+    //    which has already been converted server-side), so _extractSpoilers
+    //    finds nothing to pull out. Spoiler text in rawHtml mode renders
+    //    directly, unredacted. If AniList's asHtml spoiler markup is ever
+    //    inspected and found to be parseable (e.g. a consistent CSS class),
+    //    a rawHtml-specific spoiler extraction pass could be added here —
+    //    not attempted yet since the actual markup shape hasn't been
+    //    confirmed against a live response.
 }
