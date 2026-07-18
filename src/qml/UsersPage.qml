@@ -15,6 +15,7 @@ Kirigami.Page {
     property var userId: 0
     property var userName: "User Page"
     property bool aboutExpanded: false
+    readonly property real aboutWidthFactor: 0.3
 
     property var profile: ({})
     property bool profileReady: false
@@ -322,7 +323,8 @@ Kirigami.Page {
                         }
 
                         Loader {
-                            Layout.fillWidth: true
+                            id: aboutLoader
+                            Layout.preferredWidth: parent.width * aboutWidthFactor
                             active: usersPage.aboutExpanded
                             visible: active
 

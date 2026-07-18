@@ -4,7 +4,7 @@ import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 import "../AniListMarkdown.js" as AniListMarkdown
 
-// Drop-in replacement for the plain Controls.Label currently used for
+// Drop-in replacement for the plain Controls.Label used for
 // profile.about in ProfilePage.qml and UsersPage.qml:
 //
 //   Controls.Label {

@@ -12,6 +12,7 @@ Kirigami.Page {
     property var profile: ({})
     property bool profileReady: false
     property bool aboutExpanded: false
+    readonly property real aboutWidthFactor: 0.3
 
     readonly property int bannerHeight: Kirigami.Units.gridUnit * 10
     readonly property int avatarSize: Kirigami.Units.gridUnit * 7
@@ -249,7 +250,8 @@ Kirigami.Page {
                         }
 
                         Loader {
-                            Layout.fillWidth: true
+                            id: aboutLoader
+                            Layout.preferredWidth: parent.width * aboutWidthFactor
                             active: profilePage.aboutExpanded
                             visible: active
 
