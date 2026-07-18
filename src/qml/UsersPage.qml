@@ -321,10 +321,14 @@ Kirigami.Page {
                             }
                         }
 
-                        AniListMarkdownText {
+                        Loader {
                             Layout.fillWidth: true
-                            rawMarkdown: usersPage.profile.about || ""
-                            visible: usersPage.aboutExpanded
+                            active: usersPage.aboutExpanded
+                            visible: active
+
+                            sourceComponent: AniListMarkdownText {
+                                rawMarkdown: usersPage.profile.about || ""
+                            }
                         }
                     }
 

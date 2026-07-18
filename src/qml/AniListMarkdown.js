@@ -53,6 +53,15 @@ var DEFAULT_MAX_IMAGE_WIDTH = 480;
 // documented subset.
 
 function _protectHtml(text, store) {
+    // Matches: <tag ...>, </tag>, or self-closing <tag ... />
+    // Deliberately broad - anything that looks like a tag gets protected.
+    // Attribute-aware: a fully-quoted attribute value is treated as opaque
+    // even if it contains '<', '>', or the other quote character, instead
+    // of stopping at the first bare '>' the way a plain [^<>]* scan would -
+    // needed for bios that embed markup inside an attribute value (e.g. a
+    // profile-card <img src="...?user=<a href='...'>name</a>"> widget),
+    // otherwise the tag gets cut in half here and never seen as one <img>
+    // by _constrainRawImageSizes later.
     return text.replace(/<\/?[a-zA-Z][a-zA-Z0-9]*(?:\s+[a-zA-Z-]+(?:=(?:"[^"]*"|'[^']*'|[^\s>]*))?)*\s*\/?>/g, function (match) {
         var token = "\u0000HTML" + store.length + "\u0000";
         store.push(match);
@@ -101,6 +110,13 @@ function _convertCenteredBlocks(text) {
     });
 }
 
+// ── Stage 3: inline AniList syntax ──────────────────────────────────────
+
+// Shared by the img###(url) shorthand below, _convertStandardImageSyntax,
+// and the raw <img> passthrough handled later by _constrainRawImageSizes -
+// so a %, a bare px number, or "nothing specified" all resolve to the same
+// safe pixel value everywhere in the file instead of three slightly
+// different rules.
 function _safeImageWidth(digits, isPercent, maxWidth) {
     var safeMax = maxWidth > 0 ? maxWidth : DEFAULT_MAX_IMAGE_WIDTH;
     var requested;
@@ -120,30 +136,53 @@ function _safeImageWidth(digits, isPercent, maxWidth) {
     return Math.max(1, Math.round(Math.min(requested, safeMax)));
 }
 
-// ── Stage 3: inline AniList syntax ──────────────────────────────────────
-
 // img(url), img275(url), img100%(url)
 //   - "img" then optional digits then optional "%" then (url)
 //   - No size -> default width (we pick a sane cap; AniList's own default
 //     is roughly 100% of the containing column, capped so huge images
 //     don't blow out a profile layout)
-//   - Digit run only -> treated as a pixel width
+//   - Digit run only -> treated as a pixel width, clamped to maxWidth
+//     (previously unclamped - img800(url) would render at a full 800px
+//     regardless of the container, overflowing a narrow one)
 //   - Digit run + % -> treated as a percentage width
 function _convertImageTags(text, maxWidth) {
     return text.replace(/img(\d*)(%?)\((https?:\/\/[^\s()]+)\)/g, function (_, digits, pct, url) {
         var width = _safeImageWidth(digits, pct === "%", maxWidth);
-        // Plain width ATTRIBUTE, not a CSS style declaration - see the img
-        // vs hr/table attribute note above. Height stays unset so Qt scales
-        // it to preserve the image's own aspect ratio.
+        // Plain width ATTRIBUTE, not a CSS style declaration - Qt's rich
+        // text engine documents src/width/height as the attributes <img>
+        // supports, but (unlike hr/table/td) never calls out percentage or
+        // max-width support for img specifically, so this is the one form
+        // that's guaranteed to be honoured. Height is left unset so Qt
+        // scales it to preserve the image's own aspect ratio.
         return '<img src="' + url + '" width="' + width + '">';
+    });
+}
+
+// Standard CommonMark image syntax ![alt](url) - AniList's own shorthand
+// (img/img###/img##%) is handled above, but some bios also use plain
+// markdown image syntax (e.g. wrapped in a link for a clickable
+// stats-widget image: [![](image-url)](click-url)). Runs BEFORE
+// _convertLinks: if it ran after, _convertLinks's [label](url) regex
+// would misparse the leading "![" as the start of an ordinary link label,
+// corrupting both the image and the link around it.
+function _convertStandardImageSyntax(text, maxWidth) {
+    return text.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s()]+)\)/g, function (_, alt, url) {
+        var width = _safeImageWidth("", false, maxWidth);
+        var altAttr = alt.length > 0 ? ' alt="' + alt + '"' : "";
+        return '<img src="' + url + '" width="' + width + '"' + altAttr + '>';
     });
 }
 
 // webm(url) / mp4(url) - AniList allows inline video, which TextEdit has
 // no way to render. Fall back to a clearly-labelled link so the content
 // isn't silently dropped.
+//
+// "youtube" isn't part of AniList's documented syntax (only webm/mp4 are),
+// but real bios use it constantly as a plain labelled-link convention, and
+// left unhandled it renders as inert, unclickable text. Same treatment as
+// webm/mp4 since TextEdit can't embed any of the three anyway.
 function _convertVideoTags(text) {
-    return text.replace(/(webm|mp4)\((https?:\/\/[^\s()]+)\)/g, function (_, kind, url) {
+    return text.replace(/(webm|mp4|youtube)\((https?:\/\/[^\s()]+)\)/g, function (_, kind, url) {
         return '<a href="' + url + '">[Video: ' + url + ']</a>';
     });
 }
@@ -197,7 +236,15 @@ function _convertLinks(text, htmlStore) {
     // Fix: run bold/italic + inline code over the LABEL only, before
     // assembling the <a> tag, then protect just the assembled tag (with
     // its now-safe label baked in) via the shared HTML protection store.
-    text = text.replace(/\[([^\]]*)\]\((https?:\/\/[^\s()]+)\)/g, function (_, label, url) {
+    //
+    // The label group also accepts one level of nested [...] - real bios
+    // sometimes write [[Oshi No Ko]](url), where the brackets are literally
+    // part of the displayed title rather than markdown syntax. A plain
+    // [^\]]* can't represent that nesting: it either stops at the first
+    // inner "]" and then fails to find "(" right after, or (with two
+    // consecutive "]]") fails at every possible starting position - either
+    // way the link never converts at all and shows as raw bracket text.
+    text = text.replace(/\[((?:[^\[\]]|\[[^\[\]]*\])*)\]\((https?:\/\/[^\s()]+)\)/g, function (_, label, url) {
         var formattedLabel = _convertBoldItalic(label);
         formattedLabel = _convertInlineCode(formattedLabel);
         var tag = '<a href="' + url + '">' + formattedLabel + '</a>';
@@ -254,12 +301,23 @@ function _convertBlockquotes(text) {
 
 // ── Stage 5b: constrain raw passthrough <img> tags ──────────────────────
 //
-// Raw <img> tags survive _protectHtml/_restoreHtml byte-for-byte, so
-// whatever width the original bio declared - almost always a percentage,
-// sometimes nothing at all - reaches this string unconstrained. Re-derive
-// it and run it through the same _safeImageWidth the shorthand syntax
-// uses above, so every image is capped identically regardless of how it
-// was written in the original bio.
+// Real AniList bios overwhelmingly write images as raw HTML rather than
+// the img###(url) shorthand (profile banners, section dividers, div/img
+// "card" templates). Those tags survive _protectHtml/_restoreHtml
+// byte-for-byte, so whatever width the original author declared - a
+// width="" attribute, a style="width:...", or nothing at all - reaches
+// this string completely unconstrained. TextEdit's segments are
+// deliberately left without a bound width (see AniListMarkdownText.qml),
+// so a percentage has no defined width to resolve against, and an <img>
+// with no size at all just renders at its native resolution - both
+// routinely several hundred px for a profile banner, blowing straight
+// through the About section.
+//
+// Fix: re-derive whatever the tag asked for - from either a bare width=
+// attribute or a style="width:..." declaration, since bios use both - and
+// run it through the same _safeImageWidth the shorthand syntax uses
+// above, so every image is capped identically regardless of how it was
+// written in the original bio.
 function _constrainRawImageSizes(text, maxWidth) {
     return text.replace(/<img\b(?:\s+[a-zA-Z-]+(?:=(?:"[^"]*"|'[^']*'|[^\s>]*))?)*\s*\/?>/gi, function (tag) {
         var srcMatch = tag.match(/\ssrc\s*=\s*"([^"]*)"/i) || tag.match(/\ssrc\s*=\s*'([^']*)'/i);
@@ -268,9 +326,16 @@ function _constrainRawImageSizes(text, maxWidth) {
             return tag;
         }
 
+        var digits, isPercent;
         var widthMatch = tag.match(/\swidth\s*=\s*["']?([\d.]+)(%?)["']?/i);
-        var digits = widthMatch ? widthMatch[1] : "";
-        var isPercent = widthMatch ? widthMatch[2] === "%" : false;
+        if (widthMatch) {
+            digits = widthMatch[1];
+            isPercent = widthMatch[2] === "%";
+        } else {
+            var styleWidthMatch = tag.match(/\bwidth\s*:\s*([\d.]+)(%|px)?/i);
+            digits = styleWidthMatch ? styleWidthMatch[1] : "";
+            isPercent = styleWidthMatch ? styleWidthMatch[2] === "%" : false;
+        }
         var width = _safeImageWidth(digits, isPercent, maxWidth);
 
         // align isn't in Qt's documented <img> attribute list, but float
@@ -312,14 +377,15 @@ function _convertCore(rawText, htmlStore, maxWidth) {
 
     // 0. Escape stray entities in the fully raw string (before anything
     //    else touches it), then protect real HTML tags.
-    text = _escapeStrayEntities(text, maxWidth);
+    text = _escapeStrayEntities(text);
     text = _protectHtml(text, htmlStore);
 
     // 2. Block-level AniList wrappers
     text = _convertCenteredBlocks(text);
 
     // 3. Inline AniList syntax (spoilers handled separately - see caller)
-    text = _convertImageTags(text);
+    text = _convertImageTags(text, maxWidth);
+    text = _convertStandardImageSyntax(text, maxWidth);
     text = _convertVideoTags(text);
 
     // 4. Standard inline markdown

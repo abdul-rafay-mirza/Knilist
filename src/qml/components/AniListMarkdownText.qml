@@ -154,6 +154,7 @@ ColumnLayout {
                     text: spoilerRoot.segmentContent
                     readOnly: true
                     selectByMouse: spoilerRoot.revealed
+                    enabled: spoilerRoot.revealed
                     textFormat: TextEdit.RichText
                     wrapMode: TextEdit.Wrap
 
@@ -187,8 +188,12 @@ ColumnLayout {
                 }
 
                 HoverHandler {
+                    id: spoilerHover
                     cursorShape: spoilerRoot.revealed ? Qt.IBeamCursor : Qt.PointingHandCursor
                 }
+
+                Controls.ToolTip.visible: spoilerHover.hovered && !spoilerRoot.revealed
+                Controls.ToolTip.text: "Click to show spoiler"
             }
         }
     }
