@@ -234,9 +234,6 @@ Kirigami.Page {
                         }
 
                         // -- Follow button + "Follows you" indicator --------------
-                        // The one genuinely new interactive element vs.
-                        // ProfilePage: you don't follow or get followed by
-                        // yourself, so this concept has no equivalent there.
                         RowLayout {
                             Layout.fillWidth: true
                             Layout.topMargin: Kirigami.Units.smallSpacing
@@ -286,7 +283,10 @@ Kirigami.Page {
 
                         onEntryActivated: (target, asLayer) => {
                             if (asLayer) {
-                                applicationWindow().pageStack.layers.push(Qt.resolvedUrl(target))
+                                applicationWindow().pageStack.layers.push(Qt.resolvedUrl(target), {
+                                    userId:   usersPage.userId,
+                                    userName: usersPage.userName
+                                })
                             } else {
                                 applicationWindow().switchToPage(target)
                             }

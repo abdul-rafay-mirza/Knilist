@@ -32,7 +32,12 @@ Kirigami.AbstractCard {
     // ToggleFollow(userId) call underneath — only the label differs.
     property string context: "followers"
 
-    readonly property bool showsUnfollow: root.context === "following" || root.isFollowing
+    // FollowersAndFollowingCard.qml
+    property bool viewingOwnList: true   // false when this card is shown inside another user's followers/following
+
+    readonly property bool showsUnfollow: root.viewingOwnList
+        ? (root.context === "following" || root.isFollowing)
+        : root.isFollowing   // someone else's list: only isFollowing tells us the viewer's actual relationship
     readonly property string followMenuLabel: root.showsUnfollow ? "Unfollow" : "Follow"
     readonly property string followMenuAction: root.showsUnfollow ? "unfollow" : "follow"
 
@@ -124,6 +129,7 @@ Kirigami.AbstractCard {
                     color: Kirigami.Theme.highlightedTextColor
                     font.bold: true
                     font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.7)
+                    visible: root.isMutual && root.viewingOwnList
                 }
             }
 

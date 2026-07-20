@@ -611,8 +611,8 @@ class AniListService(QObject):
 
         threading.Thread(target=_run, daemon=True).start()
 
-    @Slot(int)
-    def fetchFollowing(self, page: int) -> None:
+    @Slot(int, int)
+    def fetchFollowing(self, user_id: int, page: int) -> None:
         is_first_page = page <= 1   # QML passes 1 for the initial load, currentPage+1 to load more
 
         self._following_fetch_gen += 1
@@ -622,9 +622,9 @@ class AniListService(QObject):
             try:
                 if is_first_page:
                     self._begin_loading()
-                user_id  = self._get_viewer_id()
+                target_id = user_id if user_id else self._get_viewer_id()
                 data     = self._gql(_FOLLOWING_LIST_QUERY, {
-                    "userId": user_id,
+                    "userId": target_id,
                     "page":   page if page > 0 else 1,
                 })
                 if my_gen != self._following_fetch_gen:
@@ -651,14 +651,10 @@ class AniListService(QObject):
 
         threading.Thread(target=_run, daemon=True).start()
 
-    @Slot(int)
-    def fetchFollowers(self, page: int) -> None:
+    @Slot(int, int)
+    def fetchFollowers(self, user_id: int, page: int) -> None:
         is_first_page = page <= 1
 
-        # Bumped on every call. If a newer call (reload(), or another
-        # loadMore()) comes in while this one is still on the wire, my_gen
-        # won't match by the time the response comes back, so it's dropped
-        # instead of getting appended onto a freshly-reloaded model.
         self._followers_fetch_gen += 1
         my_gen = self._followers_fetch_gen
 
@@ -666,9 +662,9 @@ class AniListService(QObject):
             try:
                 if is_first_page:
                     self._begin_loading()
-                user_id  = self._get_viewer_id()
+                target_id = user_id if user_id else self._get_viewer_id()
                 data     = self._gql(_FOLLOWERS_LIST_QUERY, {
-                    "userId": user_id,
+                    "userId": target_id,
                     "page":   page if page > 0 else 1,
                 })
                 if my_gen != self._followers_fetch_gen:

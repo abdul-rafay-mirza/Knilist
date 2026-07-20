@@ -5,13 +5,16 @@ import "components"
 
 Kirigami.Page {
     id: followersPage
-    title: "Followers"
+    title: followersPage.userName.length > 0 ? followersPage.userName + "'s Followers" : "Followers"
 
     property bool isInitialLoading: true
     property bool isLoadingMore:    false
     property bool hasNextPage:      true
     property int  currentPage:      1
     property var  seenUserIds:      ({})   // dedupe guard
+
+    property var userId:   0   // 0 means use viewers (default behavour)
+    property var userName: ""
 
 
     actions: [
@@ -32,13 +35,13 @@ Kirigami.Page {
         currentPage       = 1
         seenUserIds       = ({})
         followersModel.clear()
-        anilistService.fetchFollowers(1)
+        anilistService.fetchFollowers(followersPage.userId, 1)
     }
 
     function loadMore() {
         if (isLoadingMore || isInitialLoading || !hasNextPage) return
         isLoadingMore = true
-        anilistService.fetchFollowers(currentPage + 1)
+        anilistService.fetchFollowers(followersPage.userId, currentPage + 1)
     }
 
     // In case the first page(s) don't fill the viewport, keep requesting
@@ -160,6 +163,7 @@ Kirigami.Page {
                     createdAt:   model.createdAt
                     updatedAt:   model.updatedAt
                     context: "followers"
+                    viewingOwnList: followersPage.userId === 0
 
                     onCardTapped: {
                         console.log("FollowersAndFollowingCard Tapped from FollowersPage!")

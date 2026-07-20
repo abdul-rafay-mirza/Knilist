@@ -38,13 +38,7 @@ ColumnLayout {
 
     // Public API
     property string rawMarkdown: ""
-    property string rawHtml: ""   // NEW — pre-rendered HTML from AniList's asHtml:true.
-                                   // When set (non-empty), takes priority over rawMarkdown
-                                   // and skips the AniListMarkdown.js conversion pipeline
-                                   // entirely, since the content is already HTML and running
-                                   // it through the markdown converter again would corrupt it
-                                   // (double-escaped entities, spoilers no longer recognised,
-                                   // stray literal */_ in prose misread as emphasis).
+    property string rawHtml: ""  // pre-rendered HTML from AniList's asHtml:true. When set (non-empty), takes priority over rawMarkdown and skips the AniListMarkdown.js conversion pipeline entirely, since the content is already HTML and running it through the markdown converter again would corrupt it (double-escaped entities, spoilers no longer recognised, stray literal */_ in prose misread as emphasis).
 
     spacing: 0
 
