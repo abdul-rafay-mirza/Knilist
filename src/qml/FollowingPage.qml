@@ -168,6 +168,7 @@ Kirigami.Page {
 
                     onActionRequested: (action) => {
                         switch (action) {
+                            case "follow":
                             case "unfollow":
                                 console.log("Unfollow requested for", name, "(userId:", userId + ")")
                                 anilistService.toggleFollow(userId)
