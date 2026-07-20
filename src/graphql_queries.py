@@ -1029,3 +1029,32 @@ mutation ($userId: Int) {
   }
 }
 """
+
+# NOTE: This is not a query for Anilist API. Its for animethemes.moe.
+# animethemes GQL endopint: https://graphql.animethemes.moe
+# This query gets the direct links for opening and endings for a given anime in video and audio formats
+_OPENING_AND_ENDING_SONGS_QUERY = """
+query ($id: [Int!]) {
+    findAnimeByExternalSite(site: ANILIST, id: $id) {
+        animethemes {
+          id
+          type
+          song {
+            title
+          }
+          animethemeentries {
+            episodes
+            videos {
+              nodes {
+                source
+                link
+                audio {
+                  link
+                }
+              }
+            }
+          }
+        }
+    }
+}
+"""
