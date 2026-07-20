@@ -116,20 +116,22 @@ Kirigami.AbstractCard {
             }
 
             Rectangle {
-                visible: root.isMutual
+                id: relationBadge
+                visible: root.viewingOwnList ? root.isMutual : (root.isFollowing || root.isMutual)
                 radius: height / 2
                 color: Kirigami.Theme.highlightColor
-                height: mutualLabel.implicitHeight + Kirigami.Units.smallSpacing
-                width: mutualLabel.implicitWidth + Kirigami.Units.largeSpacing
+                height: relationLabel.implicitHeight + Kirigami.Units.smallSpacing
+                width: relationLabel.implicitWidth + Kirigami.Units.largeSpacing
 
                 Controls.Label {
-                    id: mutualLabel
+                    id: relationLabel
                     anchors.centerIn: parent
-                    text: "Mutual"
+                    text: root.viewingOwnList
+                        ? "Mutual"
+                        : (root.isMutual ? "Mutual" : "Following")
                     color: Kirigami.Theme.highlightedTextColor
                     font.bold: true
                     font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.7)
-                    visible: root.isMutual && root.viewingOwnList
                 }
             }
 
