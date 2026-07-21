@@ -207,7 +207,7 @@ Kirigami.Page {
                         }
 
                         Flow {
-                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignHCenter
                             spacing: Kirigami.Units.smallSpacing
                             visible: badgeRepeater.count > 0
 
