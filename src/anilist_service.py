@@ -292,7 +292,16 @@ def _flatten_anime_themes(themes: list | None) -> list[dict]:
             artist = perf.get("artist") or {}
             name   = artist.get("name") or ""
             if name:
-                artists.append(name)
+                images = []
+                for img in ((artist.get("images") or {}).get("nodes") or []):
+                    images.append({
+                        "link":  img.get("link", "") or "",
+                        "facet": img.get("facet", "") or "",
+                    })
+                artists.append({
+                    "name":   name,
+                    "images": images,
+                })
 
         entries = []
         for entry in (theme.get("animethemeentries") or []):
@@ -319,8 +328,8 @@ def _flatten_anime_themes(themes: list | None) -> list[dict]:
             "themeId":     theme.get("id", 0),
             "type":        theme.get("type", "") or "",
             "songTitle":   song.get("title", "") or "",
-            "artists":     artists,                       # list, in case of multiple performers
-            "artistsText": ", ".join(artists),            # convenience string for QML display
+            "artists":     artists,                       # list of {name, images}
+            "artistsText": ", ".join(a["name"] for a in artists),  # convenience string for QML display
             "entries":     entries,
         })
     return result
