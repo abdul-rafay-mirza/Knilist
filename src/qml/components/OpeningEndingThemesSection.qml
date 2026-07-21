@@ -161,6 +161,12 @@ ColumnLayout {
                                         onTriggered: anilistService.copyToClipboard(videoBlock.modelData.videoLink)
                                     },
                                     Kirigami.Action {
+                                        icon.name: "edit-copy"
+                                        text: "Copy audio link"
+                                        visible: !!videoBlock.modelData.audioLink
+                                        onTriggered: anilistService.copyToClipboard(videoBlock.modelData.audioLink)
+                                    },
+                                    Kirigami.Action {
                                         icon.name: "document-open"
                                         text: "Open"
                                         onTriggered: Qt.openUrlExternally(videoBlock.modelData.videoLink)
@@ -176,10 +182,16 @@ ColumnLayout {
                                         onTriggered: anilistService.openInExternalPlayer(videoBlock.modelData.videoLink, "vlc")
                                     },
                                     Kirigami.Action {
-                                        icon.name: "edit-copy"
-                                        text: "Copy audio link"
+                                        icon.name: "media-playback-start"
+                                        text: "Open audio in mpv"
                                         visible: !!videoBlock.modelData.audioLink
-                                        onTriggered: anilistService.copyToClipboard(videoBlock.modelData.audioLink)
+                                        onTriggered: anilistService.openInExternalPlayer(videoBlock.modelData.audioLink, "mpv")
+                                    },
+                                    Kirigami.Action {
+                                        icon.name: "media-playback-start"
+                                        text: "Open audio in VLC"
+                                        visible: !!videoBlock.modelData.audioLink
+                                        onTriggered: anilistService.openInExternalPlayer(videoBlock.modelData.audioLink, "vlc")
                                     }
                                 ]
                             }
