@@ -308,6 +308,7 @@ class AniListService(QObject):
     followToggled = Signal(int, bool, bool)   # userId, isFollowing, isFollower
     userProfileLoaded = Signal(str)   # full JSON payload for the "any user" page
     userAnimeLoaded = Signal(int, list)   # userId, entries - read-only list for UsersAnimeListPage
+    userMangaLoaded = Signal(int, list)   # userId, entries - read-only list for UsersMangaListPage
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -1471,6 +1472,57 @@ class AniListService(QObject):
                 self._manga_entry_id_map = {e["anilistId"]: e["entryId"] for e in entries}
                 self._manga_entry_cache = {e["anilistId"]: e for e in entries}
                 self.mangaLoaded.emit(entries)
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def fetchUserManga(self, user_id: int) -> None:
+        """Read-only manga list for another AniList user, backing
+        UsersMangaListPage. Reuses _MANGA_LIST_QUERY/field-shaping exactly
+        like fetchManga(), but queries the given user_id directly instead of
+        the viewer, and deliberately never touches _manga_entry_id_map /
+        _manga_entry_cache - those back the viewer's own editor/score
+        mutations and must not be overwritten with another user's entries."""
+        def _run():
+            try:
+                self._begin_loading()
+                data    = self._gql(_MANGA_LIST_QUERY, {"userId": user_id})
+                lists   = (data.get("MediaListCollection") or {}).get("lists", [])
+                entries = []
+                for lst in lists:
+                    for e in (lst.get("entries") or []):
+                        media     = e.get("media") or {}
+                        status    = e.get("status", "CURRENT")
+                        title_obj = media.get("title") or {}
+                        title     = title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or ""
+                        entries.append({
+                            "entryId":               e.get("id", 0),
+                            "anilistId":             media.get("id", 0),
+                            "title":                 title,
+                            "titleRomaji":           title_obj.get("romaji", ""),
+                            "mediaType":             media.get("format", "MANGA"),
+                            "cover":                 (media.get("coverImage") or {}).get("large", ""),
+                            "status":                status,
+                            "score":                 e.get("score", 0),
+                            "progress":              e.get("progress", 0),
+                            "progressVolumes":       e.get("progressVolumes", 0),
+                            "chapters":              media.get("chapters") or 0,
+                            "volumes":               media.get("volumes") or 0,
+                            "updatedAt":             e.get("updatedAt", 0),
+                            "rewatches":             e.get("repeat", 0),
+                            "notes":                 e.get("notes", "") or "",
+                            "priority":              e.get("priority", 0),
+                            "hiddenFromStatusLists": e.get("hiddenFromStatusLists", False),
+                            "isPrivate":             e.get("private", False),
+                            "startedAt":             _date_str(_fuzzy_date(e.get("startedAt"))),
+                            "completedAt":           _date_str(_fuzzy_date(e.get("completedAt"))),
+                        })
+                entries.sort(key=lambda e: e["updatedAt"], reverse=True)
+                self.userMangaLoaded.emit(user_id, entries)
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
             finally:

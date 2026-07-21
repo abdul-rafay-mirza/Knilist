@@ -264,15 +264,12 @@ Kirigami.Page {
 
                     // -- Stat bar: Anime / Manga / Following / Followers ---------
                     // Same shape as ProfilePage's StatBar, with one deliberate
-                    // difference: Anime pushes UsersAnimeListPage as a layer
-                    // (this user's list, read-only) instead of tab-switching to
-                    // AnimeListPage, which is always the viewer's own list -
+                    // difference: Anime and Manga push UsersAnimeListPage /
+                    // UsersMangaListPage as layers (this user's list,
+                    // read-only) instead of tab-switching to AnimeListPage /
+                    // MangaListPage, which are always the viewer's own lists -
                     // tab-switching there from someone else's profile used to
-                    // open the viewer's own anime list by mistake.
-                    //
-                    // Manga still tab-switches to the viewer's own MangaListPage
-                    // (same latent mismatch Anime used to have) - left as-is
-                    // since only the Anime cell was in scope here.
+                    // open the viewer's own list by mistake.
                     //
                     // Following/Followers push FollowingPage/FollowersPage as
                     // layers - those currently show the viewer's own
@@ -287,7 +284,7 @@ Kirigami.Page {
                         Layout.alignment: Qt.AlignHCenter
                         stats: [
                             { value: usersPage.profile.animeCount, label: "Anime", target: "UsersAnimeListPage.qml", asLayer: true },
-                            { value: usersPage.profile.mangaCount, label: "Manga", target: "MangaListPage.qml" },
+                            { value: usersPage.profile.mangaCount, label: "Manga", target: "UsersMangaListPage.qml", asLayer: true },
                             { value: usersPage.profile.followingCount, label: "Following", target: "FollowingPage.qml", asLayer: true },
                             { value: usersPage.profile.followersCount, label: "Followers", target: "FollowersPage.qml", asLayer: true }
                         ]

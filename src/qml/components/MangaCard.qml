@@ -17,6 +17,12 @@ Kirigami.AbstractCard {
     property string coverSource
     property int    anilistId
 
+    // When false, every interaction is disabled except imageClicked - used by
+    // read-only contexts like UsersMangaListPage, where the card represents
+    // another AniList user's entry and only drilling into MangaPage makes
+    // sense (status/score/progress edits are viewer-list-only actions).
+    property bool   interactive: true
+
     signal addChapter()
     signal addVolume()
     signal cardClicked()
@@ -39,10 +45,15 @@ Kirigami.AbstractCard {
     bottomPadding: 0
 
     TapHandler {
+        enabled: mangaCard.interactive
         onTapped: mangaCard.cardClicked()
     }
 
+    // Cursor for the card body only - the cover image gets its own
+    // HoverHandler below so it still shows a pointer when interactive is
+    // false, since it stays clickable regardless.
     HoverHandler {
+        enabled: mangaCard.interactive
         cursorShape: Qt.PointingHandCursor
     }
 
@@ -63,9 +74,15 @@ Kirigami.AbstractCard {
                        0.05)
             clip: true
 
+            // Always enabled, regardless of mangaCard.interactive - opening
+            // MangaPage from the cover is allowed even on read-only cards.
             TapHandler {
                 gesturePolicy: TapHandler.WithinBounds
                 onTapped: mangaCard.imageClicked()
+            }
+
+            HoverHandler {
+                cursorShape: Qt.PointingHandCursor
             }
 
             Image {
@@ -128,9 +145,11 @@ Kirigami.AbstractCard {
                     font.pixelSize: 13
                 }
 
-                // +1 VO button
+                // +1 VO button - hidden entirely on read-only cards; bumping
+                // progress only makes sense for the viewer's own list.
                 IncrementButton {
                     label: "+1 VO"
+                    visible: mangaCard.interactive
                     onClicked: mangaCard.addVolume()
                 }
             }
@@ -146,6 +165,7 @@ Kirigami.AbstractCard {
 
                     TapHandler {
                         gesturePolicy: TapHandler.WithinBounds
+                        enabled: mangaCard.interactive
                         onTapped: mangaCard.scoreClicked()
                     }
 
@@ -176,9 +196,11 @@ Kirigami.AbstractCard {
                     font.pixelSize: 13
                 }
 
-                // +1 CH button
+                // +1 CH button - hidden entirely on read-only cards; bumping
+                // progress only makes sense for the viewer's own list.
                 IncrementButton {
                     label: "+1 CH"
+                    visible: mangaCard.interactive
                     onClicked: mangaCard.addChapter()
                 }
             }
