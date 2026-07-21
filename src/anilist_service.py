@@ -274,6 +274,56 @@ def _compute_tendencies(anime_stats: dict) -> list[dict]:
 
     return tendencies
 
+def _flatten_anime_themes(themes: list | None) -> list[dict]:
+    """Flatten animethemes.moe's `animethemes` (OP/ED songs) into plain
+    dicts for the QML side. This is a different API/response shape than
+    AniList's own — a theme (e.g. "OP1") can have more than one entry
+    when it covers different episode ranges or versions, and each entry
+    can have more than one video variant (resolution, subbed/unsubbed) —
+    both are kept as lists rather than picking a "best" one here, so QML
+    decides."""
+    result = []
+    for theme in themes or []:
+        song = theme.get("song") or {}
+
+        artists = []
+        for perf in (song.get("performances") or []):
+            artist = perf.get("artist") or {}
+            name   = artist.get("name") or ""
+            if name:
+                artists.append(name)
+
+        entries = []
+        for entry in (theme.get("animethemeentries") or []):
+            videos = []
+            for video in ((entry.get("videos") or {}).get("nodes") or []):
+                audio = video.get("audio") or {}
+                videos.append({
+                    "basename":   video.get("basename", "") or "",
+                    "mimetype":   video.get("mimetype", "") or "",
+                    "source":     video.get("source", "") or "",
+                    "resolution": video.get("resolution") or 0,
+                    "size":       video.get("size") or 0,
+                    "subbed":     video.get("subbed", False),
+                    "videoLink":  video.get("link", "") or "",
+                    "audioLink":  audio.get("link", "") or "",
+                    "audioSize":  audio.get("size") or 0,
+                })
+            entries.append({
+                "episodes": entry.get("episodes", "") or "",
+                "videos":   videos,
+            })
+
+        result.append({
+            "themeId":     theme.get("id", 0),
+            "type":        theme.get("type", "") or "",
+            "songTitle":   song.get("title", "") or "",
+            "artists":     artists,                       # list, in case of multiple performers
+            "artistsText": ", ".join(artists),            # convenience string for QML display
+            "entries":     entries,
+        })
+    return result
+
 # Service class
 
 class AniListService(QObject):
@@ -310,6 +360,7 @@ class AniListService(QObject):
     userProfileLoaded = Signal(str)   # full JSON payload for the "any user" page
     userAnimeLoaded = Signal(int, list)   # userId, entries - read-only list for UsersAnimeListPage
     userMangaLoaded = Signal(int, list)   # userId, entries - read-only list for UsersMangaListPage
+    openingEndingSongsLoaded = Signal(int, str)   # anilistId, JSON {"themes": [...], "isError": bool}
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -949,6 +1000,50 @@ class AniListService(QObject):
                 )
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def fetchOpeningEndingSongs(self, anilist_id: int) -> None:
+        """OP/ED video+audio links for an anime, from animethemes.moe — a
+        separate GraphQL endpoint from AniList's own. Not used anywhere
+        else, so we post to it directly here instead of growing a second
+        `_gql`-style helper for one call site."""
+        def _run():
+            try:
+                self._begin_loading()
+                resp = requests.post(
+                    "https://graphql.animethemes.moe",
+                    json={
+                        "query":     _OPENING_AND_ENDING_SONGS_QUERY,
+                        "variables": {"id": [anilist_id]},
+                    },
+                    headers={"Content-Type": "application/json", "Accept": "application/json"},
+                    timeout=15,
+                )
+                resp.raise_for_status()
+                body = resp.json()
+                if "errors" in body:
+                    raise RuntimeError(body["errors"][0]["message"])
+
+                matches = (body.get("data") or {}).get("findAnimeByExternalSite") or []
+                first   = (matches[0] or {}) if matches else {}
+                themes  = first.get("animethemes") or []
+
+                self.openingEndingSongsLoaded.emit(anilist_id, json.dumps({
+                    "themes":  _flatten_anime_themes(themes),
+                    "isError": False,
+                }))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+                # Always emit openingEndingSongsLoaded too, even on failure —
+                # QML has exactly one handler to clear its loading state in.
+                self.openingEndingSongsLoaded.emit(anilist_id, json.dumps({
+                    "themes":  [],
+                    "isError": True,
+                }))
             finally:
                 self._end_loading()
 
