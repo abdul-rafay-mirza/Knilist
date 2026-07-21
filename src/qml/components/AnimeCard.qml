@@ -16,6 +16,12 @@ Kirigami.AbstractCard {
     property string coverSource
     property int    anilistId
 
+    // When false, every interaction is disabled except imageClicked - used by
+    // read-only contexts like UsersAnimeListPage, where the card represents
+    // another AniList user's entry and only drilling into AnimePage makes
+    // sense (status/score/progress edits are viewer-list-only actions).
+    property bool   interactive: true
+
     signal addEpisode()
     signal cardClicked()
     signal scoreClicked()
@@ -43,10 +49,15 @@ Kirigami.AbstractCard {
     // has propagateComposedEvents: false, it consumes the tap first and this
     // handler is never reached when the button is clicked.
     TapHandler {
+        enabled: animeCard.interactive
         onTapped: animeCard.cardClicked()
     }
 
+    // Cursor for the card body only - the cover image gets its own
+    // HoverHandler below so it still shows a pointer when interactive is
+    // false, since it stays clickable regardless.
     HoverHandler {
+        enabled: animeCard.interactive
         cursorShape: Qt.PointingHandCursor
     }
 
@@ -67,9 +78,15 @@ Kirigami.AbstractCard {
                        0.05)
             clip: true
 
+            // Always enabled, regardless of animeCard.interactive - opening
+            // AnimePage from the cover is allowed even on read-only cards.
             TapHandler {
                 gesturePolicy: TapHandler.WithinBounds
                 onTapped: animeCard.imageClicked()
+            }
+
+            HoverHandler {
+                cursorShape: Qt.PointingHandCursor
             }
 
             Image {
@@ -129,6 +146,7 @@ Kirigami.AbstractCard {
 
                     TapHandler {
                         gesturePolicy: TapHandler.WithinBounds
+                        enabled: animeCard.interactive
                         onTapped: animeCard.scoreClicked()    // ← emit signal
                     }
 
@@ -159,7 +177,8 @@ Kirigami.AbstractCard {
                     font.pixelSize: 13
                 }
 
-                // +1 EP button
+                // +1 EP button - hidden entirely on read-only cards; bumping
+                // progress only makes sense for the viewer's own list.
                 Rectangle {
                     z:      1
                     width:  68; height: 28
@@ -167,6 +186,7 @@ Kirigami.AbstractCard {
                     color:  "transparent"
                     border.color: Kirigami.Theme.highlightColor
                     border.width: 2
+                    visible: animeCard.interactive
 
                     Controls.Label {
                         anchors.centerIn: parent
@@ -186,6 +206,7 @@ Kirigami.AbstractCard {
                     MouseArea {
                         id:           epArea
                         anchors.fill: parent
+                        enabled:      animeCard.interactive
                         hoverEnabled: true
                         cursorShape:  Qt.PointingHandCursor
                         // Do NOT propagate — prevents the card-level MouseArea

@@ -263,19 +263,30 @@ Kirigami.Page {
                     }
 
                     // -- Stat bar: Anime / Manga / Following / Followers ---------
-                    // Same shape as ProfilePage's StatBar. Following/Followers
-                    // routes push FollowingPage/FollowersPage as layers - those
-                    // currently show the viewer's own following/followers list
-                    // regardless of whose profile launched them (see
-                    // fetchFollowing/fetchFollowers in anilist_service.py,
-                    // which always resolve via _get_viewer_id()) - not this
-                    // user's. Left wired identically to ProfilePage for now
-                    // rather than silently disabling it.
+                    // Same shape as ProfilePage's StatBar, with one deliberate
+                    // difference: Anime pushes UsersAnimeListPage as a layer
+                    // (this user's list, read-only) instead of tab-switching to
+                    // AnimeListPage, which is always the viewer's own list -
+                    // tab-switching there from someone else's profile used to
+                    // open the viewer's own anime list by mistake.
+                    //
+                    // Manga still tab-switches to the viewer's own MangaListPage
+                    // (same latent mismatch Anime used to have) - left as-is
+                    // since only the Anime cell was in scope here.
+                    //
+                    // Following/Followers push FollowingPage/FollowersPage as
+                    // layers - those currently show the viewer's own
+                    // following/followers list regardless of whose profile
+                    // launched them (see fetchFollowing/fetchFollowers in
+                    // anilist_service.py, which always resolve via
+                    // _get_viewer_id()) - not this user's. Left wired
+                    // identically to ProfilePage for now rather than silently
+                    // disabling it.
                     StatBar {
                         Layout.margins: Kirigami.Units.largeSpacing * 2
                         Layout.alignment: Qt.AlignHCenter
                         stats: [
-                            { value: usersPage.profile.animeCount, label: "Anime", target: "AnimeListPage.qml" },
+                            { value: usersPage.profile.animeCount, label: "Anime", target: "UsersAnimeListPage.qml", asLayer: true },
                             { value: usersPage.profile.mangaCount, label: "Manga", target: "MangaListPage.qml" },
                             { value: usersPage.profile.followingCount, label: "Following", target: "FollowingPage.qml", asLayer: true },
                             { value: usersPage.profile.followersCount, label: "Followers", target: "FollowersPage.qml", asLayer: true }
