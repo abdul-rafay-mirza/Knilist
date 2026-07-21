@@ -1043,6 +1043,12 @@ query ($id: [Int!]) {
             title
             performances {
               artist {
+                images {
+                  nodes {
+                    link
+                    facet
+                  }
+                }
                 name
               }
             }
