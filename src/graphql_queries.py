@@ -1041,6 +1041,11 @@ query ($id: [Int!]) {
           type
           song {
             title
+            performances {
+              artist {
+                name
+              }
+            }
           }
           animethemeentries {
             episodes
