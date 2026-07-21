@@ -1046,9 +1046,19 @@ query ($id: [Int!]) {
             episodes
             videos {
               nodes {
+                basename  # File name with extension
+                filename  # File name without extension
                 source
+                mimetype
+                resolution
+                size  # in bytes
+                subbed
                 link
                 audio {
+                  basename  # File name with extension
+                  filename  # File name without extension
+                  mimetype
+                  size  # in bytes
                   link
                 }
               }
