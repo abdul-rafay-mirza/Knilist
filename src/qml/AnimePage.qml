@@ -23,6 +23,10 @@ Kirigami.Page {
     property var animeStaff:         []
     property var animeInformation:   ({})
     property var informationSidebarMaxWidth: 250
+    property var animeOpeningThemes: []
+    property var animeEndingThemes:  []
+    property bool animeThemesLoading: false
+    property bool animeThemesError:   false
 
     property bool _ready: false
 
@@ -39,6 +43,12 @@ Kirigami.Page {
         if (animeId > 0) {
             anilistService.fetchAnimePage(animeId)
             anilistService.fetchAnimeEntry(animeId)
+
+            animePage.animeThemesLoading = true
+            animePage.animeThemesError   = false
+            animePage.animeOpeningThemes = []
+            animePage.animeEndingThemes  = []
+            anilistService.fetchOpeningEndingSongs(animeId)
         }
     }
 
@@ -138,6 +148,19 @@ Kirigami.Page {
                     newState ? "Added to Favorites" : "Removed from Favorites"
                 )
             }
+        }
+
+        function onOpeningEndingSongsLoaded(anilistId, _payloadJson) {
+            if (anilistId !== animePage.animeId) return
+
+            animePage.animeThemesLoading = false
+
+            const payload = JSON.parse(_payloadJson)
+            animePage.animeThemesError = !!payload.isError
+
+            const themes = payload.themes || []
+            animePage.animeOpeningThemes = themes.filter(t => t.type === "OP")
+            animePage.animeEndingThemes  = themes.filter(t => t.type === "ED")
         }
     }
 
@@ -266,6 +289,28 @@ Kirigami.Page {
                                     mediaTitle: animeTitle
                                 })
                             }
+                        }
+
+                        OpeningEndingThemesSection {
+                            Layout.fillWidth: true
+                            headingText: "Opening Themes"
+                            themes:      animePage.animeOpeningThemes
+                            loading:     animePage.animeThemesLoading
+                            isError:     animePage.animeThemesError
+                            visible:     animePage.animeThemesLoading
+                                         || animePage.animeThemesError
+                                         || animePage.animeOpeningThemes.length > 0
+                        }
+
+                        OpeningEndingThemesSection {
+                            Layout.fillWidth: true
+                            headingText: "Ending Themes"
+                            themes:      animePage.animeEndingThemes
+                            loading:     animePage.animeThemesLoading
+                            isError:     animePage.animeThemesError
+                            visible:     animePage.animeThemesLoading
+                                         || animePage.animeThemesError
+                                         || animePage.animeEndingThemes.length > 0
                         }
 
                         Item {

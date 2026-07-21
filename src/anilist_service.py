@@ -11,7 +11,8 @@ IMPORTANT — AniList score semantics:
 import json
 import threading
 import requests
-from PySide6.QtCore import QObject, Signal, Slot, Property
+from PySide6.QtCore import QObject, Signal, Slot, Property, QProcess
+from PySide6.QtGui import QGuiApplication
 from .config import GRAPHQL_URL
 from datetime import datetime, timezone
 from .graphql_queries import (
@@ -1968,3 +1969,38 @@ class AniListService(QObject):
             "POINT_5":          5.0,
             "POINT_3":          3.0,
         }.get(self._score_format, 10.0)
+
+    @Slot(str)
+    def copyToClipboard(self, text: str) -> None:
+        """Copy an arbitrary string (e.g. a video/audio direct link) to the
+        system clipboard. Used by the Opening/Ending Themes section's
+        'Copy link' actions."""
+        QGuiApplication.clipboard().setText(text)
+
+    @Slot(str, str)
+    def openInExternalPlayer(self, url: str, player: str) -> None:
+        """Best-effort launch of a local media player binary (mpv/vlc) with
+        `url` as its argument, via QProcess.startDetached.
+
+        Deliberately NOT using mpv:// or vlc:// url schemes here: neither is
+        registered by the players themselves on any platform — both require
+        a separately-installed third-party protocol handler that most users
+        won't have — so a link built on either scheme would silently do
+        nothing for most people. Shelling out to the real binary works
+        as long as it's on PATH, with no extra setup required."""
+        binaries = {"mpv": "mpv", "vlc": "vlc"}
+        program  = binaries.get(player.lower())
+        if not program:
+            self.errorOccurred.emit(f"Unknown player: {player}")
+            return
+
+        try:
+            started, _pid = QProcess.startDetached(program, [url])
+        except Exception as exc:
+            started = False
+            print(f"[AniListService] failed to launch {program}: {exc}")
+
+        if not started:
+            self.errorOccurred.emit(
+                f"Couldn't start {player.upper()}. Make sure it's installed and on your PATH."
+            )
