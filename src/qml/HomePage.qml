@@ -7,9 +7,183 @@ Kirigami.ScrollablePage {
     id: homePage
     title: "Home"
 
+    // Same shape as ProfilePage's `profile` property ({name, avatar,
+    // bannerImage, ...}) so this can be wired to anilistService's existing
+    // profile signal later without changing any binding below.
+    property var profile: ({})
+
+    readonly property int bannerHeight: Kirigami.Units.gridUnit * 10
+    readonly property int avatarSize: Kirigami.Units.gridUnit * 7
+
+    readonly property var searchTypes: ["Anime", "Manga", "Characters", "Staff", "Studios", "Users"]
+
     ColumnLayout {
-        Controls.Label {
-            text: "Hello from HomePage.qml!"
+        width: homePage.width
+        spacing: 0
+
+        // ── Banner + left-aligned avatar + greeting ─────────────────────
+        Item {
+            id: headerArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: homePage.bannerHeight + homePage.avatarSize / 2
+
+            Rectangle {
+                id: bannerFallback
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: homePage.bannerHeight
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Kirigami.Theme.highlightColor }
+                    GradientStop { position: 1.0; color: Qt.darker(Kirigami.Theme.highlightColor, 1.6) }
+                }
+            }
+
+            Image {
+                id: bannerImage
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: homePage.bannerHeight
+                source: homePage.profile.bannerImage || ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                clip: true
+                visible: status === Image.Ready
+            }
+
+            // Fallback disc behind the avatar, shown until the real image
+            // loads — extends the same fallback-layer idea bannerFallback
+            // above already uses for the banner.
+            Rectangle {
+                id: avatarFallback
+                anchors.left: parent.left
+                anchors.leftMargin: Kirigami.Units.largeSpacing * 2
+                y: homePage.bannerHeight - height / 2
+                width: homePage.avatarSize
+                height: homePage.avatarSize
+                radius: width / 2
+                color: Kirigami.Theme.backgroundColor
+                border.width: 2
+                border.color: Kirigami.Theme.highlightColor
+                visible: avatarImage.status !== Image.Ready
+
+                Kirigami.Icon {
+                    anchors.centerIn: parent
+                    width: parent.width * 0.5
+                    height: width
+                    source: "avatar-default"
+                }
+            }
+
+            AnimatedImage {
+                id: avatarImage
+
+                anchors.left: parent.left
+                anchors.leftMargin: Kirigami.Units.largeSpacing * 2
+                y: homePage.bannerHeight - height / 2
+
+                width: homePage.avatarSize
+                height: homePage.avatarSize
+
+                source: homePage.profile.avatar || ""
+                fillMode: Image.PreserveAspectCrop
+
+                layer.enabled: true
+                layer.smooth: true
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: width / 2
+                    visible: false
+                }
+            }
+
+            Kirigami.Heading {
+                id: greetingLabel
+                anchors.left: avatarImage.right
+                anchors.leftMargin: Kirigami.Units.largeSpacing
+                anchors.right: parent.right
+                anchors.rightMargin: Kirigami.Units.largeSpacing * 2
+                anchors.verticalCenter: avatarImage.verticalCenter
+                level: 1
+                text: "Hello " + (homePage.profile.name || "there")
+                elide: Text.ElideRight
+            }
         }
+
+        // ── Search ───────────────────────────────────────────────────────
+        // Looks like a search field but isn't one — tapping it opens a menu
+        // of searchable types instead of accepting text input. Picking a
+        // type is what will push the dedicated search page later.
+        Rectangle {
+            id: fakeSearchBar
+            Layout.fillWidth: true
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 2
+            Layout.leftMargin: Kirigami.Units.largeSpacing * 2
+            Layout.rightMargin: Kirigami.Units.largeSpacing * 2
+            Layout.topMargin: Kirigami.Units.largeSpacing * 2
+            radius: Kirigami.Units.smallSpacing
+            color: Kirigami.Theme.backgroundColor
+            border.width: 1
+            border.color: searchBarHover.hovered
+                ? Kirigami.Theme.highlightColor
+                : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.3)
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: Kirigami.Units.largeSpacing
+                anchors.rightMargin: Kirigami.Units.largeSpacing
+                spacing: Kirigami.Units.smallSpacing
+
+                Kirigami.Icon {
+                    Layout.alignment: Qt.AlignVCenter
+                    width: Kirigami.Units.iconSizes.smallMedium
+                    height: width
+                    source: "search"
+                    opacity: 0.6
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
+                    text: "Search anime, manga, characters, staff, studios, users…"
+                    color: Kirigami.Theme.textColor
+                    opacity: 0.6
+                    elide: Text.ElideRight
+                }
+            }
+
+            TapHandler {
+                onTapped: searchTypeMenu.open()
+            }
+            HoverHandler {
+                id: searchBarHover
+                cursorShape: Qt.PointingHandCursor
+            }
+
+            Controls.Menu {
+                id: searchTypeMenu
+                y: fakeSearchBar.height
+                width: fakeSearchBar.width
+
+                Repeater {
+                    model: homePage.searchTypes
+
+                    delegate: Controls.MenuItem {
+                        text: modelData
+                        onTriggered: homePage.openSearchPage(modelData)
+                    }
+                }
+            }
+        }
+
+        Item { Layout.preferredHeight: Kirigami.Units.largeSpacing * 2 }
+    }
+
+    function openSearchPage(searchType) {
+        // TODO: once a dedicated search page exists, navigate to it here, e.g.
+        // pageStack.layers.push(Qt.resolvedUrl("SearchPage.qml"), { type: searchType })
+        console.log("Search type selected:", searchType)
     }
 }
