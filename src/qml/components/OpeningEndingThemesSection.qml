@@ -9,6 +9,13 @@ import org.kde.kirigami as Kirigami
 // more than one video variant (resolution, subbed/unsubbed, source) — both
 // are shown rather than collapsed, since the backend deliberately keeps them
 // as lists instead of picking a "best" one.
+//
+// Each theme renders as a card with the performing artist's cover image as a
+// backdrop (when animethemes.moe has one), collapsed to just the header by
+// default — tap the header to reveal episode/video details. Every action
+// button (copy link, open, open in mpv/VLC) confirms itself with a passive
+// notification, matching the "Added to Favorites" toast already used
+// elsewhere in this app.
 ColumnLayout {
     id: root
 
@@ -57,143 +64,333 @@ ColumnLayout {
     Repeater {
         model: root.loading ? [] : root.themes
 
-        delegate: ColumnLayout {
-            id: themeDelegate
+        delegate: Kirigami.AbstractCard {
+            id: themeCard
             required property var modelData
+
+            // Best cover image available for the (first credited) artist:
+            // prefer a small cover for a compact card backdrop, but fall
+            // back to whatever facet exists so a card is never emptier than
+            // its data — animethemes.moe doesn't always have every facet.
+            readonly property var _primaryArtist: (themeCard.modelData.artists && themeCard.modelData.artists.length > 0)
+                ? themeCard.modelData.artists[0] : null
+            readonly property var _artistImages: (themeCard._primaryArtist && themeCard._primaryArtist.images) || []
+            readonly property string _coverImage: {
+                if (themeCard._artistImages.length === 0) return ""
+                const small = themeCard._artistImages.find(img => img.facet === "SMALL_COVER")
+                if (small) return small.link
+                const large = themeCard._artistImages.find(img => img.facet === "LARGE_COVER")
+                if (large) return large.link
+                return themeCard._artistImages[0].link || ""
+            }
+            readonly property bool _hasCover: themeCard._coverImage !== ""
+
+            readonly property bool _isOpening: (themeCard.modelData.type || "") === "OP"
+
+            property bool expanded: false
 
             Layout.fillWidth: true
             Layout.bottomMargin: Kirigami.Units.largeSpacing
-            spacing: Kirigami.Units.smallSpacing
+            padding: 0
 
-            // Song title + artist(s)
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Kirigami.Units.smallSpacing
+            contentItem: ColumnLayout {
+                spacing: 0
 
-                Kirigami.Icon {
-                    source: "media-album-track-symbolic"
-                    implicitWidth:  Kirigami.Units.iconSizes.small
-                    implicitHeight: Kirigami.Units.iconSizes.small
-                }
-
-                ColumnLayout {
+                // ── Header: cover backdrop + title/artist + badge/chevron ──
+                Item {
+                    id: headerArea
                     Layout.fillWidth: true
-                    spacing: 0
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 4.5
 
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        text: themeDelegate.modelData.songTitle || "Unknown title"
-                        font.bold: true
-                        elide: Text.ElideRight
-                        wrapMode: Text.NoWrap
+                    // Backdrop: the artist's cover image, or a themed
+                    // gradient fallback when no cover exists — either way
+                    // the header always has some color, never a flat blank.
+                    Image {
+                        id: coverImg
+                        anchors.fill: parent
+                        source: themeCard._coverImage
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        clip: true
+                        visible: themeCard._hasCover && status === Image.Ready
                     }
 
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        visible: !!themeDelegate.modelData.artistsText
-                        text: themeDelegate.modelData.artistsText
-                        opacity: 0.7
-                        font.pointSize: Kirigami.Theme.smallFont.pointSize
-                        elide: Text.ElideRight
-                        wrapMode: Text.NoWrap
-                    }
-                }
-            }
-
-            // One block per entry (episode range / version)
-            Repeater {
-                model: themeDelegate.modelData.entries || []
-
-                delegate: ColumnLayout {
-                    id: entryDelegate
-                    required property var modelData
-
-                    Layout.fillWidth: true
-                    Layout.leftMargin: Kirigami.Units.gridUnit + Kirigami.Units.smallSpacing
-                    spacing: Kirigami.Units.smallSpacing / 2
-
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        visible: !!entryDelegate.modelData.episodes
-                        text: "Episodes " + entryDelegate.modelData.episodes
-                        opacity: 0.6
-                        font.italic: true
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: !coverImg.visible
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: themeCard._isOpening ? Kirigami.Theme.highlightColor : Kirigami.Theme.focusColor }
+                            GradientStop { position: 1.0; color: Qt.darker(themeCard._isOpening ? Kirigami.Theme.highlightColor : Kirigami.Theme.focusColor, 1.7) }
+                        }
                     }
 
-                    // One block per video variant: a description line
-                    // (resolution / subbed / source) followed by its actions.
-                    Repeater {
-                        model: entryDelegate.modelData.videos || []
+                    // Legibility scrim over the cover image — text always
+                    // sits on the dark end of the gradient regardless of
+                    // what's underneath.
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: coverImg.visible
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.75) }
+                            GradientStop { position: 0.55; color: Qt.rgba(0, 0, 0, 0.45) }
+                            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.15) }
+                        }
+                    }
 
-                        delegate: ColumnLayout {
-                            id: videoBlock
-                            required property var modelData
+                    // NOTE ON HARDCODED "white" BELOW: Kirigami style guidance
+                    // is normally to always use Kirigami.Theme colors rather
+                    // than literals, so light/dark theme switches stay
+                    // correct. This header is a deliberate, scoped exception:
+                    // it sits on a photo backdrop (or a themed gradient
+                    // fallback) rather than the app's normal background, so
+                    // its contrast needs is unrelated to the user's light/
+                    // dark theme choice — the scrim rectangles above are
+                    // tuned to keep white legible against both the cover
+                    // photo and the gradient fallback. Do not swap these for
+                    // Kirigami.Theme.textColor et al.; that would break
+                    // contrast in whichever theme wasn't tested against.
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Kirigami.Units.largeSpacing
+                        anchors.rightMargin: Kirigami.Units.smallSpacing
+                        spacing: Kirigami.Units.smallSpacing
 
+                        Kirigami.Icon {
+                            source: "media-album-track-symbolic"
+                            color: "white"
+                            implicitWidth:  Kirigami.Units.iconSizes.small
+                            implicitHeight: Kirigami.Units.iconSizes.small
+                        }
+
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            Layout.bottomMargin: Kirigami.Units.smallSpacing
-                            spacing: 0
+                            spacing: 2
 
                             Controls.Label {
                                 Layout.fillWidth: true
-                                opacity: 0.6
-                                font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                text: {
-                                    const parts = []
-                                    if (videoBlock.modelData.resolution)
-                                        parts.push(videoBlock.modelData.resolution + "p")
-                                    parts.push(videoBlock.modelData.subbed ? "Subbed" : "Unsubbed")
-                                    if (videoBlock.modelData.source)
-                                        parts.push(videoBlock.modelData.source)
-                                    return parts.join(" · ")
-                                }
+                                text: themeCard.modelData.songTitle || "Unknown title"
+                                color: "white"
+                                font.bold: true
+                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.1
+                                elide: Text.ElideRight
+                                wrapMode: Text.NoWrap
                             }
 
-                            Kirigami.ActionToolBar {
-                                id: videoRow
+                            Controls.Label {
                                 Layout.fillWidth: true
-                                alignment: Qt.AlignLeft
-                                display:   Controls.Button.TextBesideIcon
+                                visible: !!themeCard.modelData.artistsText
+                                text: themeCard.modelData.artistsText
+                                color: "white"
+                                opacity: 0.85
+                                font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                elide: Text.ElideRight
+                                wrapMode: Text.NoWrap
+                            }
+                        }
 
-                                actions: [
-                                    Kirigami.Action {
-                                        icon.name: "edit-copy"
-                                        text: "Copy link"
-                                        onTriggered: anilistService.copyToClipboard(videoBlock.modelData.videoLink)
-                                    },
-                                    Kirigami.Action {
-                                        icon.name: "edit-copy"
-                                        text: "Copy audio link"
-                                        visible: !!videoBlock.modelData.audioLink
-                                        onTriggered: anilistService.copyToClipboard(videoBlock.modelData.audioLink)
-                                    },
-                                    Kirigami.Action {
-                                        icon.name: "document-open"
-                                        text: "Open"
-                                        onTriggered: Qt.openUrlExternally(videoBlock.modelData.videoLink)
-                                    },
-                                    Kirigami.Action {
-                                        icon.name: "media-playback-start"
-                                        text: "Open in mpv"
-                                        onTriggered: anilistService.openInExternalPlayer(videoBlock.modelData.videoLink, "mpv")
-                                    },
-                                    Kirigami.Action {
-                                        icon.name: "media-playback-start"
-                                        text: "Open in VLC"
-                                        onTriggered: anilistService.openInExternalPlayer(videoBlock.modelData.videoLink, "vlc")
-                                    },
-                                    Kirigami.Action {
-                                        icon.name: "media-playback-start"
-                                        text: "Open audio in mpv"
-                                        visible: !!videoBlock.modelData.audioLink
-                                        onTriggered: anilistService.openInExternalPlayer(videoBlock.modelData.audioLink, "mpv")
-                                    },
-                                    Kirigami.Action {
-                                        icon.name: "media-playback-start"
-                                        text: "Open audio in VLC"
-                                        visible: !!videoBlock.modelData.audioLink
-                                        onTriggered: anilistService.openInExternalPlayer(videoBlock.modelData.audioLink, "vlc")
+                        // OP / ED badge — the one accent color choice, reused
+                        // from the fallback gradient above so a card reads
+                        // the same whether or not it has a cover image.
+                        Rectangle {
+                            id: typeBadge
+                            radius: height / 2
+                            color: themeCard._isOpening ? Kirigami.Theme.highlightColor : Kirigami.Theme.focusColor
+                            height: typeBadgeLabel.implicitHeight + Kirigami.Units.smallSpacing
+                            width:  typeBadgeLabel.implicitWidth + Kirigami.Units.largeSpacing
+
+                            Controls.Label {
+                                id: typeBadgeLabel
+                                anchors.centerIn: parent
+                                text: themeCard._isOpening ? "Opening" : "Ending"
+                                color: Kirigami.Theme.highlightedTextColor
+                                font.bold: true
+                                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.7)
+                            }
+                        }
+
+                        Kirigami.Icon {
+                            source: "arrow-down-symbolic"
+                            color: "white"
+                            implicitWidth:  Kirigami.Units.iconSizes.small
+                            implicitHeight: Kirigami.Units.iconSizes.small
+                            rotation: themeCard.expanded ? 180 : 0
+                            Behavior on rotation {
+                                NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+                            }
+                        }
+                    }
+
+                    TapHandler {
+                        onTapped: themeCard.expanded = !themeCard.expanded
+                    }
+
+                    HoverHandler {
+                        cursorShape: Qt.PointingHandCursor
+                    }
+                }
+
+                // ── Body: entries/videos, collapsed until the header is tapped ──
+                //
+                // bodyContent is never resized itself — it just reports its
+                // natural (implicitHeight) size. The wrapping Item is what
+                // actually animates, sized to bodyContent's height only when
+                // expanded. This avoids a Behavior fighting a binding that
+                // reads back its own animated target (which is what happens
+                // if Layout.preferredHeight both drives *and* is driven by
+                // implicitHeight): here the animated property (clipItem's
+                // height) and the measured property (bodyContent's
+                // implicitHeight) are two different items, so there's
+                // nothing for the Behavior to fight, and content that
+                // resizes later (e.g. episode text wrapping differently)
+                // still reflows correctly next time expanded flips.
+                Item {
+                    id: clipItem
+                    Layout.fillWidth: true
+                    Layout.leftMargin:  Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    clip: true
+
+                    implicitHeight: themeCard.expanded
+                        ? bodyContent.implicitHeight + Kirigami.Units.smallSpacing * 2
+                        : 0
+                    opacity: themeCard.expanded ? 1.0 : 0.0
+
+                    Behavior on implicitHeight {
+                        NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+                    }
+                    Behavior on opacity {
+                        NumberAnimation { duration: Kirigami.Units.shortDuration }
+                    }
+
+                    ColumnLayout {
+                        id: bodyContent
+                        y: Kirigami.Units.smallSpacing
+                        width: parent.width
+                        spacing: Kirigami.Units.smallSpacing
+
+                        // One block per entry (episode range / version)
+                        Repeater {
+                            model: themeCard.modelData.entries || []
+
+                            delegate: ColumnLayout {
+                                id: entryDelegate
+                                required property var modelData
+
+                                Layout.fillWidth: true
+                                spacing: Kirigami.Units.smallSpacing / 2
+
+                                Kirigami.Separator {
+                                    Layout.fillWidth: true
+                                    visible: entryDelegate.Repeater.index > 0
+                                }
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    visible: !!entryDelegate.modelData.episodes
+                                    text: "Episodes " + entryDelegate.modelData.episodes
+                                    opacity: 0.6
+                                    font.italic: true
+                                }
+
+                                // One block per video variant: a description line
+                                // (resolution / subbed / source) followed by its actions.
+                                Repeater {
+                                    model: entryDelegate.modelData.videos || []
+
+                                    delegate: ColumnLayout {
+                                        id: videoBlock
+                                        required property var modelData
+
+                                        Layout.fillWidth: true
+                                        Layout.bottomMargin: Kirigami.Units.smallSpacing
+                                        spacing: 0
+
+                                        Controls.Label {
+                                            Layout.fillWidth: true
+                                            opacity: 0.6
+                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                            text: {
+                                                const parts = []
+                                                if (videoBlock.modelData.resolution)
+                                                    parts.push(videoBlock.modelData.resolution + "p")
+                                                parts.push(videoBlock.modelData.subbed ? "Subbed" : "Unsubbed")
+                                                if (videoBlock.modelData.source)
+                                                    parts.push(videoBlock.modelData.source)
+                                                return parts.join(" · ")
+                                            }
+                                        }
+
+                                        Kirigami.ActionToolBar {
+                                            id: videoRow
+                                            Layout.fillWidth: true
+                                            alignment: Qt.AlignLeft
+                                            display:   Controls.Button.TextBesideIcon
+
+                                            actions: [
+                                                Kirigami.Action {
+                                                    icon.name: "edit-copy"
+                                                    text: "Copy link"
+                                                    onTriggered: {
+                                                        anilistService.copyToClipboard(videoBlock.modelData.videoLink)
+                                                        applicationWindow().showPassiveNotification("Video link copied")
+                                                    }
+                                                },
+                                                Kirigami.Action {
+                                                    icon.name: "edit-copy"
+                                                    text: "Copy audio link"
+                                                    visible: !!videoBlock.modelData.audioLink
+                                                    onTriggered: {
+                                                        anilistService.copyToClipboard(videoBlock.modelData.audioLink)
+                                                        applicationWindow().showPassiveNotification("Audio link copied")
+                                                    }
+                                                },
+                                                Kirigami.Action {
+                                                    icon.name: "document-open"
+                                                    text: "Open"
+                                                    onTriggered: {
+                                                        Qt.openUrlExternally(videoBlock.modelData.videoLink)
+                                                        applicationWindow().showPassiveNotification("Opening video…")
+                                                    }
+                                                },
+                                                Kirigami.Action {
+                                                    icon.name: "media-playback-start"
+                                                    text: "Open in mpv"
+                                                    onTriggered: {
+                                                        anilistService.openInExternalPlayer(videoBlock.modelData.videoLink, "mpv")
+                                                        applicationWindow().showPassiveNotification("Opening in mpv…")
+                                                    }
+                                                },
+                                                Kirigami.Action {
+                                                    icon.name: "media-playback-start"
+                                                    text: "Open in VLC"
+                                                    onTriggered: {
+                                                        anilistService.openInExternalPlayer(videoBlock.modelData.videoLink, "vlc")
+                                                        applicationWindow().showPassiveNotification("Opening in VLC…")
+                                                    }
+                                                },
+                                                Kirigami.Action {
+                                                    icon.name: "media-playback-start"
+                                                    text: "Open audio in mpv"
+                                                    visible: !!videoBlock.modelData.audioLink
+                                                    onTriggered: {
+                                                        anilistService.openInExternalPlayer(videoBlock.modelData.audioLink, "mpv")
+                                                        applicationWindow().showPassiveNotification("Opening audio in mpv…")
+                                                    }
+                                                },
+                                                Kirigami.Action {
+                                                    icon.name: "media-playback-start"
+                                                    text: "Open audio in VLC"
+                                                    visible: !!videoBlock.modelData.audioLink
+                                                    onTriggered: {
+                                                        anilistService.openInExternalPlayer(videoBlock.modelData.audioLink, "vlc")
+                                                        applicationWindow().showPassiveNotification("Opening audio in VLC…")
+                                                    }
+                                                }
+                                            ]
+                                        }
                                     }
-                                ]
+                                }
                             }
                         }
                     }
