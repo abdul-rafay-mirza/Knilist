@@ -23,7 +23,7 @@ ColumnLayout {
     Kirigami.Heading {
         Layout.fillWidth: true
         Layout.topMargin: Kirigami.Units.largeSpacing
-        level: 2
+        level: 3
         text:  root.headingText
         visible: root.loading || root.isError || root.themes.length > 0
     }

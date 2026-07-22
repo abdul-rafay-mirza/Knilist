@@ -2003,8 +2003,19 @@ class AniListService(QObject):
             self.errorOccurred.emit(f"Unknown player: {player}")
             return
 
+        args = [url]
+        if program == "mpv":
+            # mpv's force-window default is "no", so it only creates a
+            # window when the file actually has a video track. An
+            # audio-only link (the .ogg theme audio) has none, so mpv
+            # plays it invisibly with nothing to see or control.
+            # --force-window=yes makes it show a window regardless;
+            # harmless for real video files, which already get a window
+            # without it.
+            args = ["--force-window=yes", url]
+
         try:
-            started, _pid = QProcess.startDetached(program, [url])
+            started, _pid = QProcess.startDetached(program, args)
         except Exception as exc:
             started = False
             print(f"[AniListService] failed to launch {program}: {exc}")
