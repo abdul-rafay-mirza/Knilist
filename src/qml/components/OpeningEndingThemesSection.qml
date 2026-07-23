@@ -41,13 +41,21 @@ ColumnLayout {
         visible: root.loading || root.isError || root.themes.length > 0
     }
 
-    // Attribution: this section's video/audio links come from animethemes.moe,
-    // a separate service from the AniList API the rest of this app is built
-    // on. Worth making explicit rather than letting it read as AniList data.
+    // Attribution
     Controls.Label {
         Layout.fillWidth: true
         Layout.bottomMargin: Kirigami.Units.smallSpacing / 2
         text: "Theme songs provided by animethemes.moe"
+        opacity: 0.6
+        font.pointSize: Kirigami.Theme.smallFont.pointSize
+        elide: Text.ElideRight
+        visible: !root.loading && !root.isError && root.themes.length > 0
+    }
+
+    Controls.Label {
+        Layout.fillWidth: true
+        Layout.bottomMargin: Kirigami.Units.smallSpacing / 2
+        text: "Cover Images provided by coverartarchive.org"
         opacity: 0.6
         font.pointSize: Kirigami.Theme.smallFont.pointSize
         elide: Text.ElideRight
