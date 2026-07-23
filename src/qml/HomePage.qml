@@ -14,6 +14,7 @@ Kirigami.ScrollablePage {
 
     readonly property int bannerHeight: Kirigami.Units.gridUnit * 10
     readonly property int avatarSize: Kirigami.Units.gridUnit * 7
+    property bool searchExpanded: false
 
     readonly property var searchTypes: ["Anime", "Manga", "Characters", "Staff", "Studios", "Users"]
 
@@ -155,24 +156,69 @@ Kirigami.ScrollablePage {
             }
 
             TapHandler {
-                onTapped: searchTypeMenu.open()
+                onTapped: homePage.searchExpanded = !homePage.searchExpanded
             }
+
             HoverHandler {
                 id: searchBarHover
                 cursorShape: Qt.PointingHandCursor
             }
+        }
 
-            Controls.Menu {
-                id: searchTypeMenu
-                y: fakeSearchBar.height
-                width: fakeSearchBar.width
+        Item {
+            Layout.fillWidth: true
+            Layout.leftMargin: Kirigami.Units.largeSpacing * 2
+            Layout.rightMargin: Kirigami.Units.largeSpacing * 2
+
+            clip: true
+
+            implicitHeight: homePage.searchExpanded
+                ? dropdownContent.implicitHeight
+                : 0
+
+            opacity: homePage.searchExpanded ? 1 : 0
+
+            Behavior on implicitHeight {
+                NumberAnimation {
+                    duration: Kirigami.Units.longDuration
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Kirigami.Units.shortDuration
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                color: Kirigami.Theme.backgroundColor
+                border.width: 1
+                border.color: Qt.rgba(
+                    Kirigami.Theme.textColor.r,
+                    Kirigami.Theme.textColor.g,
+                    Kirigami.Theme.textColor.b,
+                    0.15
+                )
+                radius: Kirigami.Units.smallSpacing
+            }
+
+            Column {
+                id: dropdownContent
+                width: parent.width
 
                 Repeater {
                     model: homePage.searchTypes
 
-                    delegate: Controls.MenuItem {
+                    delegate: Controls.ItemDelegate {
+                        width: parent.width
                         text: modelData
-                        onTriggered: homePage.openSearchPage(modelData)
+
+                        onClicked: {
+                            homePage.searchExpanded = false
+                            homePage.openSearchPage(modelData)
+                        }
                     }
                 }
             }
