@@ -2038,7 +2038,8 @@ class AniListService(QObject):
         QGuiApplication.clipboard().setText(text)
 
     @Slot(str, str)
-    def openInExternalPlayer(self, url: str, player: str) -> None:
+    @Slot(str, str, str)
+    def openInExternalPlayer(self, url: str, player: str, cover_image: str = "") -> None:
         """Best-effort launch of a local media player binary (mpv/vlc) with
         `url` as its argument, via QProcess.startDetached.
 
@@ -2048,6 +2049,9 @@ class AniListService(QObject):
         won't have — so a link built on either scheme would silently do
         nothing for most people. Shelling out to the real binary works
         as long as it's on PATH, with no extra setup required."""
+
+        print(f"Cover image: {cover_image}")
+
         binaries = {"mpv": "mpv", "vlc": "vlc"}
         program  = binaries.get(player.lower())
         if not program:
@@ -2056,14 +2060,11 @@ class AniListService(QObject):
 
         args = [url]
         if program == "mpv":
-            # mpv's force-window default is "no", so it only creates a
-            # window when the file actually has a video track. An
-            # audio-only link (the .ogg theme audio) has none, so mpv
-            # plays it invisibly with nothing to see or control.
-            # --force-window=yes makes it show a window regardless;
-            # harmless for real video files, which already get a window
-            # without it.
-            args = ["--force-window=yes", url]
+            args = ["--force-window=yes"]
+
+            if cover_image:
+                args.append(f"--cover-art-file={cover_image}")
+            args.append(url)
 
         try:
             started, _pid = QProcess.startDetached(program, args)

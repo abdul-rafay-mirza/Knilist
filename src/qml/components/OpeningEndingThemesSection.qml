@@ -389,7 +389,7 @@ ColumnLayout {
                                                     text: "Open audio in mpv"
                                                     visible: !!videoBlock.modelData.audioLink
                                                     onTriggered: {
-                                                        anilistService.openInExternalPlayer(videoBlock.modelData.audioLink, "mpv")
+                                                        anilistService.openInExternalPlayer(videoBlock.modelData.audioLink, "mpv", themeCard._coverImage)
                                                         applicationWindow().showPassiveNotification("Opening audio in mpv…")
                                                     }
                                                 },
