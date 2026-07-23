@@ -209,29 +209,22 @@ def _caa_get(release_group_mbid: str) -> dict | None:
 def _find_release_group_mbid(song_title: str, artist_name: str) -> str | None:
     """Search MusicBrainz recordings for `song_title` by `artist_name`,
     return the release-group MBID of the first result that actually has
-    one. Falls back to a title-only search if the artist+title search
-    comes up empty — animethemes.moe and MusicBrainz don't always agree on
-    artist name spelling/romanization, and a title-only match is still far
-    better than no match, given this is best-effort art, not authoritative
-    metadata."""
-    if not song_title:
+    one. Requires both title and artist to match — no title-only fallback,
+    so a wrong artist-name spelling/romanization from animethemes.moe
+    means no match rather than a possibly-unrelated release-group."""
+    if not song_title or not artist_name:
         return None
 
-    queries = []
-    if artist_name:
-        queries.append(f'recording:"{song_title}" AND artist:"{artist_name}"')
-    queries.append(f'recording:"{song_title}"')
-
-    for query in queries:
-        data = _mb_get("recording", {"query": query, "limit": 5})
-        if not data:
-            continue
-        for recording in (data.get("recordings") or []):
-            for release in (recording.get("releases") or []):
-                rg = release.get("release-group") or {}
-                rg_id = rg.get("id")
-                if rg_id:
-                    return rg_id
+    query = f'recording:"{song_title}" AND artist:"{artist_name}"'
+    data = _mb_get("recording", {"query": query, "limit": 5})
+    if not data:
+        return None
+    for recording in (data.get("recordings") or []):
+        for release in (recording.get("releases") or []):
+            rg = release.get("release-group") or {}
+            rg_id = rg.get("id")
+            if rg_id:
+                return rg_id
     return None
 
 
