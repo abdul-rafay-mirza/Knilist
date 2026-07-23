@@ -162,6 +162,25 @@ Kirigami.Page {
             animePage.animeOpeningThemes = themes.filter(t => t.type === "OP")
             animePage.animeEndingThemes  = themes.filter(t => t.type === "ED")
         }
+
+        // Fires once per theme, progressively, as each one's MusicBrainz
+        // cover-art lookup resolves in the background (fetchOpeningEndingSongs
+        // returns the theme list immediately with albumArt: "" on everything,
+        // then resolves art one theme at a time — see anilist_service.py).
+        // Rebuilds whichever array the matching theme lives in rather than
+        // mutating an element in place: QML's change notification for a
+        // `property var` array only fires on reassignment, not on a mutation
+        // buried inside it, so `array[i].albumArt = x` alone would silently
+        // never update the card.
+        function onThemeAlbumArtLoaded(anilistId, themeId, albumArtUrl) {
+            if (anilistId !== animePage.animeId) return
+
+            const patch = (list) => list.map(t =>
+                t.themeId === themeId ? Object.assign({}, t, { albumArt: albumArtUrl }) : t
+            )
+            animePage.animeOpeningThemes = patch(animePage.animeOpeningThemes)
+            animePage.animeEndingThemes  = patch(animePage.animeEndingThemes)
+        }
     }
 
     // ── Layout ────────────────────────────────────────────────────────────────

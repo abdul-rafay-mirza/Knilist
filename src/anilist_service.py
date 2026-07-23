@@ -30,6 +30,7 @@ from .graphql_queries import (
     _FOLLOWING_LIST_QUERY, _FOLLOWERS_LIST_QUERY, _TOGGLE_FOLLOW_MUTATION,
     _OPENING_AND_ENDING_SONGS_QUERY
 )
+from .musicbrainz_cover_art import get_album_art_for_song
 
 # Helper functions
 
@@ -282,7 +283,14 @@ def _flatten_anime_themes(themes: list | None) -> list[dict]:
     when it covers different episode ranges or versions, and each entry
     can have more than one video variant (resolution, subbed/unsubbed) —
     both are kept as lists rather than picking a "best" one here, so QML
-    decides."""
+    decides.
+
+    Deliberately does NO network I/O — this stays a pure flattening step.
+    `albumArt` is always emitted as "" here; fetchOpeningEndingSongs()
+    resolves the real value afterward via musicbrainz_cover_art and pushes
+    it to QML per-theme through themeAlbumArtLoaded, since resolving every
+    theme's art costs a real (rate-limited) network round trip per song and
+    would otherwise stall the initial theme list by several seconds."""
     result = []
     for theme in themes or []:
         song = theme.get("song") or {}
@@ -331,6 +339,7 @@ def _flatten_anime_themes(themes: list | None) -> list[dict]:
             "artists":     artists,                       # list of {name, images}
             "artistsText": ", ".join(a["name"] for a in artists),  # convenience string for QML display
             "entries":     entries,
+            "albumArt":    "",   # filled in later via themeAlbumArtLoaded — see docstring
         })
     return result
 
@@ -371,6 +380,7 @@ class AniListService(QObject):
     userAnimeLoaded = Signal(int, list)   # userId, entries - read-only list for UsersAnimeListPage
     userMangaLoaded = Signal(int, list)   # userId, entries - read-only list for UsersMangaListPage
     openingEndingSongsLoaded = Signal(int, str)   # anilistId, JSON {"themes": [...], "isError": bool}
+    themeAlbumArtLoaded = Signal(int, int, str)   # anilistId, themeId, albumArtUrl (""  = none found)
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -1020,7 +1030,16 @@ class AniListService(QObject):
         """OP/ED video+audio links for an anime, from animethemes.moe — a
         separate GraphQL endpoint from AniList's own. Not used anywhere
         else, so we post to it directly here instead of growing a second
-        `_gql`-style helper for one call site."""
+        `_gql`-style helper for one call site.
+
+        Album art is resolved as a SECOND, separate step after the theme
+        list itself is emitted: MusicBrainz enforces 1 request/sec (see
+        musicbrainz_cover_art.py), so resolving art for e.g. 4 themes
+        (OP1/OP2/ED1/ED2) up front would add several seconds before the
+        user sees anything. Instead, the theme list appears immediately
+        with albumArt: "" on every theme, and themeAlbumArtLoaded fires
+        once per theme as each lookup completes, letting QML patch in
+        each card's art as it arrives rather than waiting on all of them."""
         def _run():
             try:
                 self._begin_loading()
@@ -1041,11 +1060,19 @@ class AniListService(QObject):
                 matches = (body.get("data") or {}).get("findAnimeByExternalSite") or []
                 first   = (matches[0] or {}) if matches else {}
                 themes  = first.get("animethemes") or []
+                flattened = _flatten_anime_themes(themes)
 
                 self.openingEndingSongsLoaded.emit(anilist_id, json.dumps({
-                    "themes":  _flatten_anime_themes(themes),
+                    "themes":  flattened,
                     "isError": False,
                 }))
+
+                # Album art is best-effort and can take a few seconds across
+                # several themes (rate-limited to 1 MusicBrainz call/sec) —
+                # deliberately NOT covered by _begin_loading/_end_loading,
+                # since per the progressive-loading design this should never
+                # hold up or re-trigger the page's main loading spinner.
+                self._resolve_theme_album_art(anilist_id, flattened)
             except Exception as exc:
                 self.errorOccurred.emit(str(exc))
                 # Always emit openingEndingSongsLoaded too, even on failure —
@@ -1056,6 +1083,30 @@ class AniListService(QObject):
                 }))
             finally:
                 self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _resolve_theme_album_art(self, anilist_id: int, flattened_themes: list[dict]) -> None:
+        """Runs on its own daemon thread (separate from fetchOpeningEndingSongs's
+        _run, which has already returned/emitted by the time this starts).
+        Resolves each theme's album art one at a time — sequential on
+        purpose, since get_album_art_for_song() is already internally
+        rate-limited to 1 MusicBrainz call/sec, so parallelizing this loop
+        would only mean threads blocking on the same limiter, not real
+        concurrency. A failure resolving ONE theme's art (network error,
+        no MusicBrainz match, no cover art on file) never raises — it just
+        means that theme's card keeps showing the artist photo instead,
+        exactly as it did before this feature existed."""
+        def _run():
+            for theme in flattened_themes:
+                theme_id   = theme.get("themeId", 0)
+                song_title = theme.get("songTitle", "")
+                artists    = theme.get("artists") or []
+                artist_name = artists[0]["name"] if artists else ""
+
+                album_art = get_album_art_for_song(song_title, artist_name)
+                if album_art:
+                    self.themeAlbumArtLoaded.emit(anilist_id, theme_id, album_art)
 
         threading.Thread(target=_run, daemon=True).start()
 

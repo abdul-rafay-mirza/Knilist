@@ -10,17 +10,21 @@ import org.kde.kirigami as Kirigami
 // are shown rather than collapsed, since the backend deliberately keeps them
 // as lists instead of picking a "best" one.
 //
-// Each theme renders as a card with the performing artist's cover image as a
-// backdrop (when animethemes.moe has one), collapsed to just the header by
-// default — tap the header to reveal episode/video details. Every action
-// button (copy link, open, open in mpv/VLC) confirms itself with a passive
+// Each theme renders as a card with a cover image as a backdrop, collapsed
+// to just the header by default — tap the header to reveal episode/video
+// details. The backdrop prefers the song's actual album art (resolved via
+// MusicBrainz + the Cover Art Archive, arriving progressively per-theme
+// after the list first renders — see AnimePage.qml's onThemeAlbumArtLoaded),
+// falling back to the performing artist's own photo from animethemes.moe
+// when no album art is found or hasn't resolved yet. Every action button
+// (copy link, open, open in mpv/VLC) confirms itself with a passive
 // notification, matching the "Added to Favorites" toast already used
 // elsewhere in this app.
 ColumnLayout {
     id: root
 
     property string headingText: ""
-    property var themes:   []   // list of { themeId, type, songTitle, artists, artistsText, entries }
+    property var themes:   []   // list of { themeId, type, songTitle, artists, artistsText, entries, albumArt }
     property bool loading: false
     property bool isError: false
 
@@ -81,14 +85,24 @@ ColumnLayout {
             id: themeCard
             required property var modelData
 
-            // Best cover image available for the (first credited) artist:
-            // prefer a small cover for a compact card backdrop, but fall
-            // back to whatever facet exists so a card is never emptier than
-            // its data — animethemes.moe doesn't always have every facet.
+            // Cover image for the card backdrop, in priority order:
+            //   1. Real album art for the song (modelData.albumArt), resolved
+            //      via MusicBrainz + the Cover Art Archive. Arrives AFTER the
+            //      card first renders — see AnimePage.qml's
+            //      onThemeAlbumArtLoaded — so this is "" on first paint for
+            //      every theme and pops in per-card once resolved.
+            //   2. The performing artist's own photo from animethemes.moe,
+            //      same as before this feature existed — used when
+            //      MusicBrainz has no match/no art for this specific song,
+            //      or hasn't resolved (yet).
+            // Prefer a small cover for a compact card backdrop within
+            // whichever source is used, but fall back to whatever facet
+            // exists so a card is never emptier than its data — neither
+            // source always has every size/facet.
             readonly property var _primaryArtist: (themeCard.modelData.artists && themeCard.modelData.artists.length > 0)
                 ? themeCard.modelData.artists[0] : null
             readonly property var _artistImages: (themeCard._primaryArtist && themeCard._primaryArtist.images) || []
-            readonly property string _coverImage: {
+            readonly property string _artistCoverImage: {
                 if (themeCard._artistImages.length === 0) return ""
                 const small = themeCard._artistImages.find(img => img.facet === "SMALL_COVER")
                 if (small) return small.link
@@ -96,6 +110,9 @@ ColumnLayout {
                 if (large) return large.link
                 return themeCard._artistImages[0].link || ""
             }
+            readonly property string _coverImage: (themeCard.modelData.albumArt || "") !== ""
+                ? themeCard.modelData.albumArt
+                : themeCard._artistCoverImage
             readonly property bool _hasCover: themeCard._coverImage !== ""
 
             readonly property bool _isOpening: (themeCard.modelData.type || "") === "OP"
