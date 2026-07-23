@@ -10,16 +10,17 @@ import org.kde.kirigami as Kirigami
 // are shown rather than collapsed, since the backend deliberately keeps them
 // as lists instead of picking a "best" one.
 //
-// Each theme renders as a card with a cover image as a backdrop, collapsed
-// to just the header by default — tap the header to reveal episode/video
-// details. The backdrop prefers the song's actual album art (resolved via
-// MusicBrainz + the Cover Art Archive, arriving progressively per-theme
-// after the list first renders — see AnimePage.qml's onThemeAlbumArtLoaded),
-// falling back to the performing artist's own photo from animethemes.moe
-// when no album art is found or hasn't resolved yet. Every action button
-// (copy link, open, open in mpv/VLC) confirms itself with a passive
-// notification, matching the "Added to Favorites" toast already used
-// elsewhere in this app.
+// Each theme renders as a card with a left-hand thumbnail (matching the
+// AnimeCard/StaffCard/RelationCard layout used elsewhere in this app),
+// collapsed to just the header by default — tap the header to reveal
+// episode/video details. The thumbnail prefers the song's actual album art
+// (resolved via MusicBrainz + the Cover Art Archive, arriving progressively
+// per-theme after the list first renders — see AnimePage.qml's
+// onThemeAlbumArtLoaded), falling back to the performing artist's own photo
+// from animethemes.moe when no album art is found or hasn't resolved yet.
+// Every action button (copy link, open, open in mpv/VLC) confirms itself
+// with a passive notification, matching the "Added to Favorites" toast
+// already used elsewhere in this app.
 ColumnLayout {
     id: root
 
@@ -27,6 +28,7 @@ ColumnLayout {
     property var themes:   []   // list of { themeId, type, songTitle, artists, artistsText, entries, albumArt }
     property bool loading: false
     property bool isError: false
+    property int cardSize: 7
 
     spacing: Kirigami.Units.smallSpacing
 
@@ -85,7 +87,7 @@ ColumnLayout {
             id: themeCard
             required property var modelData
 
-            // Cover image for the card backdrop, in priority order:
+            // Cover image, in priority order:
             //   1. Real album art for the song (modelData.albumArt), resolved
             //      via MusicBrainz + the Cover Art Archive. Arrives AFTER the
             //      card first renders — see AnimePage.qml's
@@ -95,10 +97,10 @@ ColumnLayout {
             //      same as before this feature existed — used when
             //      MusicBrainz has no match/no art for this specific song,
             //      or hasn't resolved (yet).
-            // Prefer a small cover for a compact card backdrop within
-            // whichever source is used, but fall back to whatever facet
-            // exists so a card is never emptier than its data — neither
-            // source always has every size/facet.
+            // Prefer a small cover for a compact thumbnail within whichever
+            // source is used, but fall back to whatever facet exists so a
+            // card is never emptier than its data — neither source always
+            // has every size/facet.
             readonly property var _primaryArtist: (themeCard.modelData.artists && themeCard.modelData.artists.length > 0)
                 ? themeCard.modelData.artists[0] : null
             readonly property var _artistImages: (themeCard._primaryArtist && themeCard._primaryArtist.images) || []
@@ -126,72 +128,55 @@ ColumnLayout {
             contentItem: ColumnLayout {
                 spacing: 0
 
-                // ── Header: cover backdrop + title/artist + badge/chevron ──
-                Item {
+                // ── Header: thumbnail + title/artist + badge/chevron ───────
+                // Same left-thumbnail/right-text shape as AnimeCard,
+                // StaffCard, and RelationCard elsewhere in this app — normal
+                // Kirigami.Theme colors throughout, since text sits on the
+                // card's own background here rather than over a photo (no
+                // scrim/legibility overlay needed, unlike the previous
+                // backdrop-image design).
+                RowLayout {
                     id: headerArea
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Kirigami.Units.gridUnit * 4.5
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * root.cardSize
+                    spacing: 0
 
-                    // Backdrop: the artist's cover image, or a themed
-                    // gradient fallback when no cover exists — either way
-                    // the header always has some color, never a flat blank.
-                    Image {
-                        id: coverImg
-                        anchors.fill: parent
-                        source: themeCard._coverImage
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
+                    // Thumbnail
+                    Rectangle {
+                        Layout.preferredWidth:  Kirigami.Units.gridUnit * root.cardSize
+                        Layout.fillHeight:      true
+                        color: Kirigami.ColorUtils.tintWithAlpha(
+                                   Kirigami.Theme.backgroundColor,
+                                   Kirigami.Theme.textColor,
+                                   0.05)
                         clip: true
-                        visible: themeCard._hasCover && status === Image.Ready
-                    }
 
-                    Rectangle {
-                        anchors.fill: parent
-                        visible: !coverImg.visible
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: themeCard._isOpening ? Kirigami.Theme.highlightColor : Kirigami.Theme.focusColor }
-                            GradientStop { position: 1.0; color: Qt.darker(themeCard._isOpening ? Kirigami.Theme.highlightColor : Kirigami.Theme.focusColor, 1.7) }
+                        Image {
+                            anchors.fill: parent
+                            source:       themeCard._coverImage
+                            fillMode:     Image.PreserveAspectCrop
+                            asynchronous: true
+                            smooth:       true
+                            visible:      themeCard._hasCover && status === Image.Ready
                         }
-                    }
-
-                    // Legibility scrim over the cover image — text always
-                    // sits on the dark end of the gradient regardless of
-                    // what's underneath.
-                    Rectangle {
-                        anchors.fill: parent
-                        visible: coverImg.visible
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.75) }
-                            GradientStop { position: 0.55; color: Qt.rgba(0, 0, 0, 0.45) }
-                            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.15) }
-                        }
-                    }
-
-                    // NOTE ON HARDCODED "white" BELOW: Kirigami style guidance
-                    // is normally to always use Kirigami.Theme colors rather
-                    // than literals, so light/dark theme switches stay
-                    // correct. This header is a deliberate, scoped exception:
-                    // it sits on a photo backdrop (or a themed gradient
-                    // fallback) rather than the app's normal background, so
-                    // its contrast needs is unrelated to the user's light/
-                    // dark theme choice — the scrim rectangles above are
-                    // tuned to keep white legible against both the cover
-                    // photo and the gradient fallback. Do not swap these for
-                    // Kirigami.Theme.textColor et al.; that would break
-                    // contrast in whichever theme wasn't tested against.
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Kirigami.Units.largeSpacing
-                        anchors.rightMargin: Kirigami.Units.smallSpacing
-                        spacing: Kirigami.Units.smallSpacing
 
                         Kirigami.Icon {
-                            source: "media-album-track-symbolic"
-                            color: "white"
-                            implicitWidth:  Kirigami.Units.iconSizes.small
-                            implicitHeight: Kirigami.Units.iconSizes.small
+                            anchors.centerIn: parent
+                            source:  "media-album-track-symbolic"
+                            implicitWidth:  Kirigami.Units.iconSizes.medium
+                            implicitHeight: Kirigami.Units.iconSizes.medium
+                            visible: !themeCard._hasCover
+                            color:   Kirigami.Theme.disabledTextColor
                         }
+                    }
+
+                    // Title/artist + badge/chevron
+                    RowLayout {
+                        Layout.fillWidth:  true
+                        Layout.fillHeight: true
+                        Layout.leftMargin:  Kirigami.Units.largeSpacing
+                        Layout.rightMargin: Kirigami.Units.smallSpacing
+                        spacing: Kirigami.Units.smallSpacing
 
                         ColumnLayout {
                             Layout.fillWidth: true
@@ -200,7 +185,7 @@ ColumnLayout {
                             Controls.Label {
                                 Layout.fillWidth: true
                                 text: themeCard.modelData.songTitle || "Unknown title"
-                                color: "white"
+                                color: Kirigami.Theme.textColor
                                 font.bold: true
                                 font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.1
                                 elide: Text.ElideRight
@@ -211,17 +196,17 @@ ColumnLayout {
                                 Layout.fillWidth: true
                                 visible: !!themeCard.modelData.artistsText
                                 text: themeCard.modelData.artistsText
-                                color: "white"
-                                opacity: 0.85
+                                color: Kirigami.Theme.disabledTextColor
                                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                                 elide: Text.ElideRight
                                 wrapMode: Text.NoWrap
                             }
                         }
 
-                        // OP / ED badge — the one accent color choice, reused
-                        // from the fallback gradient above so a card reads
-                        // the same whether or not it has a cover image.
+                        // OP / ED badge — same accent-color logic as before;
+                        // no longer needs to match a backdrop gradient, but
+                        // keeping the highlight/focus split still reads as
+                        // "two distinct kinds of theme" at a glance.
                         Rectangle {
                             id: typeBadge
                             radius: height / 2
@@ -241,7 +226,7 @@ ColumnLayout {
 
                         Kirigami.Icon {
                             source: "arrow-down-symbolic"
-                            color: "white"
+                            color: Kirigami.Theme.textColor
                             implicitWidth:  Kirigami.Units.iconSizes.small
                             implicitHeight: Kirigami.Units.iconSizes.small
                             rotation: themeCard.expanded ? 180 : 0
