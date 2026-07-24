@@ -1056,6 +1056,15 @@ query ($search: String, $type: MediaType, $page: Int = 1, $perPage: Int = 20) {
       coverImage {
         large
       }
+      averageScore
+      favourites
+      # Resolves against the currently authenticated viewer only (not
+      # parameterized by user id) — null when this media isn't on the
+      # viewer's list at all, which is exactly the "" sentinel
+      # AnimeSearchCard's userStatus expects.
+      mediaListEntry {
+        status
+      }
     }
   }
 }

@@ -225,16 +225,26 @@ def _flatten_user_list(users: list | None) -> list[dict]:
 
 
 def _flatten_search_media(nodes: list | None) -> list[dict]:
-    """Shape shared by the Anime and Manga search tabs."""
+    """Shape shared by the Anime and Manga search tabs. averageScore/
+    favourites/userStatus are only consumed by the Anime tab's
+    AnimeSearchCard today, but both tabs query the same _SEARCH_MEDIA_QUERY
+    so both get the fields; Manga's normalizeResult branch just ignores them
+    until it has a matching card."""
     result = []
     for node in nodes or []:
         title_obj = node.get("title") or {}
+        list_entry = node.get("mediaListEntry") or {}
         result.append({
-            "id":         node.get("id", 0),
-            "title":      title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or "",
-            "coverImage": (node.get("coverImage") or {}).get("large", ""),
-            "format":     node.get("format") or "",
-            "year":       (node.get("startDate") or {}).get("year") or 0,
+            "id":           node.get("id", 0),
+            "title":        title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or "",
+            "coverImage":   (node.get("coverImage") or {}).get("large", ""),
+            "format":       node.get("format") or "",
+            "year":         (node.get("startDate") or {}).get("year") or 0,
+            "averageScore": node.get("averageScore") or 0,
+            "favourites":   node.get("favourites") or 0,
+            # "" when mediaListEntry is null (not on the viewer's list) —
+            # matches AnimeSearchCard.qml's userStatus empty-string contract.
+            "userStatus":   list_entry.get("status") or "",
         })
     return result
 

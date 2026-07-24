@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
+import "components"
 
 Kirigami.Page {
     id: searchPage
@@ -48,10 +49,28 @@ Kirigami.Page {
     }
 
     // Reshapes anilistService.search()'s per-type result shape into the one
-    // {id, label, subtitle, image} shape the delegate below renders.
+    // {id, label, subtitle, image} shape the delegate below renders — except
+    // Anime, which now also carries the extra fields AnimeSearchCard needs
+    // (averageScore, favourites, userStatus, plus mediaType/year already
+    // split out rather than pre-joined into subtitle). label/subtitle/image
+    // are kept anyway so the shape stays a superset; nothing about the
+    // generic delegate path changes for Anime, it's just unused once the
+    // delegate below picks AnimeSearchCard for this searchType instead.
     function normalizeResult(raw) {
         switch (searchPage.searchType) {
-        case "Anime":
+        case "Anime": {
+            const bits = []
+            if (raw.format) bits.push(searchPage.formatLabel(raw.format))
+            if (raw.year)   bits.push(String(raw.year))
+            return {
+                id: raw.id, label: raw.title, subtitle: bits.join(" · "), image: raw.coverImage || "",
+                mediaType:     searchPage.formatLabel(raw.format),
+                year:          raw.year || 0,
+                averageScore:  raw.averageScore || 0,
+                favourites:    raw.favourites || 0,
+                userStatus:    raw.userStatus || "",
+            }
+        }
         case "Manga": {
             const bits = []
             if (raw.format) bits.push(searchPage.formatLabel(raw.format))
@@ -235,67 +254,105 @@ Kirigami.Page {
                 searchPage.loadMore()
         }
 
-        delegate: Controls.ItemDelegate {
+        // AnimeSearchCard has its own variable implicitHeight (the status
+        // badge row collapses to nothing when userStatus is empty), which
+        // doesn't fit a single delegate Component with the generic
+        // delegate's fixed height — so the Anime tab gets routed to its own
+        // Component via a Loader, and every other search type keeps using
+        // the exact same ItemDelegate as before, untouched.
+        delegate: Loader {
             width: resultsListView.width
-            height: Kirigami.Units.gridUnit * 3.5
-            leftPadding: Kirigami.Units.largeSpacing
-            rightPadding: Kirigami.Units.largeSpacing
+            sourceComponent: searchPage.searchType === "Anime" ? animeCardDelegate : genericDelegate
 
-            onClicked: searchPage.openResult(model.id, model.label)
+            // Re-exposed so each Component below can read this delegate's
+            // own model row via modelData/model the normal Loader way.
+            property var modelData: model
+        }
 
-            contentItem: RowLayout {
-                spacing: Kirigami.Units.largeSpacing
+        Component {
+            id: animeCardDelegate
 
-                Item {
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 2.6
-                    Layout.preferredHeight: Kirigami.Units.gridUnit * 2.6
-                    Layout.alignment: Qt.AlignVCenter
+            AnimeSearchCard {
+                width: resultsListView.width
+                title:         modelData.label
+                mediaType:     modelData.mediaType || ""
+                year:          modelData.year || 0
+                averageScore:  modelData.averageScore || 0
+                favourites:    modelData.favourites || 0
+                coverSource:   modelData.image || ""
+                anilistId:     modelData.id
+                userStatus:    modelData.userStatus || ""
 
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: Kirigami.Units.smallSpacing
-                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                       Kirigami.Theme.textColor.b, 0.08)
-                        visible: thumbImage.status !== Image.Ready
+                onCardClicked:  searchPage.openResult(modelData.id, modelData.label)
+                onImageClicked: searchPage.openResult(modelData.id, modelData.label)
+            }
+        }
 
-                        Kirigami.Icon {
-                            anchors.centerIn: parent
-                            width: parent.width * 0.5
-                            height: width
-                            source: "search"
-                            opacity: 0.5
+        Component {
+            id: genericDelegate
+
+            Controls.ItemDelegate {
+                width: resultsListView.width
+                height: Kirigami.Units.gridUnit * 3.5
+                leftPadding: Kirigami.Units.largeSpacing
+                rightPadding: Kirigami.Units.largeSpacing
+
+                onClicked: searchPage.openResult(modelData.id, modelData.label)
+
+                contentItem: RowLayout {
+                    spacing: Kirigami.Units.largeSpacing
+
+                    Item {
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 2.6
+                        Layout.preferredHeight: Kirigami.Units.gridUnit * 2.6
+                        Layout.alignment: Qt.AlignVCenter
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: Kirigami.Units.smallSpacing
+                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                           Kirigami.Theme.textColor.b, 0.08)
+                            visible: thumbImage.status !== Image.Ready
+
+                            Kirigami.Icon {
+                                anchors.centerIn: parent
+                                width: parent.width * 0.5
+                                height: width
+                                source: "search"
+                                opacity: 0.5
+                            }
+                        }
+
+                        Image {
+                            id: thumbImage
+                            anchors.fill: parent
+                            source: modelData.image || ""
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            clip: true
+                            visible: status === Image.Ready
                         }
                     }
 
-                    Image {
-                        id: thumbImage
-                        anchors.fill: parent
-                        source: model.image || ""
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        clip: true
-                        visible: status === Image.Ready
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-
-                    Controls.Label {
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: model.label
-                        font.bold: true
-                        elide: Text.ElideRight
-                    }
+                        spacing: 2
 
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        text: model.subtitle
-                        visible: model.subtitle.length > 0
-                        elide: Text.ElideRight
-                        opacity: 0.6
-                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.75)
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            text: modelData.label
+                            font.bold: true
+                            elide: Text.ElideRight
+                        }
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            text: modelData.subtitle
+                            visible: modelData.subtitle.length > 0
+                            elide: Text.ElideRight
+                            opacity: 0.6
+                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.75)
+                        }
                     }
                 }
             }
