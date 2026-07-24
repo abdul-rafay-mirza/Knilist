@@ -1153,7 +1153,9 @@ query ($id: [Int!]) {
           id
           type
           song {
-            title
+            title {
+              romaji
+            }
             performances {
               artist {
                 images {
@@ -1162,7 +1164,9 @@ query ($id: [Int!]) {
                     facet
                   }
                 }
-                name
+                name {
+                  main
+                }
               }
             }
           }
