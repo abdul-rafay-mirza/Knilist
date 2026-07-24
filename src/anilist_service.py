@@ -28,6 +28,8 @@ from .graphql_queries import (
     _MANGA_PAGE_QUERY, _MANGA_FAVOURITE_QUERY, _TOGGLE_MANGA_FAVOURITE_MUTATION,
     _PROFILE_PAGE_QUERY,
     _FOLLOWING_LIST_QUERY, _FOLLOWERS_LIST_QUERY, _TOGGLE_FOLLOW_MUTATION,
+    _SEARCH_MEDIA_QUERY, _SEARCH_CHARACTERS_QUERY, _SEARCH_STAFF_QUERY,
+    _SEARCH_STUDIOS_QUERY, _SEARCH_USERS_QUERY,
 )
 
 # Helper functions
@@ -222,6 +224,62 @@ def _flatten_user_list(users: list | None) -> list[dict]:
     return result
 
 
+def _flatten_search_media(nodes: list | None) -> list[dict]:
+    """Shape shared by the Anime and Manga search tabs."""
+    result = []
+    for node in nodes or []:
+        title_obj = node.get("title") or {}
+        result.append({
+            "id":         node.get("id", 0),
+            "title":      title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or "",
+            "coverImage": (node.get("coverImage") or {}).get("large", ""),
+            "format":     node.get("format") or "",
+            "year":       (node.get("startDate") or {}).get("year") or 0,
+        })
+    return result
+
+
+def _flatten_search_people(nodes: list | None) -> list[dict]:
+    """Shape shared by the Characters and Staff search tabs."""
+    result = []
+    for node in nodes or []:
+        name_obj = node.get("name") or {}
+        result.append({
+            "id":    node.get("id", 0),
+            "name":  name_obj.get("userPreferred") or name_obj.get("full") or name_obj.get("native") or "",
+            "image": (node.get("image") or {}).get("large", ""),
+        })
+    return result
+
+
+def _flatten_search_studios(nodes: list | None) -> list[dict]:
+    return [{"id": n.get("id", 0), "name": n.get("name") or ""} for n in (nodes or [])]
+
+
+def _flatten_search_users(nodes: list | None) -> list[dict]:
+    result = []
+    for node in nodes or []:
+        result.append({
+            "id":     node.get("id", 0),
+            "name":   node.get("name") or "",
+            "avatar": (node.get("avatar") or {}).get("large", ""),
+        })
+    return result
+
+
+# searchType (exactly as sent by HomePage's searchTypes / SearchPage.qml) ->
+#   query text, extra GraphQL variables beyond search/page, the field to read
+#   off the Page result, and the flattener for that field's nodes.
+_SEARCH_CONFIG = {
+    "Anime":      (_SEARCH_MEDIA_QUERY,      {"type": "ANIME"}, "media",      _flatten_search_media),
+    "Manga":      (_SEARCH_MEDIA_QUERY,      {"type": "MANGA"}, "media",      _flatten_search_media),
+    "Characters": (_SEARCH_CHARACTERS_QUERY, {},                "characters", _flatten_search_people),
+    "Staff":      (_SEARCH_STAFF_QUERY,      {},                "staff",      _flatten_search_people),
+    "Studios":    (_SEARCH_STUDIOS_QUERY,    {},                "studios",    _flatten_search_studios),
+    "Users":      (_SEARCH_USERS_QUERY,      {},                "users",      _flatten_search_users),
+}
+
+
 def _compute_tendencies(anime_stats: dict) -> list[dict]:
     """Turn statistics.anime breakdowns into 'Anime Tendencies' lines.
     None of this is an AniList concept — it's a heuristic built from the
@@ -310,6 +368,7 @@ class AniListService(QObject):
     userProfileLoaded = Signal(str)   # full JSON payload for the "any user" page
     userAnimeLoaded = Signal(int, list)   # userId, entries - read-only list for UsersAnimeListPage
     userMangaLoaded = Signal(int, list)   # userId, entries - read-only list for UsersMangaListPage
+    searchResultsLoaded = Signal(str)   # full JSON payload for SearchPage
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -326,6 +385,7 @@ class AniListService(QObject):
         self._viewer_id:            int | None = None      # cached after first Viewer fetch
         self._followers_fetch_gen: int = 0
         self._following_fetch_gen: int = 0
+        self._search_gen: int = 0
 
     def _begin_loading(self):
         self._loading_count += 1
@@ -1851,6 +1911,75 @@ class AniListService(QObject):
                     "staff":  [],
                     "hasNextPage": False,
                     "isError":     True,
+                }))
+            finally:
+                if is_first_page:
+                    self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    # Search
+
+    @Slot(str, str, int)
+    def search(self, search_type: str, query: str, page: int) -> None:
+        """Backs SearchPage.qml. search_type is one of HomePage's searchTypes
+        strings ("Anime", "Manga", "Characters", "Staff", "Studios", "Users").
+
+        QML can fire a new call before the previous one resolves — every
+        keystroke, once debounced, is still a new call — so exactly like
+        fetchFollowing/fetchFollowers, a generation counter is used to make
+        sure only the most recently requested page/query ever gets emitted,
+        regardless of the order the network responses actually arrive in."""
+        is_first_page = page <= 1   # QML passes 1 for a fresh search, currentPage+1 to load more
+
+        self._search_gen += 1
+        my_gen = self._search_gen
+
+        query_text = (query or "").strip()
+        if not query_text:
+            # Nothing to search — respond immediately so QML can clear its
+            # results without waiting on a network round trip.
+            self.searchResultsLoaded.emit(json.dumps({
+                "searchType": search_type, "query": query_text, "page": 1,
+                "results": [], "hasNextPage": False, "isError": False,
+            }))
+            return
+
+        config = _SEARCH_CONFIG.get(search_type)
+        if config is None:
+            self.errorOccurred.emit(f"Unknown search type: {search_type}")
+            return
+        gql_query, extra_variables, field_name, flatten = config
+
+        def _run():
+            try:
+                if is_first_page:
+                    self._begin_loading()
+                data = self._gql(gql_query, {
+                    "search": query_text,
+                    "page":   page if page > 0 else 1,
+                    **extra_variables,
+                })
+                if my_gen != self._search_gen:
+                    return   # a newer search/page request has since superseded this one
+                page_obj = data.get("Page") or {}
+                has_next = (page_obj.get("pageInfo") or {}).get("hasNextPage", False)
+
+                self.searchResultsLoaded.emit(json.dumps({
+                    "searchType":  search_type,
+                    "query":       query_text,
+                    "page":        page,
+                    "results":     flatten(page_obj.get(field_name)),
+                    "hasNextPage": has_next,
+                    "isError":     False,
+                }))
+            except Exception as exc:
+                if my_gen != self._search_gen:
+                    return
+                self.errorOccurred.emit(str(exc))
+                self.searchResultsLoaded.emit(json.dumps({
+                    "searchType": search_type, "query": query_text, "page": page,
+                    "results": [], "hasNextPage": False, "isError": True,
                 }))
             finally:
                 if is_first_page:

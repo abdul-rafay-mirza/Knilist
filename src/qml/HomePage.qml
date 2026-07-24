@@ -228,8 +228,6 @@ Kirigami.ScrollablePage {
     }
 
     function openSearchPage(searchType) {
-        // TODO: once a dedicated search page exists, navigate to it here, e.g.
-        // pageStack.layers.push(Qt.resolvedUrl("SearchPage.qml"), { type: searchType })
-        console.log("Search type selected:", searchType)
+        pageStack.layers.push(Qt.resolvedUrl("SearchPage.qml"), { searchType: searchType })
     }
 }

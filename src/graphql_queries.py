@@ -1030,6 +1030,110 @@ mutation ($userId: Int) {
 }
 """
 
+# Search (HomePage's dropdown -> SearchPage)
+# One query per Page connection that supports a `search: String` argument.
+# `media` is shared by both the Anime and Manga tabs — only `$type` differs.
+# `sort: SEARCH_MATCH` asks AniList to rank by text-match relevance instead
+# of its default popularity/score ordering, so an exact title/name match
+# surfaces first even if it's an obscure entry.
+_SEARCH_MEDIA_QUERY = """
+query ($search: String, $type: MediaType, $page: Int = 1, $perPage: Int = 20) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    media(search: $search, type: $type, sort: SEARCH_MATCH) {
+      id
+      title {
+        userPreferred
+        english
+        romaji
+      }
+      format
+      startDate {
+        year
+      }
+      coverImage {
+        large
+      }
+    }
+  }
+}
+"""
+
+_SEARCH_CHARACTERS_QUERY = """
+query ($search: String, $page: Int = 1, $perPage: Int = 20) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    characters(search: $search, sort: SEARCH_MATCH) {
+      id
+      name {
+        full
+        native
+        userPreferred
+      }
+      image {
+        large
+      }
+    }
+  }
+}
+"""
+
+_SEARCH_STAFF_QUERY = """
+query ($search: String, $page: Int = 1, $perPage: Int = 20) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    staff(search: $search, sort: SEARCH_MATCH) {
+      id
+      name {
+        full
+        native
+        userPreferred
+      }
+      image {
+        large
+      }
+    }
+  }
+}
+"""
+
+_SEARCH_STUDIOS_QUERY = """
+query ($search: String, $page: Int = 1, $perPage: Int = 20) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    studios(search: $search, sort: SEARCH_MATCH) {
+      id
+      name
+    }
+  }
+}
+"""
+
+_SEARCH_USERS_QUERY = """
+query ($search: String, $page: Int = 1, $perPage: Int = 20) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    users(search: $search, sort: SEARCH_MATCH) {
+      id
+      name
+      avatar {
+        large
+      }
+    }
+  }
+}
+"""
+
 # NOTE: This is not a query for Anilist API. Its for animethemes.moe.
 # animethemes GQL endopint: https://graphql.animethemes.moe
 # This query gets the direct links for opening and endings for a given anime in video and audio formats
