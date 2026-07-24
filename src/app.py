@@ -8,8 +8,9 @@ from PySide6.QtGui  import QGuiApplication
 from PySide6.QtCore import QUrl
 from PySide6.QtQml  import QQmlApplicationEngine
 
-from .auth            import AuthManager
-from .anilist_service import AniListService
+from .auth                import AuthManager
+from .anilist_service      import AniListService
+from .anime_themes_service import AnimeThemesService
 
 
 def main():
@@ -27,8 +28,11 @@ def main():
     auth.loginSuccess.connect(service.fetchAnime)
     auth.loginSuccess.connect(service.fetchManga)
 
-    engine.rootContext().setContextProperty("authManager",    auth)
-    engine.rootContext().setContextProperty("anilistService", service)
+    anime_themes_service = AnimeThemesService()
+
+    engine.rootContext().setContextProperty("authManager",       auth)
+    engine.rootContext().setContextProperty("anilistService",    service)
+    engine.rootContext().setContextProperty("animeThemesService", anime_themes_service)
 
     base_path = files("knilist").joinpath("qml", "Main.qml")
     engine.load(QUrl(str(base_path)))

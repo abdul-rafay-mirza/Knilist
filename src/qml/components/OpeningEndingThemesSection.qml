@@ -3,7 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 
-// Renders a list of OP/ED themes (as produced by anilist_service.py's
+// Renders a list of OP/ED themes (as produced by anime_themes_service.py's
 // _flatten_anime_themes / fetchOpeningEndingSongs). Each theme can have more
 // than one entry (different episode ranges/versions) and each entry can have
 // more than one video variant (resolution, subbed/unsubbed, source) — both
@@ -16,11 +16,14 @@ import org.kde.kirigami as Kirigami
 // episode/video details. The thumbnail prefers the song's actual album art
 // (resolved via MusicBrainz + the Cover Art Archive, arriving progressively
 // per-theme after the list first renders — see AnimePage.qml's
-// onThemeAlbumArtLoaded), falling back to the performing artist's own photo
-// from animethemes.moe when no album art is found or hasn't resolved yet.
-// Every action button (copy link, open, open in mpv/VLC) confirms itself
-// with a passive notification, matching the "Added to Favorites" toast
-// already used elsewhere in this app.
+// onThemeAlbumArtLoaded, fed by animeThemesService), falling back to the
+// performing artist's own photo from animethemes.moe when no album art is
+// found or hasn't resolved yet. Every action button (copy link, open, open
+// in mpv/VLC) confirms itself with a passive notification, matching the
+// "Added to Favorites" toast already used elsewhere in this app. Those
+// action buttons call anilistService (copyToClipboard/openInExternalPlayer)
+// — generic clipboard/process-launch helpers, not animethemes-specific, so
+// they stayed on AniListService rather than moving to AnimeThemesService.
 ColumnLayout {
     id: root
 

@@ -48,7 +48,7 @@ Kirigami.Page {
             animePage.animeThemesError   = false
             animePage.animeOpeningThemes = []
             animePage.animeEndingThemes  = []
-            anilistService.fetchOpeningEndingSongs(animeId)
+            animeThemesService.fetchOpeningEndingSongs(animeId)
         }
     }
 
@@ -149,6 +149,14 @@ Kirigami.Page {
                 )
             }
         }
+    }
+
+    // animethemes.moe / MusicBrainz signals live on their own service and
+    // their own Connections block — see animeThemesService.fetchOpeningEndingSongs
+    // in anime_themes_service.py. Kept separate from the anilistService block
+    // above rather than merged: these two signals were never AniList data.
+    Connections {
+        target: animeThemesService
 
         function onOpeningEndingSongsLoaded(anilistId, _payloadJson) {
             if (anilistId !== animePage.animeId) return
@@ -166,7 +174,7 @@ Kirigami.Page {
         // Fires once per theme, progressively, as each one's MusicBrainz
         // cover-art lookup resolves in the background (fetchOpeningEndingSongs
         // returns the theme list immediately with albumArt: "" on everything,
-        // then resolves art one theme at a time — see anilist_service.py).
+        // then resolves art one theme at a time — see anime_themes_service.py).
         // Rebuilds whichever array the matching theme lives in rather than
         // mutating an element in place: QML's change notification for a
         // `property var` array only fires on reassignment, not on a mutation
