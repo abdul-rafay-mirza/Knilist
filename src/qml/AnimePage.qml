@@ -30,6 +30,15 @@ Kirigami.Page {
 
     property bool _ready: false
 
+    actions: [
+        Kirigami.Action {
+            icon.name: "view-refresh"
+            text: "Refresh"
+            enabled: !anilistService.loading
+            onTriggered: animePage._loadAnimeData()
+        }
+    ]
+
     Component.onCompleted: {
         _ready = true
         _loadAnimeData()
