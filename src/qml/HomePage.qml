@@ -20,6 +20,15 @@ Kirigami.ScrollablePage {
 
     readonly property var searchTypes: ["Anime", "Manga", "Characters", "Staff", "Studios", "Users"]
 
+    actions: [
+        Kirigami.Action {
+            icon.name: "view-refresh"
+            text: "Refresh"
+            enabled: !anilistService.loading
+            onTriggered: anilistService.fetchHomeProfile()
+        }
+    ]
+
     Component.onCompleted: {
         anilistService.fetchHomeProfile()
         loadingOverlayComponent.createObject(homePage.overlay)
