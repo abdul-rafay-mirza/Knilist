@@ -9,8 +9,9 @@ Kirigami.ScrollablePage {
     title: "Home"
 
     // Same shape as ProfilePage's `profile` property ({name, avatar,
-    // bannerImage, ...}) so this can be wired to anilistService's existing
-    // profile signal later without changing any binding below.
+    // bannerImage, ...}), just populated from the lighter fetchHomeProfile()/
+    // homeProfileLoaded round-trip instead of the full profile fetch, since
+    // the header only needs name + avatar + banner.
     property var profile: ({})
 
     readonly property int bannerHeight: Kirigami.Units.gridUnit * 10
@@ -19,9 +20,36 @@ Kirigami.ScrollablePage {
 
     readonly property var searchTypes: ["Anime", "Manga", "Characters", "Staff", "Studios", "Users"]
 
+    Component.onCompleted: {
+        anilistService.fetchHomeProfile()
+        loadingOverlayComponent.createObject(homePage.overlay)
+    }
+
+    Connections {
+        target: anilistService
+
+        function onHomeProfileLoaded(json) {
+            homePage.profile = JSON.parse(json)
+        }
+
+        function onErrorOccurred(message) {
+            errorMessage.text = message
+            errorMessage.visible = true
+        }
+    }
+
     ColumnLayout {
         width: homePage.width
         spacing: 0
+
+        Kirigami.InlineMessage {
+            id: errorMessage
+            Layout.fillWidth: true
+            Layout.margins: Kirigami.Units.smallSpacing
+            type: Kirigami.MessageType.Error
+            showCloseButton: true
+            visible: false
+        }
 
         // ── Banner + left-aligned avatar + greeting ─────────────────────
         Item {
@@ -226,6 +254,40 @@ Kirigami.ScrollablePage {
         }
 
         Item { Layout.preferredHeight: Kirigami.Units.largeSpacing * 2 }
+    }
+
+    // ── Loading overlay (first load + refresh) ──────────────────────────
+    // Built from a Component and instantiated with createObject() rather
+    // than declared as a plain child of ScrollablePage. Any Item declared
+    // directly under ScrollablePage is swept into its scroll content and
+    // has anchors.left/right force-set onto it by ScrollablePage itself
+    // (see ScrollablePage's Component.onCompleted), which would collide
+    // with this overlay's own anchors.fill. Creating it via Component +
+    // createObject(homePage.overlay, ...) — Kirigami.Page's built-in
+    // "on top of everything" layer — sidesteps that mechanism entirely and
+    // covers the whole page, matching what ProfilePage's overlay achieves
+    // manually via its own dedicated Item root.
+    Component {
+        id: loadingOverlayComponent
+
+        Rectangle {
+            anchors.fill: parent
+            visible: anilistService.loading
+            color: Kirigami.Theme.backgroundColor
+            opacity: 0.6
+            z: 2
+
+            MouseArea {
+                anchors.fill: parent
+                enabled: anilistService.loading
+                hoverEnabled: true
+            }
+
+            Controls.BusyIndicator {
+                anchors.centerIn: parent
+                running: true
+            }
+        }
     }
 
     function openSearchPage(searchType) {

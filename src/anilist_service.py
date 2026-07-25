@@ -370,6 +370,7 @@ class AniListService(QObject):
     mangaEntryLoaded = Signal(int, str)   # JSON of entry fields, or {"onList": false}
     mangaFavouriteToggled = Signal(int, bool)
     profileLoaded = Signal(str)   # full JSON payload for the profile page
+    homeProfileLoaded = Signal(str)   # {name, avatar, bannerImage} for the home page header
     followingPageLoaded = Signal(str)   # full JSON payload for the following list page
     followersPageLoaded = Signal(str)   # full JSON payload for the followers list page
     followToggled = Signal(int, bool, bool)   # userId, isFollowing, isFollower
@@ -474,6 +475,32 @@ class AniListService(QObject):
             uid, _ = self._fetch_viewer()
             self._viewer_id = int(uid) if uid else 0
         return self._viewer_id
+
+    # Home page Slot
+
+    @Slot()
+    def fetchHomeProfile(self) -> None:
+        """Fetch just what HomePage's header needs — name, avatar, banner —
+        via the single-round-trip Viewer query, instead of fetchProfile()'s
+        full payload (which pages through every favourites connection)."""
+        def _run():
+            try:
+                self._begin_loading()
+                viewer = self._fetch_viewer_raw()
+                self._apply_viewer_bookkeeping(viewer)
+
+                payload = {
+                    "name":        viewer.get("name", ""),
+                    "avatar":      (viewer.get("avatar") or {}).get("large", ""),
+                    "bannerImage": viewer.get("bannerImage") or "",
+                }
+                self.homeProfileLoaded.emit(json.dumps(payload))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
 
     # Profile Slot
     
