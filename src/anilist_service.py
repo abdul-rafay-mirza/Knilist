@@ -225,11 +225,9 @@ def _flatten_user_list(users: list | None) -> list[dict]:
 
 
 def _flatten_search_media(nodes: list | None) -> list[dict]:
-    """Shape shared by the Anime and Manga search tabs. averageScore/
-    favourites/userStatus are only consumed by the Anime tab's
-    AnimeSearchCard today, but both tabs query the same _SEARCH_MEDIA_QUERY
-    so both get the fields; Manga's normalizeResult branch just ignores them
-    until it has a matching card."""
+    """Shape shared by the Anime and Manga search tabs. Both tabs consume
+    averageScore/favourites/userStatus via AnimeAndMangaSearchCard.qml on
+    the QML side."""
     result = []
     for node in nodes or []:
         title_obj = node.get("title") or {}
@@ -243,7 +241,7 @@ def _flatten_search_media(nodes: list | None) -> list[dict]:
             "averageScore": node.get("averageScore") or 0,
             "favourites":   node.get("favourites") or 0,
             # "" when mediaListEntry is null (not on the viewer's list) —
-            # matches AnimeSearchCard.qml's userStatus empty-string contract.
+            # matches AnimeAndMangaSearchCard.qml's userStatus empty-string contract.
             "userStatus":   list_entry.get("status") or "",
         })
     return result
