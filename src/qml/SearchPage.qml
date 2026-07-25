@@ -291,19 +291,24 @@ Kirigami.Page {
 
             Controls.ItemDelegate {
                 width: resultsListView.width
-                height: Kirigami.Units.gridUnit * 3.5
+                // Same sizing rule AnimeAndMangaSearchCard.qml uses on
+                // itself (Math.max(150, mainLayout.implicitHeight + 10)) —
+                // duplicated here against this delegate's own contentItem
+                // rather than bound to the card, so this stays correct even
+                // if the card's internals change later.
+                height: Math.max(150, rowContent.implicitHeight + 10)
                 leftPadding: Kirigami.Units.largeSpacing
                 rightPadding: Kirigami.Units.largeSpacing
 
                 onClicked: searchPage.openResult(modelData.id, modelData.label)
 
                 contentItem: RowLayout {
+                    id: rowContent
                     spacing: Kirigami.Units.largeSpacing
 
                     Item {
-                        Layout.preferredWidth: Kirigami.Units.gridUnit * 2.6
-                        Layout.preferredHeight: Kirigami.Units.gridUnit * 2.6
-                        Layout.alignment: Qt.AlignVCenter
+                        Layout.preferredWidth: 90
+                        Layout.fillHeight: true
 
                         Rectangle {
                             anchors.fill: parent

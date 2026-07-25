@@ -19,6 +19,13 @@ Kirigami.AbstractCard {
     property string coverSource
     property int    anilistId
 
+    // Width of the cover-image box on the left. Exposed (rather than a
+    // hardcoded 90 inside the Rectangle below) so callers that need a
+    // second thumbnail to match this card's size — e.g. SearchPage.qml's
+    // genericDelegate — have one real property to bind to instead of a
+    // second copy of the same number that can drift out of sync.
+    property real   coverWidth: 90
+
     // Set by the caller based on which SearchPage tab this card is used
     // from (searchType === "Manga"). Only changes CURRENT/REPEATING
     // wording below — every other field/behavior is identical either way.
@@ -92,7 +99,7 @@ Kirigami.AbstractCard {
 
         // Cover image
         Rectangle {
-            Layout.preferredWidth:  90
+            Layout.preferredWidth:  searchCard.coverWidth
             Layout.fillHeight: true
             color: Kirigami.ColorUtils.tintWithAlpha(
                         Kirigami.Theme.backgroundColor,
