@@ -64,7 +64,10 @@ Kirigami.ScrollablePage {
         Item {
             id: headerArea
             Layout.fillWidth: true
-            Layout.preferredHeight: homePage.bannerHeight + homePage.avatarSize / 2
+            Layout.preferredHeight: Math.max(
+                homePage.bannerHeight + homePage.avatarSize / 2,
+                homePage.bannerHeight + Kirigami.Units.smallSpacing * 2 + greetingLabel.implicitHeight
+            )
 
             Rectangle {
                 id: bannerFallback
@@ -144,7 +147,8 @@ Kirigami.ScrollablePage {
                 anchors.leftMargin: Kirigami.Units.largeSpacing
                 anchors.right: parent.right
                 anchors.rightMargin: Kirigami.Units.largeSpacing * 2
-                anchors.verticalCenter: avatarImage.verticalCenter
+                anchors.top: bannerFallback.bottom
+                anchors.topMargin: Kirigami.Units.smallSpacing * 2
                 level: 1
                 text: "Hello " + (homePage.profile.name || "there")
                 elide: Text.ElideRight
