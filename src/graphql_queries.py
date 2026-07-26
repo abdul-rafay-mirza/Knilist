@@ -1086,6 +1086,7 @@ query ($search: String, $page: Int = 1, $perPage: Int = 20) {
       image {
         large
       }
+      favourites
     }
   }
 }
@@ -1107,6 +1108,7 @@ query ($search: String, $page: Int = 1, $perPage: Int = 20) {
       image {
         large
       }
+      favourites
     }
   }
 }
@@ -1121,6 +1123,7 @@ query ($search: String, $page: Int = 1, $perPage: Int = 20) {
     studios(search: $search, sort: SEARCH_MATCH) {
       id
       name
+      favourites
     }
   }
 }

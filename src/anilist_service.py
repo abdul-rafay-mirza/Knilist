@@ -253,15 +253,17 @@ def _flatten_search_people(nodes: list | None) -> list[dict]:
     for node in nodes or []:
         name_obj = node.get("name") or {}
         result.append({
-            "id":    node.get("id", 0),
-            "name":  name_obj.get("userPreferred") or name_obj.get("full") or name_obj.get("native") or "",
-            "image": (node.get("image") or {}).get("large", ""),
+            "id":         node.get("id", 0),
+            "name":       name_obj.get("userPreferred") or name_obj.get("full") or name_obj.get("native") or "",
+            "image":      (node.get("image") or {}).get("large", ""),
+            "favourites": node.get("favourites") or 0,
         })
     return result
 
 
 def _flatten_search_studios(nodes: list | None) -> list[dict]:
-    return [{"id": n.get("id", 0), "name": n.get("name") or ""} for n in (nodes or [])]
+    return [{"id": n.get("id", 0), "name": n.get("name") or "", "favourites": n.get("favourites") or 0}
+            for n in (nodes or [])]
 
 
 def _flatten_search_users(nodes: list | None) -> list[dict]:

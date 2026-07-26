@@ -37,6 +37,15 @@ Kirigami.Page {
         onTriggered: searchPage.runSearch()
     }
 
+    // Same abbreviation AnimeAndMangaSearchCard.qml's _formatCount uses for
+    // its favourites row, duplicated here rather than shared because
+    // genericDelegate is a sibling of that card, not a child of it.
+    function formatFavourites(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(n % 1000000 === 0 ? 0 : 1) + "M"
+        if (n >= 1000)    return (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + "k"
+        return String(n)
+    }
+
     // "TV_SHORT" -> "TV Short", "ONE_SHOT" -> "One Shot", but keeps known
     // acronyms fully upper-cased rather than "Tv"/"Ova".
     function formatLabel(fmt) {
@@ -49,14 +58,18 @@ Kirigami.Page {
     }
 
     // Reshapes anilistService.search()'s per-type result shape into the one
-    // {id, label, subtitle, image} shape the delegate below renders — except
-    // Anime and Manga, which also carry the extra fields
-    // AnimeAndMangaSearchCard needs (averageScore, favourites, userStatus,
-    // plus mediaType/year already split out rather than pre-joined into
-    // subtitle). label/subtitle/image are kept anyway so the shape stays a
-    // superset; nothing about the generic delegate path changes for either
-    // type, it's just unused once the delegate below picks
-    // AnimeAndMangaSearchCard for this searchType instead.
+    // {id, label, subtitle, image} shape the delegate below renders.
+    // Anime and Manga also carry the extra fields AnimeAndMangaSearchCard
+    // needs (averageScore, favourites, userStatus, plus mediaType/year
+    // already split out rather than pre-joined into subtitle) —
+    // label/subtitle/image are kept anyway so the shape stays a superset;
+    // nothing about the generic delegate path changes for either type,
+    // it's just unused once the delegate below picks AnimeAndMangaSearchCard
+    // for this searchType instead.
+    // Characters, Staff, and Studios carry a favourites count too (AniList
+    // supports favouriting all three), which genericDelegate renders
+    // directly. Users has no such field — AniList doesn't let you
+    // favourite another user, only anime/manga/characters/staff/studios.
     function normalizeResult(raw) {
         switch (searchPage.searchType) {
         case "Anime":
@@ -75,13 +88,18 @@ Kirigami.Page {
         }
         case "Characters":
         case "Staff":
-            return { id: raw.id, label: raw.name, subtitle: "", image: raw.image || "" }
+            return { id: raw.id, label: raw.name, subtitle: "", image: raw.image || "", favourites: raw.favourites || 0 }
         case "Studios":
-            return { id: raw.id, label: raw.name, subtitle: "Studio", image: "" }
+            return { id: raw.id, label: raw.name, subtitle: "Studio", image: "", favourites: raw.favourites || 0 }
         case "Users":
-            return { id: raw.id, label: raw.name, subtitle: "", image: raw.avatar || "" }
+            // AniList doesn't expose a favourites count for User (only
+            // Anime/Manga/Character/Staff/Studio can be favourited). -1 is
+            // the "not applicable" sentinel genericDelegate's visible check
+            // looks for — 0 is reserved for "zero favourites", a real value
+            // Characters/Staff/Studios can have.
+            return { id: raw.id, label: raw.name, subtitle: "", image: raw.avatar || "", favourites: -1 }
         default:
-            return { id: raw.id, label: raw.name || raw.title || "", subtitle: "", image: raw.image || raw.coverImage || raw.avatar || "" }
+            return { id: raw.id, label: raw.name || raw.title || "", subtitle: "", image: raw.image || raw.coverImage || raw.avatar || "", favourites: -1 }
         }
     }
 
@@ -355,6 +373,28 @@ Kirigami.Page {
                             elide: Text.ElideRight
                             opacity: 0.6
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.75)
+                        }
+
+                        // Only Characters, Staff, and Studios carry a real
+                        // favourites count (see normalizeResult) — Users
+                        // has no such field on AniList, so it's normalized
+                        // to the -1 "not applicable" sentinel and this row
+                        // stays hidden.
+                        RowLayout {
+                            spacing: 4
+                            visible: modelData.favourites >= 0
+
+                            Kirigami.Icon {
+                                source: "love"
+                                width:  15
+                                height: 15
+                                color:  "#e05562"
+                            }
+                            Controls.Label {
+                                text: searchPage.formatFavourites(modelData.favourites)
+                                color: Kirigami.Theme.textColor
+                                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.75)
+                            }
                         }
                     }
                 }
