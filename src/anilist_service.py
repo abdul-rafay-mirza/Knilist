@@ -30,6 +30,7 @@ from .graphql_queries import (
     _FOLLOWING_LIST_QUERY, _FOLLOWERS_LIST_QUERY, _TOGGLE_FOLLOW_MUTATION,
     _SEARCH_MEDIA_QUERY, _SEARCH_CHARACTERS_QUERY, _SEARCH_STAFF_QUERY,
     _SEARCH_STUDIOS_QUERY, _SEARCH_USERS_QUERY,
+    _NOTIFICATIONS_QUERY,
 )
 
 # Helper functions
@@ -277,6 +278,89 @@ def _flatten_search_users(nodes: list | None) -> list[dict]:
     return result
 
 
+# __typename -> (message-template-key, image-source-key) used by
+# _flatten_notification below. "message" holds a {name}-style template;
+# the actual user/media name is substituted in per-notification since
+# AniList's `context`/`contexts` strings already contain filler words
+# ("liked your activity") but not the name itself in a form we control —
+# building the sentence client-side keeps wording consistent across types.
+_ACTIVITY_STYLE_NOTIFICATIONS = {
+    "ActivityMessageNotification":        "sent you a message",
+    "ActivityMentionNotification":        "mentioned you in an activity",
+    "ActivityReplyNotification":          "replied to your activity",
+    "ActivityReplySubscribedNotification": "replied to an activity you commented on",
+    "ActivityLikeNotification":           "liked your activity",
+    "ActivityReplyLikeNotification":      "liked your reply",
+}
+
+
+def _flatten_notification(node: dict) -> dict | None:
+    """Normalise one NotificationUnion member (see _NOTIFICATIONS_QUERY) into
+    the flat shape NotificationsPage.qml's delegate expects:
+        { id, kind, title, subtitle, image, createdAt, displayTime, activityId, mediaId }
+    createdAt is left as the raw Unix int for callers that want it;
+    displayTime is the human-readable string actually shown on screen.
+    Returns None for a shape we don't recognise (e.g. a notification type
+    added to the union after this was written) so callers can filter it out
+    instead of emitting a broken row."""
+    typename = node.get("__typename")
+
+    if typename == "AiringNotification":
+        media = node.get("media") or {}
+        title = (media.get("title") or {}).get("userPreferred") or ""
+        episode = node.get("episode") or 0
+        return {
+            "id":         node.get("id", 0),
+            "kind":       "airing",
+            "title":      title,
+            "subtitle":   f"Episode {episode} aired",
+            "image":      (media.get("coverImage") or {}).get("large", ""),
+            "createdAt":  node.get("createdAt") or 0,
+            "displayTime": _format_timestamp(node.get("createdAt")),
+            "activityId": 0,
+            "mediaId":    media.get("id", 0),
+        }
+
+    if typename == "FollowingNotification":
+        user = node.get("user") or {}
+        return {
+            "id":         node.get("id", 0),
+            "kind":       "following",
+            "title":      user.get("name") or "",
+            "subtitle":   "started following you",
+            "image":      (user.get("avatar") or {}).get("large", ""),
+            "createdAt":  node.get("createdAt") or 0,
+            "displayTime": _format_timestamp(node.get("createdAt")),
+            "activityId": 0,
+            "mediaId":    0,
+        }
+
+    if typename in _ACTIVITY_STYLE_NOTIFICATIONS:
+        user = node.get("user") or {}
+        return {
+            "id":         node.get("id", 0),
+            "kind":       "activity",
+            "title":      user.get("name") or "",
+            "subtitle":   _ACTIVITY_STYLE_NOTIFICATIONS[typename],
+            "image":      (user.get("avatar") or {}).get("large", ""),
+            "createdAt":  node.get("createdAt") or 0,
+            "displayTime": _format_timestamp(node.get("createdAt")),
+            "activityId": node.get("activityId") or 0,
+            "mediaId":    0,
+        }
+
+    return None
+
+
+def _flatten_notifications(nodes: list | None) -> list[dict]:
+    result = []
+    for node in nodes or []:
+        flat = _flatten_notification(node)
+        if flat is not None:
+            result.append(flat)
+    return result
+
+
 # searchType (exactly as sent by HomePage's searchTypes / SearchPage.qml) ->
 #   query text, extra GraphQL variables beyond search/page, the field to read
 #   off the Page result, and the flattener for that field's nodes.
@@ -380,6 +464,7 @@ class AniListService(QObject):
     userAnimeLoaded = Signal(int, list)   # userId, entries - read-only list for UsersAnimeListPage
     userMangaLoaded = Signal(int, list)   # userId, entries - read-only list for UsersMangaListPage
     searchResultsLoaded = Signal(str)   # full JSON payload for SearchPage
+    notificationsPageLoaded = Signal(str)   # full JSON payload for NotificationsPage
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -397,6 +482,7 @@ class AniListService(QObject):
         self._followers_fetch_gen: int = 0
         self._following_fetch_gen: int = 0
         self._search_gen: int = 0
+        self._notifications_fetch_gen: int = 0
 
     def _begin_loading(self):
         self._loading_count += 1
@@ -810,6 +896,69 @@ class AniListService(QObject):
                 is_follower  = result.get("isFollower", False)
                 print("Follow toggled:", user_id, "isFollowing:", is_following, "isFollower:", is_follower)
                 self.followToggled.emit(user_id, is_following, is_follower)
+            except Exception as exc:
+                self._emit_update_failure(exc)
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    # Notifications slots
+
+    @Slot(int)
+    def fetchNotifications(self, page: int) -> None:
+        """Backs NotificationsPage.qml. Same paging/generation-counter shape
+        as fetchFollowing/fetchFollowers: QML passes 1 for the initial load
+        or a refresh, currentPage+1 to load more, and a generation counter
+        makes sure only the most recently requested page ever gets emitted
+        if a refresh fires while an older page request is still in flight."""
+        is_first_page = page <= 1
+
+        self._notifications_fetch_gen += 1
+        my_gen = self._notifications_fetch_gen
+
+        def _run():
+            try:
+                if is_first_page:
+                    self._begin_loading()
+                data     = self._gql(_NOTIFICATIONS_QUERY, {
+                    "page": page if page > 0 else 1,
+                })
+                if my_gen != self._notifications_fetch_gen:
+                    return   # a newer fetch/page request has since superseded this one
+                page_obj = data.get("Page") or {}
+                has_next = (page_obj.get("pageInfo") or {}).get("hasNextPage", False)
+
+                self.notificationsPageLoaded.emit(json.dumps({
+                    "page":         page,
+                    "notifications": _flatten_notifications(page_obj.get("notifications")),
+                    "hasNextPage":  has_next,
+                    "isError":      False,
+                }))
+            except Exception as exc:
+                if my_gen != self._notifications_fetch_gen:
+                    return
+                self.errorOccurred.emit(str(exc))
+                self.notificationsPageLoaded.emit(json.dumps({
+                    "page": page, "notifications": [], "hasNextPage": False,
+                    "isError": True,
+                }))
+            finally:
+                if is_first_page:
+                    self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot()
+    def markAllNotificationsRead(self) -> None:
+        """Backs NotificationsPage's "Read All" action. Fires a throwaway
+        1-item notifications fetch with resetNotificationCount: true, which
+        zeroes AniList's own aggregate Viewer.unreadNotificationCount —
+        the only server-side "mark read" effect this API exposes."""
+        def _run():
+            try:
+                self._begin_loading()
+                self._gql(_NOTIFICATIONS_QUERY, {"page": 1, "perPage": 1, "resetCount": True})
             except Exception as exc:
                 self._emit_update_failure(exc)
             finally:

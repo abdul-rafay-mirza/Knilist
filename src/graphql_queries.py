@@ -1146,6 +1146,132 @@ query ($search: String, $page: Int = 1, $perPage: Int = 20) {
 }
 """
 
+# Notifications (NotificationsPage)
+# AniList's Notification query is a union (NotificationUnion) — every member
+# type is queried via an inline fragment. Only the types NotificationsPage
+# knows how to render are requested here; the API supports several more
+# (mod actions, thread-comment likes, etc.) that are left out on purpose.
+#
+# resetNotificationCount zeroes AniList's own aggregate
+# Viewer.unreadNotificationCount when true — that's the one real,
+# server-side "mark read" effect this API exposes, used by the page's
+# "Read All" action.
+_NOTIFICATIONS_QUERY = """
+query ($page: Int = 1, $perPage: Int = 25, $resetCount: Boolean = false) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    notifications(resetNotificationCount: $resetCount) {
+      __typename
+
+      ... on AiringNotification {
+        id
+        type
+        episode
+        contexts
+        createdAt
+        media {
+          id
+          title { userPreferred }
+          coverImage { large }
+        }
+      }
+
+      ... on FollowingNotification {
+        id
+        type
+        context
+        createdAt
+        user {
+          id
+          name
+          avatar { large }
+        }
+      }
+
+      ... on ActivityMessageNotification {
+        id
+        type
+        context
+        createdAt
+        activityId
+        user {
+          id
+          name
+          avatar { large }
+        }
+      }
+
+      ... on ActivityMentionNotification {
+        id
+        type
+        context
+        createdAt
+        activityId
+        user {
+          id
+          name
+          avatar { large }
+        }
+      }
+
+      ... on ActivityReplyNotification {
+        id
+        type
+        context
+        createdAt
+        activityId
+        user {
+          id
+          name
+          avatar { large }
+        }
+      }
+
+      ... on ActivityReplySubscribedNotification {
+        id
+        type
+        context
+        createdAt
+        activityId
+        user {
+          id
+          name
+          avatar { large }
+        }
+      }
+
+      ... on ActivityLikeNotification {
+        id
+        type
+        context
+        createdAt
+        activityId
+        user {
+          id
+          name
+          avatar { large }
+        }
+      }
+
+      ... on ActivityReplyLikeNotification {
+        id
+        type
+        context
+        createdAt
+        activityId
+        user {
+          id
+          name
+          avatar { large }
+        }
+      }
+    }
+  }
+}
+"""
+
 # NOTE: This is not a query for Anilist API. Its for animethemes.moe.
 # animethemes GQL endopint: https://graphql.animethemes.moe
 # This query gets the direct links for opening and endings for a given anime in video and audio formats
