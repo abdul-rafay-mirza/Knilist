@@ -137,6 +137,16 @@ Kirigami.Page {
                     delegate: NotificationCard {
                         Layout.fillWidth: true
                         notification: modelData
+
+                        // Only "airing" notifications (new episode releases)
+                        // carry a mediaId right now — following/activity
+                        // notifications point at a user or activity, not a
+                        // piece of media, so there's nowhere for them to go.
+                        onCardClicked: {
+                            if (modelData.kind === "airing" && modelData.mediaId > 0) {
+                                pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
+                            }
+                        }
                     }
                 }
 
