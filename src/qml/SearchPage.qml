@@ -328,12 +328,24 @@ Kirigami.Page {
                         Layout.preferredWidth: 90
                         Layout.fillHeight: true
 
+                        // True once whichever image element is active for
+                        // this delegate's searchType has finished loading.
+                        // Deliberately not a reference to "the active
+                        // element" typed as Item — Item itself has no
+                        // .status property (only its Image/AnimatedImage
+                        // subtypes do), so a generically-typed property
+                        // would fail QML's static property lookup. A plain
+                        // bool sidesteps that.
+                        readonly property bool thumbReady: searchPage.searchType === "Users"
+                                                             ? animatedThumbImage.status === Image.Ready
+                                                             : thumbImage.status === Image.Ready
+
                         Rectangle {
                             anchors.fill: parent
                             radius: Kirigami.Units.smallSpacing
                             color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                                            Kirigami.Theme.textColor.b, 0.08)
-                            visible: thumbImage.status !== Image.Ready
+                            visible: !parent.thumbReady
 
                             Kirigami.Icon {
                                 anchors.centerIn: parent
@@ -344,14 +356,28 @@ Kirigami.Page {
                             }
                         }
 
+                        // Static path — Characters, Staff, Studios. AniList
+                        // images for these are never animated, so a plain
+                        // Image avoids AnimatedImage's per-frame decode/cache
+                        // cost for types that could never use it.
                         Image {
                             id: thumbImage
                             anchors.fill: parent
-                            source: modelData.image || ""
+                            source: searchPage.searchType !== "Users" ? (modelData.image || "") : ""
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             clip: true
-                            visible: status === Image.Ready
+                            visible: searchPage.searchType !== "Users" && status === Image.Ready
+                        }
+
+                        AnimatedImage {
+                            id: animatedThumbImage
+                            anchors.fill: parent
+                            source: searchPage.searchType === "Users" ? (modelData.image || "") : ""
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            clip: true
+                            visible: searchPage.searchType === "Users" && status === Image.Ready
                         }
                     }
 
