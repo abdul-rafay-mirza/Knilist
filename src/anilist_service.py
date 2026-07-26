@@ -667,6 +667,9 @@ class AniListService(QObject):
 
                 options = user.get("options") or {}
 
+                viewer_id = self._auth.userId
+                is_self = bool(viewer_id) and str(user.get("id", "")) == viewer_id
+
                 payload = {
                     "id":                user.get("id", 0),
                     "name":              user.get("name", ""),
@@ -677,6 +680,7 @@ class AniListService(QObject):
                     "isFollowing":       user.get("isFollowing", False),
                     "isFollower":        user.get("isFollower", False),
                     "isBlocked":         user.get("isBlocked", False),
+                    "isSelf":            is_self,
                     "donatorTier":       user.get("donatorTier") or 0,
                     "donatorBadge":      user.get("donatorBadge") or "",
                     "createdAt":         user.get("createdAt") or 0,

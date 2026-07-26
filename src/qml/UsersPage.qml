@@ -243,8 +243,12 @@ Kirigami.Page {
                             Controls.Button {
                                 text: usersPage.isFollowing ? "Following" : "Follow"
                                 icon.name: usersPage.isFollowing ? "list-remove-user" : "list-add-user"
+                                // You can't follow yourself, isSelf comes from
+                                // fetchUserProfile comparing this page's userId
+                                // against the viewer's own id server-side.
                                 enabled: !usersPage.followActionPending
                                        && !(usersPage.profile.isBlocked || false)
+                                       && !(usersPage.profile.isSelf || false)
                                 highlighted: !usersPage.isFollowing
 
                                 onClicked: {
