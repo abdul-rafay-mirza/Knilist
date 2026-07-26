@@ -6,87 +6,118 @@ import org.kde.kirigami as Kirigami
 // One row in NotificationsPage's list. Expects a flat notification object
 // shaped like anilist_service.py's _flatten_notification output:
 //   { id, kind, title, subtitle, image, createdAt, displayTime, activityId, mediaId }
-Kirigami.SwipeListItem {
+//
+// Structured like AnimeCard (AbstractCard, same 90px-wide/full-height cover
+// image column) rather than a SwipeListItem.
+Kirigami.AbstractCard {
     id: card
 
     property var notification: null
     visible: notification !== null
 
-    readonly property int imageSize: Kirigami.Units.iconSizes.enormous
+    signal cardClicked()
+    signal imageClicked()
+
+    // Geometry — matches AnimeCard's card sizing exactly.
+    width:           440
+    implicitHeight:  Math.max(150, contentItem.implicitHeight + 10)
+    leftPadding:   0
+    rightPadding:  0
+    topPadding:    0
+    bottomPadding: 0
+
+    TapHandler {
+        enabled: card.notification !== null
+        onTapped: card.cardClicked()
+    }
+
+    HoverHandler {
+        enabled: card.notification !== null
+        cursorShape: Qt.PointingHandCursor
+    }
 
     contentItem: RowLayout {
-        spacing: Kirigami.Units.largeSpacing * 1.5
+        anchors {
+            fill:         parent
+            bottomMargin: 5
+        }
+        spacing: 0
 
-        Item {
-            Layout.preferredWidth: card.imageSize
-            Layout.preferredHeight: card.imageSize
+        // Cover image — same 90px-wide, full-card-height column as AnimeCard.
+        Rectangle {
+            Layout.preferredWidth: 90
+            Layout.fillHeight:     true
+            color: Kirigami.ColorUtils.tintWithAlpha(
+                       Kirigami.Theme.backgroundColor,
+                       Kirigami.Theme.textColor,
+                       0.05)
+            clip: true
 
-            Rectangle {
-                id: imageFallback
-                anchors.fill: parent
-                radius: card.notification.kind === "airing" ? Kirigami.Units.smallSpacing : width / 2
-                color: Kirigami.Theme.backgroundColor
-                border.width: 1
-                border.color: Qt.rgba(
-                    Kirigami.Theme.textColor.r,
-                    Kirigami.Theme.textColor.g,
-                    Kirigami.Theme.textColor.b,
-                    0.2
-                )
-                visible: notifImage.status !== Image.Ready
+            TapHandler {
+                gesturePolicy: TapHandler.WithinBounds
+                onTapped: card.imageClicked()
+            }
 
-                Kirigami.Icon {
-                    anchors.centerIn: parent
-                    width: parent.width * 0.55
-                    height: width
-                    source: card.notification.kind === "airing" ? "video-television-symbolic"
-                        : card.notification.kind === "following" ? "user-identity"
-                        : "notifications"
-                }
+            HoverHandler {
+                cursorShape: Qt.PointingHandCursor
             }
 
             Image {
                 id: notifImage
                 anchors.fill: parent
-                source: card.notification.image || ""
-                fillMode: Image.PreserveAspectCrop
+                source:       card.notification ? (card.notification.image || "") : ""
+                fillMode:     Image.PreserveAspectCrop
                 asynchronous: true
-                clip: true
-                visible: status === Image.Ready
+                smooth:       true
+                visible:      status === Image.Ready && card.notification && card.notification.image !== ""
+            }
 
-                // Anime/manga cover art reads as a small poster (square-ish
-                // rounded rect); user avatars read as a circle — matches
-                // imageFallback's radius logic above so the loaded and
-                // not-yet-loaded states don't visibly swap shape.
-                layer.enabled: card.notification.kind !== "airing"
-                layer.smooth: true
+            Kirigami.Icon {
+                anchors.centerIn: parent
+                source:  card.notification && card.notification.kind === "following"
+                             ? "user-identity"
+                             : "image-missing"
+                width:   32; height: 32
+                visible: notifImage.status !== Image.Ready || !card.notification || card.notification.image === ""
+                color:   Kirigami.Theme.disabledTextColor
             }
         }
 
+        // Text + controls
         ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Kirigami.Units.smallSpacing
+            Layout.fillWidth:   true
+            Layout.fillHeight:  true
+            Layout.leftMargin:  14
+            Layout.rightMargin: 12
+            Layout.topMargin:   10
+            spacing: 2
 
             Controls.Label {
                 Layout.fillWidth: true
-                text: card.notification.title
-                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.15
-                font.bold: true
+                text:  card.notification ? card.notification.title : ""
+                color: Kirigami.Theme.textColor
+                font { bold: true; pixelSize: 15 }
                 elide: Text.ElideRight
+                maximumLineCount: 1
             }
 
             Controls.Label {
                 Layout.fillWidth: true
-                text: card.notification.subtitle
-                opacity: 0.75
-                wrapMode: Text.WordWrap
+                text:      card.notification ? card.notification.subtitle : ""
+                color:     Kirigami.Theme.highlightColor
+                font.pixelSize:   12
+                wrapMode:  Text.WordWrap
+                maximumLineCount: 2
+                elide:     Text.ElideRight
             }
+
+            Item { Layout.fillHeight: true }
 
             Controls.Label {
                 Layout.fillWidth: true
-                text: card.notification.displayTime
-                font.pointSize: Kirigami.Theme.smallFont.pointSize
-                opacity: 0.6
+                text:  card.notification ? card.notification.displayTime : ""
+                color: Kirigami.Theme.disabledTextColor
+                font.pixelSize: 13
             }
         }
     }
