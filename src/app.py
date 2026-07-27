@@ -27,6 +27,8 @@ def main():
     service = AniListService(auth)
     auth.loginSuccess.connect(service.fetchAnime)
     auth.loginSuccess.connect(service.fetchManga)
+    auth.loginSuccess.connect(service.fetchHomeProfile)
+    auth.loginSuccess.connect(service.fetchProfile)
 
     anime_themes_service = AnimeThemesService()
 
@@ -43,6 +45,8 @@ def main():
     if auth.isLoggedIn:
         service.fetchAnime()
         service.fetchManga()
+        service.fetchHomeProfile()
+        service.fetchProfile()
 
     sys.exit(app.exec())
 

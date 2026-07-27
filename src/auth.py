@@ -32,11 +32,28 @@ def _load(key: str) -> str | None:
     return keyring.get_password(_SERVICE, key) or None
 
 
-def _delete(key: str) -> None:
+def _delete(key: str) -> bool:
+    """Delete a keyring entry. Returns True if the entry is now gone
+    (either it was deleted just now, or it never existed), False if the
+    backend raised something other than "no such entry" — which means
+    the value may still be there on next launch.
+
+    keyring.errors.PasswordDeleteError is raised both for "no such
+    entry" (fine — nothing to remove, treat as success) and for real
+    backend failures (NOT fine — swallowing this unconditionally is
+    what let logout silently no-op against some backends, e.g. a
+    file-based fallback backend hitting a permissions/parse error,
+    while still emitting logoutDone as if it had worked).
+    """
     try:
         keyring.delete_password(_SERVICE, key)
+        return True
     except keyring.errors.PasswordDeleteError:
-        pass
+        # Confirm this was actually a "not found" case before treating
+        # it as harmless. If get_password still returns a value after
+        # a PasswordDeleteError, the delete genuinely failed rather
+        # than the entry having been absent already.
+        return _load(key) is None
 
 
 # ── Callback HTML pages ───────────────────────────────────────────────────────
@@ -197,11 +214,33 @@ class AuthManager(QObject):
 
     @Slot()
     def logout(self) -> None:
-        _delete(_KEY_TOKEN)
+        token_cleared = _delete(_KEY_TOKEN)
         _delete(_KEY_USER_ID)
         _delete(_KEY_USERNAME)
+
+        # Always clear in-memory state and flip isLoggedIn for this
+        # session, regardless of whether the keyring backend actually
+        # persisted the deletion — the user asked to be logged out now,
+        # and that much is under our control even if the backend is
+        # flaky.
         self._token    = None
         self._user_id  = ""
         self._username = ""
         self.logoutDone.emit()
         self.loginStateChanged.emit()
+
+        # But if the token specifically didn't actually get removed
+        # from the keyring, __init__ will reload it on the next launch
+        # and silently log the user back in. Surface that now instead
+        # of letting it resurface later as an unexplained "why am I
+        # still logged in" — token_cleared is False only when the
+        # backend raised something other than "no such entry" (see
+        # _delete's docstring).
+        if not token_cleared:
+            self.loginFailed.emit(
+                "Logged out, but your saved credentials could not be "
+                "fully removed and may return next launch. This "
+                "usually means no OS keyring/secret-service backend "
+                "is available — check `python3 -c \"import keyring; "
+                "print(keyring.get_keyring())\"`."
+            )

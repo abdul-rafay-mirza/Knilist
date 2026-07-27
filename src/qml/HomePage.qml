@@ -47,6 +47,13 @@ Kirigami.ScrollablePage {
         }
     }
 
+    Connections {
+        target: authManager
+        function onLogoutDone() {
+            homePage.profile = ({})
+        }
+    }
+
     ColumnLayout {
         width: homePage.width
         spacing: 0

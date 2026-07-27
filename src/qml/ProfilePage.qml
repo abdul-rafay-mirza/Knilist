@@ -64,6 +64,14 @@ Kirigami.Page {
         }
     }
 
+    Connections {
+        target: authManager
+        function onLogoutDone() {
+            profilePage.profile = ({})
+            profilePage.profileReady = false
+        }
+    }
+
     Item {
         anchors.fill: parent
 
