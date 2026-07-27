@@ -15,6 +15,11 @@ Kirigami.AbstractCard {
     property var notification: null
     visible: notification !== null
 
+    // Client-side inference only — see NotificationsPage.qml's Repeater for
+    // how this is computed (position vs. unreadNotificationCount). AniList
+    // itself has no per-notification read flag.
+    property bool unread: false
+
     signal cardClicked()
     signal imageClicked()
 
@@ -25,6 +30,18 @@ Kirigami.AbstractCard {
     rightPadding:  0
     topPadding:    0
     bottomPadding: 0
+
+    // AbstractCard's own documented background hook (see the fix applied
+    // when this card was first extracted) — a subtle tint, not a loud
+    // banner, since this is an inference rather than a fact from the API.
+    background: Rectangle {
+        color: card.unread
+                   ? Kirigami.ColorUtils.tintWithAlpha(
+                         Kirigami.Theme.backgroundColor,
+                         Kirigami.Theme.highlightColor,
+                         0.12)
+                   : Kirigami.Theme.backgroundColor
+    }
 
     TapHandler {
         enabled: card.notification !== null

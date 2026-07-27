@@ -18,11 +18,21 @@ Kirigami.Page {
     property bool hasNextPage:      false
     property int  currentPage:      1
 
+    // AniList only exposes a single aggregate unread count, not a per-item
+    // read flag (see graphql_queries.py's _NOTIFICATIONS_QUERY docstring).
+    // The "first N are unread" highlight below is a client-side inference
+    // from that count, not something the server tells us directly.
+    property int unreadCount: 0
+
     function reload() {
         isInitialLoading = true
         hasNextPage       = false
         currentPage       = 1
         anilistService.fetchNotifications(1)
+        // Refresh the count too, since this page may be opened without
+        // Main.qml's own startup fetch having run recently (e.g. the app
+        // has been open a while and new notifications have since arrived).
+        anilistService.fetchHomeProfile()
     }
 
     function loadMore() {
@@ -70,16 +80,29 @@ Kirigami.Page {
             notificationsPage.hasNextPage = payload.hasNextPage
             notificationsPage.currentPage = payload.page
 
-            if (isFirstPage) {
-                notificationsPage.notifications = payload.notifications
-            } else {
-                notificationsPage.notifications = notificationsPage.notifications.concat(payload.notifications)
-            }
+            var updated = isFirstPage
+                ? payload.notifications
+                : notificationsPage.notifications.concat(payload.notifications)
+
+            // AniList's schema doesn't document a guaranteed default order
+            // for the notifications field, so this sorts explicitly rather
+            // than assume newest-first — the highlight below depends on it.
+            updated.sort(function (a, b) { return b.createdAt - a.createdAt })
+            notificationsPage.notifications = updated
         }
 
         function onErrorOccurred(message) {
             errorMessage.text = message
             errorMessage.visible = true
+        }
+
+        function onHomeProfileLoaded(json) {
+            var payload = JSON.parse(json)
+            notificationsPage.unreadCount = payload.unreadNotificationCount || 0
+        }
+
+        function onUnreadNotificationCountChanged(count) {
+            notificationsPage.unreadCount = count
         }
     }
 
@@ -137,13 +160,22 @@ Kirigami.Page {
                     delegate: NotificationCard {
                         Layout.fillWidth: true
                         notification: modelData
+                        // Position-based inference: the first unreadCount
+                        // items (in newest-first order, enforced by the
+                        // sort in onNotificationsPageLoaded) are treated as
+                        // unread. This is a client-side guess built from
+                        // the one real signal AniList gives us
+                        // (unreadNotificationCount) — not a per-item flag
+                        // the server actually returns.
+                        unread: index < notificationsPage.unreadCount
 
-                        // Only "airing" notifications (new episode releases)
-                        // carry a mediaId right now — following/activity
-                        // notifications point at a user or activity, not a
-                        // piece of media, so there's nowhere for them to go.
+                        // "airing" (episode released) and "relatedMedia"
+                        // (new related anime/manga added) both carry a real
+                        // mediaId — following/activity notifications point
+                        // at a user or activity, not a piece of media, so
+                        // there's nowhere for those to navigate to.
                         onCardClicked: {
-                            if (modelData.kind === "airing" && modelData.mediaId > 0) {
+                            if ((modelData.kind === "airing" || modelData.kind === "relatedMedia") && modelData.mediaId > 0) {
                                 pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
                             }
                         }

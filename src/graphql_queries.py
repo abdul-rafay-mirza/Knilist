@@ -1156,6 +1156,14 @@ query ($search: String, $page: Int = 1, $perPage: Int = 20) {
 # Viewer.unreadNotificationCount when true — that's the one real,
 # server-side "mark read" effect this API exposes, used by the page's
 # "Read All" action.
+#
+# RelatedMediaAdditionNotification fires when a new anime/manga is added
+# to the site as related to something the user has favourited/on their
+# list — AniList's "new anime coming out" notification, as distinct from
+# AiringNotification ("an episode of something already airing just
+# dropped"). Field shape (mediaId as a direct scalar, same pattern as
+# AiringNotification.animeId) confirmed against AniList's own GraphQL
+# introspection schema.
 _NOTIFICATIONS_QUERY = """
 query ($page: Int = 1, $perPage: Int = 25, $resetCount: Boolean = false) {
   Page(page: $page, perPage: $perPage) {
@@ -1173,6 +1181,18 @@ query ($page: Int = 1, $perPage: Int = 25, $resetCount: Boolean = false) {
         createdAt
         media {
           id
+          title { userPreferred }
+          coverImage { large }
+        }
+      }
+
+      ... on RelatedMediaAdditionNotification {
+        id
+        type
+        mediaId
+        context
+        createdAt
+        media {
           title { userPreferred }
           coverImage { large }
         }

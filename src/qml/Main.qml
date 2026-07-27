@@ -15,6 +15,13 @@ Kirigami.ApplicationWindow {
     // to anything pushed onto pageStack.
     property alias appPagePool: appPagePool
 
+    // AniList only exposes a single aggregate unread count (no per-
+    // notification read state — see graphql_queries.py's _NOTIFICATIONS_QUERY
+    // docstring), so this is the one number the drawer badge shows. Kept
+    // here rather than in HomePage/NotificationsPage since the drawer is
+    // visible regardless of which page is active.
+    property int unreadNotificationCount: 0
+
     Kirigami.PagePool {
         id: appPagePool
     }
@@ -42,6 +49,11 @@ Kirigami.ApplicationWindow {
     // and use loadPage() not load()
     Component.onCompleted: {
         pageStack.push(appPagePool.loadPage(Qt.resolvedUrl("HomePage.qml")))
+        // Fetch here (not just relying on HomePage's own fetchHomeProfile
+        // call) so the drawer badge is correct even before HomePage's own
+        // Component.onCompleted runs, and stays correct if the user's
+        // first destination is ever changed to something other than Home.
+        anilistService.fetchHomeProfile()
     }
 
     Connections {
@@ -59,6 +71,13 @@ Kirigami.ApplicationWindow {
         target: anilistService
         function onErrorOccurred(message) {
             applicationWindow().showPassiveNotification(message)
+        }
+        function onHomeProfileLoaded(json) {
+            const payload = JSON.parse(json)
+            root.unreadNotificationCount = payload.unreadNotificationCount || 0
+        }
+        function onUnreadNotificationCountChanged(count) {
+            root.unreadNotificationCount = count
         }
     }
 
@@ -114,7 +133,9 @@ Kirigami.ApplicationWindow {
                 pageStack: root.pageStack
             },
             Kirigami.PagePoolAction {
-                text: "Notifications"
+                text: root.unreadNotificationCount > 0
+                          ? "Notifications (" + root.unreadNotificationCount + ")"
+                          : "Notifications"
                 icon.name: "notifications"
                 pagePool: appPagePool
                 page: Qt.resolvedUrl("NotificationsPage.qml")

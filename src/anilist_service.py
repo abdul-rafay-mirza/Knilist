@@ -321,6 +321,21 @@ def _flatten_notification(node: dict) -> dict | None:
             "mediaId":    media.get("id", 0),
         }
 
+    if typename == "RelatedMediaAdditionNotification":
+        media = node.get("media") or {}
+        title = (media.get("title") or {}).get("userPreferred") or ""
+        return {
+            "id":         node.get("id", 0),
+            "kind":       "relatedMedia",
+            "title":      title,
+            "subtitle":   "New related anime/manga added",
+            "image":      (media.get("coverImage") or {}).get("large", ""),
+            "createdAt":  node.get("createdAt") or 0,
+            "displayTime": _format_timestamp(node.get("createdAt")),
+            "activityId": 0,
+            "mediaId":    node.get("mediaId") or 0,
+        }
+
     if typename == "FollowingNotification":
         user = node.get("user") or {}
         return {
@@ -456,7 +471,8 @@ class AniListService(QObject):
     mangaEntryLoaded = Signal(int, str)   # JSON of entry fields, or {"onList": false}
     mangaFavouriteToggled = Signal(int, bool)
     profileLoaded = Signal(str)   # full JSON payload for the profile page
-    homeProfileLoaded = Signal(str)   # {name, avatar, bannerImage} for the home page header
+    homeProfileLoaded = Signal(str)   # {name, avatar, bannerImage, unreadNotificationCount} for the home page header and drawer badge
+    unreadNotificationCountChanged = Signal(int)   # fires after markAllNotificationsRead succeeds, so the drawer badge can update without waiting for the next fetchHomeProfile
     followingPageLoaded = Signal(str)   # full JSON payload for the following list page
     followersPageLoaded = Signal(str)   # full JSON payload for the followers list page
     followToggled = Signal(int, bool, bool)   # userId, isFollowing, isFollower
@@ -568,9 +584,12 @@ class AniListService(QObject):
 
     @Slot()
     def fetchHomeProfile(self) -> None:
-        """Fetch just what HomePage's header needs — name, avatar, banner —
-        via the single-round-trip Viewer query, instead of fetchProfile()'s
-        full payload (which pages through every favourites connection)."""
+        """Fetch just what HomePage's header needs — name, avatar, banner,
+        unread notification count — via the single-round-trip Viewer query,
+        instead of fetchProfile()'s full payload (which pages through every
+        favourites connection). Main.qml also calls this directly (not just
+        HomePage) so the drawer's notification badge populates at startup
+        regardless of which page the user opens first."""
         def _run():
             try:
                 self._begin_loading()
@@ -578,9 +597,10 @@ class AniListService(QObject):
                 self._apply_viewer_bookkeeping(viewer)
 
                 payload = {
-                    "name":        viewer.get("name", ""),
-                    "avatar":      (viewer.get("avatar") or {}).get("large", ""),
-                    "bannerImage": viewer.get("bannerImage") or "",
+                    "name":                   viewer.get("name", ""),
+                    "avatar":                 (viewer.get("avatar") or {}).get("large", ""),
+                    "bannerImage":            viewer.get("bannerImage") or "",
+                    "unreadNotificationCount": viewer.get("unreadNotificationCount") or 0,
                 }
                 self.homeProfileLoaded.emit(json.dumps(payload))
             except Exception as exc:
@@ -954,11 +974,14 @@ class AniListService(QObject):
         """Backs NotificationsPage's "Read All" action. Fires a throwaway
         1-item notifications fetch with resetNotificationCount: true, which
         zeroes AniList's own aggregate Viewer.unreadNotificationCount —
-        the only server-side "mark read" effect this API exposes."""
+        the only server-side "mark read" effect this API exposes. Emits
+        unreadNotificationCountChanged(0) on success so the drawer badge
+        clears immediately instead of waiting for the next fetchHomeProfile."""
         def _run():
             try:
                 self._begin_loading()
                 self._gql(_NOTIFICATIONS_QUERY, {"page": 1, "perPage": 1, "resetCount": True})
+                self.unreadNotificationCountChanged.emit(0)
             except Exception as exc:
                 self._emit_update_failure(exc)
             finally:
