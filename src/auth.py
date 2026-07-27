@@ -32,7 +32,7 @@ def _load(key: str) -> str | None:
     return keyring.get_password(_SERVICE, key) or None
 
 
-def _delete(key: str) -> bool:
+def _delete(key: str, retries: int = 2) -> bool:
     """Delete a keyring entry. Returns True if the entry is now gone
     (either it was deleted just now, or it never existed), False if the
     backend raised something other than "no such entry" — which means
@@ -42,18 +42,31 @@ def _delete(key: str) -> bool:
     entry" (fine — nothing to remove, treat as success) and for real
     backend failures (NOT fine — swallowing this unconditionally is
     what let logout silently no-op against some backends, e.g. a
-    file-based fallback backend hitting a permissions/parse error,
-    while still emitting logoutDone as if it had worked).
+    transient KWallet/dbus hiccup where the daemon handle is briefly
+    unresponsive, while still emitting logoutDone as if it had worked).
+
+    Transient dbus/KWallet errors are common enough that a single
+    failed attempt shouldn't be taken as final — retry a couple of
+    times with a short backoff before concluding the delete genuinely
+    failed.
     """
-    try:
-        keyring.delete_password(_SERVICE, key)
-        return True
-    except keyring.errors.PasswordDeleteError:
-        # Confirm this was actually a "not found" case before treating
-        # it as harmless. If get_password still returns a value after
-        # a PasswordDeleteError, the delete genuinely failed rather
-        # than the entry having been absent already.
-        return _load(key) is None
+    import time
+
+    for attempt in range(retries + 1):
+        try:
+            keyring.delete_password(_SERVICE, key)
+            return True
+        except keyring.errors.PasswordDeleteError:
+            # Confirm this was actually a "not found" case before treating
+            # it as harmless. If get_password still returns a value after
+            # a PasswordDeleteError, the delete genuinely failed rather
+            # than the entry having been absent already.
+            if _load(key) is None:
+                return True
+            if attempt < retries:
+                time.sleep(0.3)
+
+    return False
 
 
 # ── Callback HTML pages ───────────────────────────────────────────────────────
@@ -237,10 +250,21 @@ class AuthManager(QObject):
         # backend raised something other than "no such entry" (see
         # _delete's docstring).
         if not token_cleared:
+            # _delete() already retried a few times internally before
+            # reporting failure here, so this isn't a one-off transient
+            # blip — KWallet still has the old token stored under this
+            # service name, and __init__ will reload it next launch,
+            # silently logging the user back in as if logout never
+            # happened. Surfacing that now (rather than letting it
+            # resurface as an unexplained "why am I logged in again")
+            # is the whole point of tracking token_cleared separately
+            # from the in-memory state reset above.
             self.loginFailed.emit(
-                "Logged out, but your saved credentials could not be "
-                "fully removed and may return next launch. This "
-                "usually means no OS keyring/secret-service backend "
-                "is available — check `python3 -c \"import keyring; "
-                "print(keyring.get_keyring())\"`."
+                "Logged out for this session, but your saved token "
+                "could not be removed from KWallet and will likely "
+                "log you back in next launch. This usually means "
+                "KWallet is locked, misconfigured, or unavailable — "
+                "check KWalletManager directly, or run `python3 -c "
+                "\"import keyring; print(keyring.get_keyring())\"` "
+                "to see which backend is active."
             )
