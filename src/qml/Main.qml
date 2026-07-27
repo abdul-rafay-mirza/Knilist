@@ -83,6 +83,14 @@ Kirigami.ApplicationWindow {
 
     globalDrawer: Kirigami.GlobalDrawer {
         id: globalDrawer
+        // Explicit width, since GlobalDrawer's own implicitWidth is driven
+        // by icon size and item padding, not by measuring label text (see
+        // GlobalDrawerActionItem.qml upstream) — so without this, the
+        // longest label ("Notifications (N)") elides under
+        // GlobalDrawerActionItem's elide: Text.ElideRight. Sized against
+        // "Notifications (99+)" as the widest realistic count string, plus
+        // room for the leading icon and item padding.
+        width: Kirigami.Units.gridUnit * 9
         handleVisible: false
         modal: false
         collapsible: true
