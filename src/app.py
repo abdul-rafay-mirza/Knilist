@@ -5,7 +5,7 @@ import signal
 from importlib.resources import files
 
 from PySide6.QtGui  import QGuiApplication
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QUrl, QSettings
 from PySide6.QtQml  import QQmlApplicationEngine
 
 from .auth                import AuthManager
@@ -19,7 +19,11 @@ def main():
         os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
 
     app = QGuiApplication(sys.argv)
+
+    app.setOrganizationName("knilist")
+    app.setApplicationName("config")
     app.setDesktopFileName("com.github.abdul-rafay-mirza.knilist")
+
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     engine = QQmlApplicationEngine()
@@ -32,7 +36,9 @@ def main():
     auth.loginSuccess.connect(service.fetchProfile)
 
     anime_themes_service = AnimeThemesService()
+
     theme_changer = ThemeChanger(engine)
+    theme_changer.restoreTheme()
 
     engine.rootContext().setContextProperty("authManager",       auth)
     engine.rootContext().setContextProperty("anilistService",    service)

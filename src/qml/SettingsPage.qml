@@ -85,6 +85,12 @@ Kirigami.ScrollablePage {
                 let selectedName = model[index]
                 themeChanger.applyTheme(selectedName)
             }
+
+            Component.onCompleted: {
+                let index = model.indexOf(themeChanger.currentTheme())
+                if (index >= 0)
+                    currentIndex = index
+            }
         }
 
         // ── AniList account card ──────────────────────────────────────────────

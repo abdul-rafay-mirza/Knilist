@@ -3,7 +3,7 @@ import configparser
 from pathlib import Path
 from PySide6.QtGui import QGuiApplication, QPalette, QColor
 from PySide6.QtQml import QQmlApplicationEngine
-from PySide6.QtCore import QObject, Slot, Signal, QStandardPaths
+from PySide6.QtCore import QObject, Slot, Signal, QStandardPaths, QSettings
 from PySide6.QtQuickControls2 import QQuickStyle
 
 
@@ -38,6 +38,8 @@ class ThemeChanger(QObject):
     def __init__(self, engine):
         super().__init__()
         self.engine = engine
+        self._settings = QSettings()
+
         self._themes = []
         self._load_kde_color_schemes()
 
@@ -152,3 +154,30 @@ class ThemeChanger(QObject):
 
         app.setProperty("KDE_COLOR_SCHEME_PATH", str(entry["path"]))
         app.setPalette(palette)
+
+        self._settings.setValue("theme/id", entry["id"])
+
+    def restoreTheme(self):
+        theme_id = self._settings.value("theme/id", "", str)
+
+        if not theme_id:
+            return
+
+        entry = next(
+            (t for t in self._themes if t["id"] == theme_id),
+            None
+        )
+
+        if entry:
+            self.applyTheme(entry["name"])
+
+    @Slot(result=str)
+    def currentTheme(self):
+        theme_id = self._settings.value("theme/id", "", str)
+
+        entry = next(
+            (t for t in self._themes if t["id"] == theme_id),
+            None
+        )
+
+        return entry["name"] if entry else ""
