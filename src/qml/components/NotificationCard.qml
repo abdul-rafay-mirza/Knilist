@@ -21,7 +21,6 @@ Kirigami.AbstractCard {
     property bool unread: false
 
     signal cardClicked()
-    signal imageClicked()
 
     // Geometry — matches AnimeCard's card sizing exactly.
     width:           440
@@ -72,7 +71,7 @@ Kirigami.AbstractCard {
 
             TapHandler {
                 gesturePolicy: TapHandler.WithinBounds
-                onTapped: card.imageClicked()
+                onTapped: card.cardClicked()
             }
 
             HoverHandler {
