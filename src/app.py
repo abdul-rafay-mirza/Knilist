@@ -11,6 +11,7 @@ from PySide6.QtQml  import QQmlApplicationEngine
 from .auth                import AuthManager
 from .anilist_service      import AniListService
 from .anime_themes_service import AnimeThemesService
+from .themechanger import ThemeChanger
 
 
 def main():
@@ -31,10 +32,12 @@ def main():
     auth.loginSuccess.connect(service.fetchProfile)
 
     anime_themes_service = AnimeThemesService()
+    theme_changer = ThemeChanger(engine)
 
     engine.rootContext().setContextProperty("authManager",       auth)
     engine.rootContext().setContextProperty("anilistService",    service)
     engine.rootContext().setContextProperty("animeThemesService", anime_themes_service)
+    engine.rootContext().setContextProperty("themeChanger", theme_changer)
 
     base_path = files("knilist").joinpath("qml", "Main.qml")
     engine.load(QUrl(str(base_path)))

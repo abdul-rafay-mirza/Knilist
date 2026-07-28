@@ -69,6 +69,24 @@ Kirigami.ScrollablePage {
             showCloseButton:  true
         }
 
+        // Theme Changer
+        Controls.Label {
+            text: "Theme:"
+            font.bold: true
+        }
+
+        Controls.ComboBox {
+            id: themeComboBox
+            Layout.fillWidth: true
+            model: themeChanger ? themeChanger.getThemes() : []
+
+            onActivated: (index) => {
+                if (!themeChanger) return
+                let selectedName = model[index]
+                themeChanger.applyTheme(selectedName)
+            }
+        }
+
         // ── AniList account card ──────────────────────────────────────────────
         Kirigami.Card {
             Layout.fillWidth: true

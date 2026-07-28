@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "knilist"
 version = "0.1"
 authors = [
-    {name = "Abdul Rafay", email = "abdulrafayaneesmirza@gmail.com"}
+    {name = "Abdul Rafay", email = "abdulrafey79@yahoo.com"}
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
