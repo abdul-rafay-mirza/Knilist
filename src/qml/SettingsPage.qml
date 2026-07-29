@@ -73,7 +73,8 @@ Kirigami.Page {
 
             ColumnLayout {
                 id: mainColumn
-                width: parent.width
+                width: Math.min(parent.width - Kirigami.Units.largeSpacing * 2, Kirigami.Units.gridUnit * 40)
+                anchors.horizontalCenter: parent.horizontalCenter
                 spacing: Kirigami.Units.largeSpacing
 
                 // Status / error banner
