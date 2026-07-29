@@ -24,7 +24,7 @@ Kirigami.Page {
         id: animeScoreDialog
     }
 
-    property string selectedStatus: "ALL"
+    property string selectedStatus: settings.animeListSelectedStatus
     property string searchQuery:    ""
     property var    animeData:      []
 

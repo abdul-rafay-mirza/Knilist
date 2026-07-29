@@ -350,6 +350,57 @@ Kirigami.Page {
                     }
                 }
 
+                Kirigami.Card {
+                    Layout.fillWidth: true
+
+                    header: Controls.Label {
+                        text: "Default List Selection for Anime List"
+                        font {
+                            pixelSize: 13
+                            bold: true
+                        }
+                    }
+
+                    contentItem: RowLayout {
+                        Layout.fillWidth: true
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            text: "Choose which list is shown by default when opening the Anime List page."
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Controls.ComboBox {
+                            id: defaultListCombo
+
+                            model: [
+                                { text: "All",         value: "ALL" },
+                                { text: "Watching",    value: "CURRENT" },
+                                { text: "Rewatching",  value: "REPEATING" },
+                                { text: "Completed",   value: "COMPLETED" },
+                                { text: "Paused",      value: "PAUSED" },
+                                { text: "Dropped",     value: "DROPPED" },
+                                { text: "Planning",    value: "PLANNING" }
+                            ]
+
+                            textRole: "text"
+
+                            Component.onCompleted: {
+                                for (let i = 0; i < model.length; ++i) {
+                                    if (model[i].value === settings.animeListSelectedStatus) {
+                                        currentIndex = i
+                                        break
+                                    }
+                                }
+                            }
+
+                            onActivated: {
+                                settings.animeListSelectedStatus = model[currentIndex].value
+                            }
+                        }
+                    }
+                }
+
                 Item { Layout.preferredHeight: Kirigami.Units.largeSpacing }
             }
         }
