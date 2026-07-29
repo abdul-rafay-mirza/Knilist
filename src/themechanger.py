@@ -2,10 +2,7 @@ import sys
 import configparser
 from pathlib import Path
 from PySide6.QtGui import QGuiApplication, QPalette, QColor
-from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtCore import QObject, Slot, Signal, QStandardPaths, QSettings
-from PySide6.QtQuickControls2 import QQuickStyle
-
 
 # (.colors section, key, target QPalette role) — verified against KDE's own
 # KColorScheme::createApplicationPalette() in kcolorscheme.cpp. Omits the
@@ -47,9 +44,8 @@ class ThemeChanger(QObject):
     # invented for this app, it's the same one upstream uses.
     SYSTEM_DEFAULT_NAME = "System Default"
 
-    def __init__(self, engine):
+    def __init__(self):
         super().__init__()
-        self.engine = engine
         self._settings = QSettings()
 
         self._themes = []

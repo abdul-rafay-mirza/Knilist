@@ -317,6 +317,39 @@ Kirigami.Page {
                     }
                 }
 
+                Kirigami.Card {
+                    Layout.fillWidth: true
+
+                    header: Controls.Label {
+                        text: "Default Visibility for About Section"
+                        font {
+                            pixelSize: 13
+                            bold: true
+                        }
+                    }
+
+                    contentItem: ColumnLayout {
+                        Layout.fillWidth: true
+                        
+                        RowLayout {
+                            Layout.fillWidth: true
+
+                            Controls.Label {
+                                text: "Set the default visibility of the About section in Profile Page and for other users page"
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                            }
+
+                            Controls.Switch {
+                                checked: settings.aboutExpanded
+                                onToggled: settings.aboutExpanded = checked
+                            }
+                        }
+                    }
+                }
+
                 Item { Layout.preferredHeight: Kirigami.Units.largeSpacing }
             }
         }

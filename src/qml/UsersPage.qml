@@ -14,7 +14,7 @@ Kirigami.Page {
 
     property var userId: 0
     property var userName: "User Page"
-    property bool aboutExpanded: false
+    property bool aboutExpanded: settings.aboutExpanded
     readonly property real aboutWidthFactor: 0.3
 
     property var profile: ({})

@@ -11,7 +11,7 @@ Kirigami.Page {
 
     property var profile: ({})
     property bool profileReady: false
-    property bool aboutExpanded: false
+    property bool aboutExpanded: settings.aboutExpanded
     readonly property real aboutWidthFactor: 0.3
 
     readonly property int bannerHeight: Kirigami.Units.gridUnit * 10
