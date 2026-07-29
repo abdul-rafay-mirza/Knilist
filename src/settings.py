@@ -3,6 +3,7 @@ from PySide6.QtCore import Property, QObject, Slot, Signal, QSettings
 class Settings(QObject):
     aboutExpandedChanged = Signal()
     animeListSelectedStatusChanged = Signal()
+    mangaListSelectedStatusChanged = Signal()
 
     def __init__(self):
         super().__init__()
@@ -26,6 +27,15 @@ class Settings(QObject):
         self._settings.setValue("listStatus/anime", value)
         self.animeListSelectedStatusChanged.emit()
 
+    def getMangaListSelectedStatus(self):
+        return self._settings.value("listStatus/manga", "ALL", str)
+
+    def setMangaListSelectedStatus(self, value):
+        if value == self.getMangaListSelectedStatus():
+            return
+        self._settings.setValue("listStatus/manga", value)
+        self.mangaListSelectedStatusChanged.emit()
+
     aboutExpanded = Property(
         bool,
         getAboutExpanded,
@@ -38,4 +48,11 @@ class Settings(QObject):
         getAnimeListSelectedStatus,
         setAnimeListSelectedStatus,
         notify=animeListSelectedStatusChanged
+    )
+
+    mangaListSelectedStatus = Property(
+        str,
+        getMangaListSelectedStatus,
+        setMangaListSelectedStatus,
+        notify=mangaListSelectedStatusChanged
     )

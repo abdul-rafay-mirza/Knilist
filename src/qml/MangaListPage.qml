@@ -24,7 +24,7 @@ Kirigami.Page {
         id: mangaScoreDialog
     }
 
-    property string selectedStatus: "ALL"
+    property string selectedStatus: settings.mangaListSelectedStatus
     property string searchQuery:    ""
     property var    mangaData:      []
 
