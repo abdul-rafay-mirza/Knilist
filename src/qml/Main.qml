@@ -147,6 +147,8 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    property var drawerWidth: Kirigami.Units.gridUnit * 9
+
     // Wrapped in a Component (rather than the previous direct
     // `globalDrawer: Kirigami.GlobalDrawer { ... }` assignment) because
     // it's now instantiated on demand via createObject() in
@@ -158,14 +160,7 @@ Kirigami.ApplicationWindow {
 
         Kirigami.GlobalDrawer {
             id: globalDrawer
-            // Explicit width, since GlobalDrawer's own implicitWidth is driven
-            // by icon size and item padding, not by measuring label text (see
-            // GlobalDrawerActionItem.qml upstream) — so without this, the
-            // longest label ("Notifications (N)") elides under
-            // GlobalDrawerActionItem's elide: Text.ElideRight. Sized against
-            // "Notifications (99+)" as the widest realistic count string, plus
-            // room for the leading icon and item padding.
-            width: Kirigami.Units.gridUnit * 9
+            width: root.drawerWidth
             handleVisible: false
             modal: false
             collapsible: true
@@ -181,7 +176,14 @@ Kirigami.ApplicationWindow {
                         icon.name: "application-menu"
                         visible: globalDrawer.collapsible
                         checked: !globalDrawer.collapsed
-                        onClicked: globalDrawer.collapsed = !globalDrawer.collapsed
+                        onClicked: {
+                            globalDrawer.collapsed = !globalDrawer.collapsed
+                            if (globalDrawer.collapsed) {
+                                root.drawerWidth = Kirigami.Units.gridUnit * 2.5
+                            } else {
+                                root.drawerWidth = Kirigami.Units.gridUnit * 9
+                            }
+                        }
                     }
 
                     Controls.Label {
