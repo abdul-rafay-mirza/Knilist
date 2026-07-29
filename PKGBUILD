@@ -50,4 +50,8 @@ package() {
     # so it appears in every user's app launcher automatically
     install -Dm644 com.github.abdul-rafay-mirza.knilist.desktop \
         "$pkgdir/usr/share/applications/com.github.abdul-rafay-mirza.knilist.desktop"
+
+    # Install the application icon
+    install -Dm644 icon/knilist.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/com.github.abdul-rafay-mirza.knilist.svg"
 }
