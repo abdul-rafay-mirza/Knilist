@@ -2,10 +2,15 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
+import "components"
 
 Kirigami.Page {
     id: settingsPage
     title: "Settings"
+
+    AboutDialog {
+        id: aboutDialog
+    }
 
     // ── Human-readable labels for each AniList scoreFormat enum value ─────────
     readonly property var scoreFormatLabels: ({
@@ -449,6 +454,18 @@ Kirigami.Page {
                             }
                         }
                     }
+                }
+
+                Kirigami.Card {
+                    Layout.fillWidth: true
+
+                    header: Controls.Label {
+                        Layout.fillWidth: true
+                        text: "About Knilist"
+                        wrapMode: Text.WordWrap
+                    }
+
+                    onClicked: aboutDialog.open()
                 }
 
                 Item { Layout.preferredHeight: Kirigami.Units.largeSpacing }
