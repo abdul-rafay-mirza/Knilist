@@ -121,7 +121,7 @@ Kirigami.ScrollablePage {
                     anchors.centerIn: parent
                     width: parent.width * 0.5
                     height: width
-                    source: "avatar-default"
+                    source: "actor-symbolic"
                 }
             }
 
