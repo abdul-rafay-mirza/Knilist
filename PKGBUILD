@@ -15,7 +15,6 @@ depends=(
     'kirigami'
     'kirigami-addons'
     'qt6-declarative'
-    'kwallet'
 )
 makedepends=(
     'git'

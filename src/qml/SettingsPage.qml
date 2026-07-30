@@ -491,8 +491,7 @@ Kirigami.Page {
     Kirigami.PromptDialog {
         id:              logoutDialog
         title:           "Log out of AniList?"
-        subtitle:        "Your stored token will be removed from KWallet. " +
-                         "Your AniList data stays on AniList and can be re-synced after logging in again."
+        subtitle:        "Are you sure you want to log out?"
         standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
         onAccepted:      authManager.logout()
     }

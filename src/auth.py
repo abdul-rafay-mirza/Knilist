@@ -42,12 +42,13 @@ def _delete(key: str, retries: int = 2) -> bool:
     entry" (fine — nothing to remove, treat as success) and for real
     backend failures (NOT fine — swallowing this unconditionally is
     what let logout silently no-op against some backends, e.g. a
-    transient KWallet/dbus hiccup where the daemon handle is briefly
-    unresponsive, while still emitting logoutDone as if it had worked).
+    transient hiccup in whichever OS credential store keyring is
+    backed by, where the daemon handle is briefly unresponsive, while
+    still emitting logoutDone as if it had worked).
 
-    Transient dbus/KWallet errors are common enough that a single
-    failed attempt shouldn't be taken as final — retry a couple of
-    times with a short backoff before concluding the delete genuinely
+    Transient backend errors are common enough that a single failed
+    attempt shouldn't be taken as final — retry a couple of times
+    with a short backoff before concluding the delete genuinely
     failed.
     """
     import time
@@ -252,19 +253,20 @@ class AuthManager(QObject):
         if not token_cleared:
             # _delete() already retried a few times internally before
             # reporting failure here, so this isn't a one-off transient
-            # blip — KWallet still has the old token stored under this
-            # service name, and __init__ will reload it next launch,
-            # silently logging the user back in as if logout never
-            # happened. Surfacing that now (rather than letting it
-            # resurface as an unexplained "why am I logged in again")
-            # is the whole point of tracking token_cleared separately
-            # from the in-memory state reset above.
+            # blip — the OS credential store still has the old token
+            # stored under this service name, and __init__ will reload
+            # it next launch, silently logging the user back in as if
+            # logout never happened. Surfacing that now (rather than
+            # letting it resurface as an unexplained "why am I logged
+            # in again") is the whole point of tracking token_cleared
+            # separately from the in-memory state reset above.
             self.loginFailed.emit(
                 "Logged out for this session, but your saved token "
-                "could not be removed from KWallet and will likely "
-                "log you back in next launch. This usually means "
-                "KWallet is locked, misconfigured, or unavailable — "
-                "check KWalletManager directly, or run `python3 -c "
+                "could not be removed from your OS credential store "
+                "and will likely log you back in next launch. This "
+                "usually means the credential store is locked, "
+                "misconfigured, or unavailable — check your system's "
+                "keyring/credential manager directly, or run `python3 -c "
                 "\"import keyring; print(keyring.get_keyring())\"` "
                 "to see which backend is active."
             )
