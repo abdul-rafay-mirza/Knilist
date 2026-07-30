@@ -1303,6 +1303,28 @@ mutation ($displayAdultContent: Boolean) {
 }
 """
 
+_UPDATE_SCORE_FORMAT_MUTATION = """
+mutation ($scoreFormat: ScoreFormat) {
+  UpdateUser(scoreFormat: $scoreFormat) {
+    id
+    mediaListOptions {
+      scoreFormat
+    }
+  }
+}
+"""
+
+_UPDATE_TITLE_LANGUAGE_MUTATION = """
+mutation ($titleLanguage: UserTitleLanguage) {
+  UpdateUser(titleLanguage: $titleLanguage) {
+    id
+    options {
+      titleLanguage
+    }
+  }
+}
+"""
+
 # NOTE: This is not a query for Anilist API. Its for animethemes.moe.
 # animethemes GQL endopint: https://graphql.animethemes.moe
 # This query gets the direct links for opening and endings for a given anime in video and audio formats

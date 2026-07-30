@@ -32,6 +32,8 @@ from .graphql_queries import (
     _SEARCH_STUDIOS_QUERY, _SEARCH_USERS_QUERY,
     _NOTIFICATIONS_QUERY,
     _UPDATE_NSFW_SETTING_MUTATION,
+    _UPDATE_SCORE_FORMAT_MUTATION,
+    _UPDATE_TITLE_LANGUAGE_MUTATION,
 )
 
 # Helper functions
@@ -483,6 +485,7 @@ class AniListService(QObject):
     searchResultsLoaded = Signal(str)   # full JSON payload for SearchPage
     notificationsPageLoaded = Signal(str)   # full JSON payload for NotificationsPage
     nsfwEnabledChanged = Signal(bool)   # fires whenever the confirmed displayAdultContent value changes — after a viewer fetch, a successful setNsfwEnabled(), or a failed one snapping back to the last known-good value
+    titleLanguageChanged = Signal(str)   # fires whenever the confirmed titleLanguage value changes — same shape as nsfwEnabledChanged
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -502,6 +505,7 @@ class AniListService(QObject):
         self._search_gen: int = 0
         self._notifications_fetch_gen: int = 0
         self._nsfw_enabled: bool = False   # updated once viewer.options is fetched
+        self._title_language: str = "ROMAJI"   # AniList's own default; updated once viewer.options is fetched
 
     def _begin_loading(self):
         self._loading_count += 1
@@ -539,6 +543,10 @@ class AniListService(QObject):
     @Property(bool, notify=nsfwEnabledChanged)
     def nsfwEnabled(self) -> bool:
         return self._nsfw_enabled
+
+    @Property(str, notify=titleLanguageChanged)
+    def titleLanguage(self) -> str:
+        return self._title_language
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
@@ -580,6 +588,11 @@ class AniListService(QObject):
         if nsfw != self._nsfw_enabled:
             self._nsfw_enabled = nsfw
             self.nsfwEnabledChanged.emit(nsfw)
+
+        title_lang = (viewer.get("options") or {}).get("titleLanguage", "ROMAJI")
+        if title_lang != self._title_language:
+            self._title_language = title_lang
+            self.titleLanguageChanged.emit(title_lang)
 
     def _fetch_viewer(self) -> tuple[str, str]:
         """Fetch viewer info, update score format, return (uid, name)."""
@@ -1038,6 +1051,61 @@ class AniListService(QObject):
                 self._nsfw_enabled = previous
                 self.nsfwEnabledChanged.emit(previous)   # snap the switch back to the last known-good state
                 self._emit_update_failure(exc, "Network Issue: Failed to update your Adult Content setting.")
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(str)
+    def setScoreFormat(self, fmt: str) -> None:
+        """Persist the list scoring system directly on the user's AniList
+        account via the UpdateUser mutation. Same shape as setNsfwEnabled
+        above: SettingsPage.qml's ComboBox updates its own currentIndex
+        the moment the user picks an option, so on success we trust the
+        mutation's own response (mediaListOptions.scoreFormat) as the
+        confirmed value — reusing the scoreFormat property and
+        scoreFormatChanged signal that already exist for the read-only
+        display — and on failure we emit the previous value again so the
+        ComboBox snaps back to what the account actually has."""
+        previous = self._score_format
+
+        def _run():
+            try:
+                self._begin_loading()
+                data      = self._gql(_UPDATE_SCORE_FORMAT_MUTATION, {"scoreFormat": fmt})
+                confirmed = (data.get("UpdateUser") or {}).get("mediaListOptions", {}).get("scoreFormat", fmt)
+                self._score_format = confirmed
+                self.scoreFormatChanged.emit(confirmed)
+            except Exception as exc:
+                self._score_format = previous
+                self.scoreFormatChanged.emit(previous)   # snap the ComboBox back to the last known-good state
+                self._emit_update_failure(exc, "Network Issue: Failed to update your scoring system.")
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(str)
+    def setTitleLanguage(self, lang: str) -> None:
+        """Persist which title (romaji/English/native) the user wants to
+        see, directly on the AniList account via UpdateUser — same shape
+        as setNsfwEnabled and setScoreFormat above. On success we trust
+        the mutation's own response (options.titleLanguage) as the
+        confirmed value; on failure we emit the previous value again so
+        the ComboBox snaps back to what the account actually has."""
+        previous = self._title_language
+
+        def _run():
+            try:
+                self._begin_loading()
+                data      = self._gql(_UPDATE_TITLE_LANGUAGE_MUTATION, {"titleLanguage": lang})
+                confirmed = (data.get("UpdateUser") or {}).get("options", {}).get("titleLanguage", lang)
+                self._title_language = confirmed
+                self.titleLanguageChanged.emit(confirmed)
+            except Exception as exc:
+                self._title_language = previous
+                self.titleLanguageChanged.emit(previous)   # snap the ComboBox back to the last known-good state
+                self._emit_update_failure(exc, "Network Issue: Failed to update your title language.")
             finally:
                 self._end_loading()
 

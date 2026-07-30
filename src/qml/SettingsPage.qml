@@ -63,6 +63,24 @@ Kirigami.Page {
         function onNsfwEnabledChanged(value) {
             nsfwSwitch.checked = value
         }
+        function onScoreFormatChanged(fmt) {
+            for (let i = 0; i < scoreFormatComboBox.model.length; ++i) {
+                if (scoreFormatComboBox.model[i].value === fmt) {
+                    scoreFormatComboBox.currentIndex = i
+                    return
+                }
+            }
+            scoreFormatComboBox.currentIndex = -1
+        }
+        function onTitleLanguageChanged(lang) {
+            for (let i = 0; i < titleLanguageComboBox.model.length; ++i) {
+                if (titleLanguageComboBox.model[i].value === lang) {
+                    titleLanguageComboBox.currentIndex = i
+                    return
+                }
+            }
+            titleLanguageComboBox.currentIndex = -1
+        }
     }
 
     // ── Page content ──────────────────────────────────────────────────────────
@@ -290,8 +308,8 @@ Kirigami.Page {
 
                                     Controls.Label {
                                         Layout.fillWidth: true
-                                        text: "Detected automatically from your AniList account settings. "
-                                            + "To change it, update your scoring system on AniList, then sync."
+                                        text: "This updates your AniList account directly, so it also "
+                                            + "applies on anilist.co and any other app you use with this account."
                                         wrapMode: Text.WordWrap
                                         opacity:  0.65
                                         font.pixelSize: 12
@@ -324,13 +342,32 @@ Kirigami.Page {
                                     }
                                 }
 
-                                // Quick link to AniList settings
-                                Controls.Button {
-                                    text:      "Change on AniList"
-                                    icon.name: "internet-web-browser-symbolic"
+                                Controls.ComboBox {
+                                    id: scoreFormatComboBox
                                     Layout.alignment: Qt.AlignVCenter
-                                    onClicked: Qt.openUrlExternally(
-                                        "https://anilist.co/settings/lists")
+                                    enabled: !anilistService.loading
+
+                                    model: [
+                                        { text: settingsPage.scoreFormatLabels["POINT_100"],        value: "POINT_100" },
+                                        { text: settingsPage.scoreFormatLabels["POINT_10_DECIMAL"], value: "POINT_10_DECIMAL" },
+                                        { text: settingsPage.scoreFormatLabels["POINT_10"],         value: "POINT_10" },
+                                        { text: settingsPage.scoreFormatLabels["POINT_5"],          value: "POINT_5" },
+                                        { text: settingsPage.scoreFormatLabels["POINT_3"],          value: "POINT_3" },
+                                    ]
+                                    textRole: "text"
+
+                                    Component.onCompleted: {
+                                        for (let i = 0; i < model.length; ++i) {
+                                            if (model[i].value === anilistService.scoreFormat) {
+                                                currentIndex = i
+                                                break
+                                            }
+                                        }
+                                    }
+
+                                    onActivated: {
+                                        anilistService.setScoreFormat(model[currentIndex].value)
+                                    }
                                 }
                             }
                         }
@@ -381,6 +418,65 @@ Kirigami.Page {
                                 checked: anilistService.nsfwEnabled
                                 enabled: !anilistService.loading
                                 onToggled: anilistService.setNsfwEnabled(checked)
+                            }
+                        }
+                    }
+
+                    FormCard.FormDelegateSeparator {}
+
+                    FormCard.AbstractFormDelegate {
+                        visible: authManager.isLoggedIn
+                        background: Item {}
+
+                        contentItem: RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.largeSpacing
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: Kirigami.Units.smallSpacing / 2
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Title Language"
+                                    wrapMode: Text.WordWrap
+                                    font.bold: true
+                                }
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Which title AniList shows you throughout the app. This "
+                                        + "updates your actual AniList account setting, so it also "
+                                        + "applies on anilist.co and any other app you use with this account."
+                                    wrapMode: Text.WordWrap
+                                    opacity:  0.65
+                                    font.pixelSize: 12
+                                }
+                            }
+
+                            Controls.ComboBox {
+                                id: titleLanguageComboBox
+                                Layout.alignment: Qt.AlignVCenter
+                                enabled: !anilistService.loading
+
+                                model: [
+                                    { text: "Romaji  (Shingeki no Kyojin)", value: "ROMAJI"  },
+                                    { text: "English  (Attack on Titan)",   value: "ENGLISH" },
+                                    { text: "Native  (進撃の巨人)",           value: "NATIVE"  },
+                                ]
+                                textRole: "text"
+
+                                Component.onCompleted: {
+                                    for (let i = 0; i < model.length; ++i) {
+                                        if (model[i].value === anilistService.titleLanguage) {
+                                            currentIndex = i
+                                            break
+                                        }
+                                    }
+                                }
+
+                                onActivated: {
+                                    anilistService.setTitleLanguage(model[currentIndex].value)
+                                }
                             }
                         }
                     }
