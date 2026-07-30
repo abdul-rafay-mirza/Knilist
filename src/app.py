@@ -4,9 +4,10 @@ import sys
 import signal
 from importlib.resources import files
 
-from PySide6.QtGui  import QGuiApplication
+from PySide6.QtGui  import QGuiApplication, QIcon
 from PySide6.QtCore import QUrl, QSettings
 from PySide6.QtQml  import QQmlApplicationEngine
+from PySide6.QtWidgets import QApplication
 
 from .auth                import AuthManager
 from .anilist_service      import AniListService
