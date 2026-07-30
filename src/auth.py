@@ -88,7 +88,7 @@ _SUCCESS_HTML = b"""<!DOCTYPE html>
 </head>
 <body>
 <div class="box">
-  <h2>\u2714 Logged in!</h2>
+  <h2>\xe2\x9c\x94 Logged in!</h2>
   <p>You can close this tab and return to knilist.</p>
 </div>
 </body>
@@ -100,7 +100,7 @@ _ERROR_HTML = b"""<!DOCTYPE html>
 <body style="font-family:sans-serif;background:#0d1117;color:#e6e6e6;
              display:flex;align-items:center;justify-content:center;height:100vh">
   <div style="text-align:center">
-    <h2>\u2718 Login failed</h2><p>No authorisation code received.</p>
+    <h2>\xe2\x9c\x98 Login failed</h2><p>No authorisation code received.</p>
   </div>
 </body>
 </html>"""
