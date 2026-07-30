@@ -21,6 +21,7 @@ def main():
         os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
 
     app = QGuiApplication(sys.argv)
+    app.setWindowIcon(QIcon.fromTheme("com.github.abdul-rafay-mirza.knilist"))
 
     app.setOrganizationName("knilist")
     app.setApplicationName("config")
