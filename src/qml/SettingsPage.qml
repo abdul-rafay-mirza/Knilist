@@ -81,6 +81,15 @@ Kirigami.Page {
             }
             titleLanguageComboBox.currentIndex = -1
         }
+        function onStaffNameLanguageChanged(lang) {
+            for (let i = 0; i < staffNameLanguageComboBox.model.length; ++i) {
+                if (staffNameLanguageComboBox.model[i].value === lang) {
+                    staffNameLanguageComboBox.currentIndex = i
+                    return
+                }
+            }
+            staffNameLanguageComboBox.currentIndex = -1
+        }
     }
 
     // ── Page content ──────────────────────────────────────────────────────────
@@ -476,6 +485,66 @@ Kirigami.Page {
 
                                 onActivated: {
                                     anilistService.setTitleLanguage(model[currentIndex].value)
+                                }
+                            }
+                        }
+                    }
+
+                    FormCard.FormDelegateSeparator {}
+
+                    FormCard.AbstractFormDelegate {
+                        visible: authManager.isLoggedIn
+                        background: Item {}
+
+                        contentItem: RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.largeSpacing
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: Kirigami.Units.smallSpacing / 2
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Staff & Character Name Language"
+                                    wrapMode: Text.WordWrap
+                                    font.bold: true
+                                }
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: "How staff and character names are ordered and displayed "
+                                        + "throughout the app. This updates your actual AniList account "
+                                        + "setting, so it also applies on anilist.co and any other app "
+                                        + "you use with this account."
+                                    wrapMode: Text.WordWrap
+                                    opacity:  0.65
+                                    font.pixelSize: 12
+                                }
+                            }
+
+                            Controls.ComboBox {
+                                id: staffNameLanguageComboBox
+                                Layout.alignment: Qt.AlignVCenter
+                                enabled: !anilistService.loading
+
+                                model: [
+                                    { text: "Romaji, Western Order  (Killua Zoldyck)", value: "ROMAJI_WESTERN" },
+                                    { text: "Romaji  (Zoldyck Killua)",                 value: "ROMAJI"         },
+                                    { text: "Native  (キルア=ゾルディック)",               value: "NATIVE"         },
+                                ]
+                                textRole: "text"
+
+                                Component.onCompleted: {
+                                    for (let i = 0; i < model.length; ++i) {
+                                        if (model[i].value === anilistService.staffNameLanguage) {
+                                            currentIndex = i
+                                            break
+                                        }
+                                    }
+                                }
+
+                                onActivated: {
+                                    anilistService.setStaffNameLanguage(model[currentIndex].value)
                                 }
                             }
                         }

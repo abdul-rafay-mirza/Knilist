@@ -34,6 +34,7 @@ from .graphql_queries import (
     _UPDATE_NSFW_SETTING_MUTATION,
     _UPDATE_SCORE_FORMAT_MUTATION,
     _UPDATE_TITLE_LANGUAGE_MUTATION,
+    _UPDATE_STAFF_NAME_LANGUAGE_MUTATION,
 )
 
 # Helper functions
@@ -486,6 +487,7 @@ class AniListService(QObject):
     notificationsPageLoaded = Signal(str)   # full JSON payload for NotificationsPage
     nsfwEnabledChanged = Signal(bool)   # fires whenever the confirmed displayAdultContent value changes — after a viewer fetch, a successful setNsfwEnabled(), or a failed one snapping back to the last known-good value
     titleLanguageChanged = Signal(str)   # fires whenever the confirmed titleLanguage value changes — same shape as nsfwEnabledChanged
+    staffNameLanguageChanged = Signal(str)   # fires whenever the confirmed staffNameLanguage value changes — same shape as titleLanguageChanged
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -506,6 +508,7 @@ class AniListService(QObject):
         self._notifications_fetch_gen: int = 0
         self._nsfw_enabled: bool = False   # updated once viewer.options is fetched
         self._title_language: str = "ROMAJI"   # AniList's own default; updated once viewer.options is fetched
+        self._staff_name_language: str = "ROMAJI_WESTERN"   # AniList's own default; updated once viewer.options is fetched
 
     def _begin_loading(self):
         self._loading_count += 1
@@ -547,6 +550,10 @@ class AniListService(QObject):
     @Property(str, notify=titleLanguageChanged)
     def titleLanguage(self) -> str:
         return self._title_language
+
+    @Property(str, notify=staffNameLanguageChanged)
+    def staffNameLanguage(self) -> str:
+        return self._staff_name_language
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
@@ -593,6 +600,11 @@ class AniListService(QObject):
         if title_lang != self._title_language:
             self._title_language = title_lang
             self.titleLanguageChanged.emit(title_lang)
+
+        staff_lang = (viewer.get("options") or {}).get("staffNameLanguage", "ROMAJI_WESTERN")
+        if staff_lang != self._staff_name_language:
+            self._staff_name_language = staff_lang
+            self.staffNameLanguageChanged.emit(staff_lang)
 
     def _fetch_viewer(self) -> tuple[str, str]:
         """Fetch viewer info, update score format, return (uid, name)."""
@@ -1111,6 +1123,33 @@ class AniListService(QObject):
 
         threading.Thread(target=_run, daemon=True).start()
 
+    @Slot(str)
+    def setStaffNameLanguage(self, lang: str) -> None:
+        """Persist how staff and character names are ordered/displayed
+        (Western-order romaji, original-order romaji, or native) directly
+        on the AniList account via UpdateUser — same shape as
+        setTitleLanguage above. On success we trust the mutation's own
+        response (options.staffNameLanguage) as the confirmed value; on
+        failure we emit the previous value again so the ComboBox snaps
+        back to what the account actually has."""
+        previous = self._staff_name_language
+
+        def _run():
+            try:
+                self._begin_loading()
+                data      = self._gql(_UPDATE_STAFF_NAME_LANGUAGE_MUTATION, {"staffNameLanguage": lang})
+                confirmed = (data.get("UpdateUser") or {}).get("options", {}).get("staffNameLanguage", lang)
+                self._staff_name_language = confirmed
+                self.staffNameLanguageChanged.emit(confirmed)
+            except Exception as exc:
+                self._staff_name_language = previous
+                self.staffNameLanguageChanged.emit(previous)   # snap the ComboBox back to the last known-good state
+                self._emit_update_failure(exc, "Network Issue: Failed to update your staff & character name language.")
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
     # Anime slots
 
     @Slot()
@@ -1253,10 +1292,11 @@ class AniListService(QObject):
                 for edge in raw_characters:
                     if edge.get("node") is not None and edge.get("node") != {}:
                         node = edge["node"]
+                        name_obj = node.get("name") or {}
                         characters.append({
                             "characterId": node.get("id", 0),
-                            "name":        (node.get("name") or {}).get("full", ""),
-                            "nativeName":  (node.get("name") or {}).get("native", "") or "",
+                            "name":        name_obj.get("userPreferred") or name_obj.get("full") or "",
+                            "nativeName":  name_obj.get("native", "") or "",
                             "image":       (node.get("image") or {}).get("large", ""),
                             "role":        edge.get("role", ""),
                         })
@@ -1278,10 +1318,11 @@ class AniListService(QObject):
                 for edge in raw_staff_edges:
                   if edge.get("node") is not None and edge.get("node") != {}:
                     node = edge["node"]
+                    name_obj = node.get("name") or {}
                     staff.append({
                       "role": edge.get("role", ""),
                       "id": node.get("id", 0),
-                      "name": (node.get("name") or {}).get("full") or (node.get("name") or {}).get("native", ""),
+                      "name": name_obj.get("userPreferred") or name_obj.get("full") or name_obj.get("native") or "",
                       "image": (node.get("image") or {}).get("large", "")
                     })
 
@@ -1457,7 +1498,7 @@ class AniListService(QObject):
                     media.append({
                         "mediaId": node.get("id", 0),
                         "type":    node.get("type") or "",
-                        "title":   title_obj.get("english") or title_obj.get("romaji", ""),
+                        "title":   title_obj.get("userPreferred") or title_obj.get("english", "") or title_obj.get("romaji", ""),
                         "cover":   (node.get("coverImage") or {}).get("extraLarge", ""),
                     })
                     for va in (edge.get("voiceActors") or []):
@@ -2066,10 +2107,11 @@ class AniListService(QObject):
                 for edge in raw_characters:
                     if edge.get("node") is not None and edge.get("node") != {}:
                         node = edge["node"]
+                        name_obj = node.get("name")
                         characters.append({
                             "characterId": node.get("id", 0),
-                            "name":        (node.get("name") or {}).get("full", ""),
-                            "nativeName":  (node.get("name") or {}).get("native", "") or "",
+                            "name":        name_obj.get("userPreferred") or name_obj.get("full") or "",
+                            "nativeName":  name_obj.get("native", "") or "",
                             "image":       (node.get("image") or {}).get("large", ""),
                             "role":        edge.get("role", ""),
                         })
@@ -2091,10 +2133,11 @@ class AniListService(QObject):
                 for edge in raw_staff_edges:
                     if edge.get("node") is not None and edge.get("node") != {}:
                         node = edge["node"]
+                        name_obj = node.get("name") or {}
                         staff.append({
                             "role": edge.get("role", ""),
                             "id": node.get("id", 0),
-                            "name": (node.get("name") or {}).get("full") or (node.get("name") or {}).get("native", ""),
+                            "name": name_obj.get("userPreferred") or name_obj.get("full") or name_obj.get("native") or "",
                             "image": (node.get("image") or {}).get("large", "")
                         })
 

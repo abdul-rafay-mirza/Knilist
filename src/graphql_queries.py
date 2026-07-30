@@ -532,6 +532,7 @@ query ($id: Int) {
           name {
             full
             native
+            userPreferred
           }
           image {
             large
@@ -547,6 +548,7 @@ query ($id: Int) {
           name {
             full
             native
+            userPreferred
           }
           image {
             large
@@ -940,6 +942,7 @@ query ($id: Int) {
           name {
             full
             native
+            userPreferred
           }
           image {
             large
@@ -955,6 +958,7 @@ query ($id: Int) {
           name {
             full
             native
+            userPreferred
           }
           image {
             large
@@ -1327,6 +1331,17 @@ mutation ($titleLanguage: UserTitleLanguage) {
     id
     options {
       titleLanguage
+    }
+  }
+}
+"""
+
+_UPDATE_STAFF_NAME_LANGUAGE_MUTATION = """
+mutation ($staffNameLanguage: UserStaffNameLanguage) {
+  UpdateUser(staffNameLanguage: $staffNameLanguage) {
+    id
+    options {
+      staffNameLanguage
     }
   }
 }
