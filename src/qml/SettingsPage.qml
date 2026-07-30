@@ -368,7 +368,7 @@ Kirigami.Page {
                                     Layout.fillWidth: true
                                     text: "Show adult (18+) anime, manga, and characters. This changes "
                                         + "your actual AniList account setting, so it also applies on "
-                                        + "anilist.co and any other app you use with this account."
+                                        + "anilist.co and any other app you use with this account. "
                                         + "Takes a while to apply."
                                     wrapMode: Text.WordWrap
                                     opacity:  0.65
