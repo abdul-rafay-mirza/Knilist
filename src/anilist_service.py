@@ -1243,7 +1243,7 @@ class AniListService(QObject):
                             "relationType": edge.get("relationType", ""),
                             "mediaType":    node.get("type", ""),
                             "format":       node.get("format", ""),
-                            "title":        title_obj.get("english") or title_obj.get("romaji", ""),
+                            "title":        title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or "",
                             "coverImage":   (node.get("coverImage") or {}).get("large", ""),
                             "status":       node.get("status", ""),
                         })
@@ -1269,7 +1269,7 @@ class AniListService(QObject):
                     title_obj = media_recommendation.get("title") or {}
                     recommendations.append({
                         "mediaId": media_recommendation.get("id", 0),
-                        "title": title_obj.get("english") or title_obj.get("romaji", ""), 
+                        "title": title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or "", 
                         "coverImage": (media_recommendation.get("coverImage") or {}).get("large", "")
                     })
                 
@@ -2056,7 +2056,7 @@ class AniListService(QObject):
                             "relationType": edge.get("relationType", ""),
                             "mediaType":    node.get("type", ""),
                             "format":       node.get("format", ""),
-                            "title":        title_obj.get("english") or title_obj.get("romaji", ""),
+                            "title":        title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or "",
                             "coverImage":   (node.get("coverImage") or {}).get("large", ""),
                             "status":       node.get("status", ""),
                         })
@@ -2082,7 +2082,7 @@ class AniListService(QObject):
                         title_obj = media_recommendation.get("title") or {}
                         recommendations.append({
                             "mediaId": media_recommendation.get("id", 0),
-                            "title": title_obj.get("english") or title_obj.get("romaji", ""), 
+                            "title": title_obj.get("userPreferred") or title_obj.get("english") or title_obj.get("romaji") or "", 
                             "coverImage": (media_recommendation.get("coverImage") or {}).get("large", "")
                         })
 

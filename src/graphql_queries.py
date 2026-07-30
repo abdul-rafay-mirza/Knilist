@@ -512,8 +512,10 @@ query ($id: Int) {
           type
           format
           title {
+            userPreferred
             romaji
             english
+            native
           }
           coverImage {
             large
@@ -557,6 +559,7 @@ query ($id: Int) {
         mediaRecommendation {
           id
           title {
+            userPreferred
             english
             native
             romaji
@@ -595,7 +598,7 @@ query ($id: Int) {
         node {
           id
           type
-          title { english native romaji }
+          title { english native romaji userPreferred}
           coverImage { extraLarge }
         }
         voiceActors(sort: [RELEVANCE]) {
@@ -646,7 +649,7 @@ query ($id: Int) {
         node {
           id
           type
-          title { userPreferred english romaji }
+          title { userPreferred english romaji native }
           coverImage { large }
         }
       }
@@ -662,7 +665,7 @@ query ($id: Int) {
         }
         media {
           id
-          title { userPreferred english romaji }
+          title { userPreferred english romaji native }
           coverImage { large }
         }
       }
@@ -681,7 +684,7 @@ query ($id: Int, $mediaPage: Int, $charPage: Int) {
         node {
           id
           type
-          title { userPreferred english romaji }
+          title { userPreferred english romaji native }
           coverImage { large }
         }
       }
@@ -696,7 +699,7 @@ query ($id: Int, $mediaPage: Int, $charPage: Int) {
         }
         media {
           id
-          title { userPreferred english romaji }
+          title { userPreferred english romaji native }
           coverImage { large }
         }
       }
@@ -919,6 +922,8 @@ query ($id: Int) {
           title {
             romaji
             english
+            native
+            userPreferred
           }
           coverImage {
             large
@@ -965,6 +970,7 @@ query ($id: Int) {
             english
             native
             romaji
+            userPreferred
           }
           coverImage {
             large
@@ -1048,6 +1054,7 @@ query ($search: String, $type: MediaType, $page: Int = 1, $perPage: Int = 20) {
         userPreferred
         english
         romaji
+        native
       }
       format
       startDate {
