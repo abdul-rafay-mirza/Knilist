@@ -1292,6 +1292,17 @@ query ($page: Int = 1, $perPage: Int = 25, $resetCount: Boolean = false) {
 }
 """
 
+_UPDATE_NSFW_SETTING_MUTATION = """
+mutation ($displayAdultContent: Boolean) {
+  UpdateUser(displayAdultContent: $displayAdultContent) {
+    id
+    options {
+      displayAdultContent
+    }
+  }
+}
+"""
+
 # NOTE: This is not a query for Anilist API. Its for animethemes.moe.
 # animethemes GQL endopint: https://graphql.animethemes.moe
 # This query gets the direct links for opening and endings for a given anime in video and audio formats

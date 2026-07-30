@@ -31,6 +31,7 @@ from .graphql_queries import (
     _SEARCH_MEDIA_QUERY, _SEARCH_CHARACTERS_QUERY, _SEARCH_STAFF_QUERY,
     _SEARCH_STUDIOS_QUERY, _SEARCH_USERS_QUERY,
     _NOTIFICATIONS_QUERY,
+    _UPDATE_NSFW_SETTING_MUTATION,
 )
 
 # Helper functions
@@ -481,6 +482,7 @@ class AniListService(QObject):
     userMangaLoaded = Signal(int, list)   # userId, entries - read-only list for UsersMangaListPage
     searchResultsLoaded = Signal(str)   # full JSON payload for SearchPage
     notificationsPageLoaded = Signal(str)   # full JSON payload for NotificationsPage
+    nsfwEnabledChanged = Signal(bool)   # fires whenever the confirmed displayAdultContent value changes — after a viewer fetch, a successful setNsfwEnabled(), or a failed one snapping back to the last known-good value
 
     def __init__(self, auth_manager, parent=None):
         super().__init__(parent)
@@ -499,6 +501,7 @@ class AniListService(QObject):
         self._following_fetch_gen: int = 0
         self._search_gen: int = 0
         self._notifications_fetch_gen: int = 0
+        self._nsfw_enabled: bool = False   # updated once viewer.options is fetched
 
     def _begin_loading(self):
         self._loading_count += 1
@@ -513,11 +516,15 @@ class AniListService(QObject):
             self._loading = False
             self.loadingChanged.emit(False)
 
-    def _emit_update_failure(self, exc: Exception) -> None:
+    def _emit_update_failure(self, exc: Exception, message: str = "Network Issue: Failed to update show.") -> None:
         """Every write-mutation failure surfaces this one message to the UI.
-        The real exception is printed for debugging, never shown to the user."""
+        The real exception is printed for debugging, never shown to the user.
+        `message` defaults to the original generic text so every existing
+        call site keeps behaving exactly as before; callers for which that
+        text is misleading (e.g. it says "show", not every mutation is
+        about a show) can pass something more specific."""
         print(f"[AniListService] update failed: {exc}")
-        self.errorOccurred.emit("Network Issue: Failed to update show.")
+        self.errorOccurred.emit(message)
 
     # ── Properties ────────────────────────────────────────────────────────────
 
@@ -528,6 +535,10 @@ class AniListService(QObject):
     @Property(str, notify=scoreFormatChanged)
     def scoreFormat(self) -> str:
         return self._score_format
+
+    @Property(bool, notify=nsfwEnabledChanged)
+    def nsfwEnabled(self) -> bool:
+        return self._nsfw_enabled
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
@@ -564,6 +575,11 @@ class AniListService(QObject):
         if fmt != self._score_format:
             self._score_format = fmt
             self.scoreFormatChanged.emit(fmt)
+
+        nsfw = (viewer.get("options") or {}).get("displayAdultContent", False)
+        if nsfw != self._nsfw_enabled:
+            self._nsfw_enabled = nsfw
+            self.nsfwEnabledChanged.emit(nsfw)
 
     def _fetch_viewer(self) -> tuple[str, str]:
         """Fetch viewer info, update score format, return (uid, name)."""
@@ -984,6 +1000,44 @@ class AniListService(QObject):
                 self.unreadNotificationCountChanged.emit(0)
             except Exception as exc:
                 self._emit_update_failure(exc)
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    # Settings slots
+
+    @Slot(bool)
+    def setNsfwEnabled(self, enabled: bool) -> None:
+        """Persist the Adult Content (NSFW) display setting directly on the
+        user's AniList account via the UpdateUser mutation — this is a
+        real account-wide setting, not a local knilist preference, so it
+        also affects anilist.co and any other client the user is signed
+        into.
+
+        SettingsPage.qml's Switch flips its own visual state the instant
+        the user taps it (that's just how QtQuick's Switch/AbstractButton
+        works — it's optimistic by construction, not something we chose).
+        On success we trust the mutation's own response as the source of
+        truth for the confirmed value, matching how toggleFollow already
+        treats AniList's response as authoritative rather than assuming
+        the request succeeded exactly as sent. On failure we emit the
+        previous value again so the switch snaps back — otherwise the UI
+        would keep showing "on" while the AniList account itself still
+        says "off"."""
+        previous = self._nsfw_enabled
+
+        def _run():
+            try:
+                self._begin_loading()
+                data      = self._gql(_UPDATE_NSFW_SETTING_MUTATION, {"displayAdultContent": enabled})
+                confirmed = (data.get("UpdateUser") or {}).get("options", {}).get("displayAdultContent", enabled)
+                self._nsfw_enabled = confirmed
+                self.nsfwEnabledChanged.emit(confirmed)
+            except Exception as exc:
+                self._nsfw_enabled = previous
+                self.nsfwEnabledChanged.emit(previous)   # snap the switch back to the last known-good state
+                self._emit_update_failure(exc, "Network Issue: Failed to update your Adult Content setting.")
             finally:
                 self._end_loading()
 

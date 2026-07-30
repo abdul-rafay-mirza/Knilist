@@ -60,6 +60,9 @@ Kirigami.Page {
             statusBar.text    = "AniList error: " + msg
             statusBar.visible = true
         }
+        function onNsfwEnabledChanged(value) {
+            nsfwSwitch.checked = value
+        }
     }
 
     // ── Page content ──────────────────────────────────────────────────────────
@@ -293,6 +296,32 @@ Kirigami.Page {
                                         opacity:  0.65
                                         font.pixelSize: 12
                                     }
+
+                                    // Visual example of how a score looks in the current format
+                                    RowLayout {
+                                        visible: anilistService.scoreFormat !== ""
+                                        spacing: Kirigami.Units.smallSpacing
+
+                                        Controls.Label {
+                                            text:    "Example:"
+                                            opacity: 0.6
+                                            font.pixelSize: 12
+                                        }
+                                        Controls.Label {
+                                            // Show a mid-range score in whatever the user's format is
+                                            text: {
+                                                const fmt = anilistService.scoreFormat
+                                                if (fmt === "POINT_100")        return anilistService.formatScore(72)
+                                                if (fmt === "POINT_10_DECIMAL") return anilistService.formatScore(7.2)
+                                                if (fmt === "POINT_10")         return anilistService.formatScore(7)
+                                                if (fmt === "POINT_5")          return anilistService.formatScore(4)
+                                                if (fmt === "POINT_3")          return anilistService.formatScore(2)
+                                                return ""
+                                            }
+                                            color: Kirigami.Theme.highlightColor
+                                            font { pixelSize: 13; bold: true }
+                                        }
+                                    }
                                 }
 
                                 // Quick link to AniList settings
@@ -304,31 +333,54 @@ Kirigami.Page {
                                         "https://anilist.co/settings/lists")
                                 }
                             }
+                        }
+                    }
+                }
 
-                            // Visual example of how a score looks in the current format
-                            RowLayout {
-                                visible: anilistService.scoreFormat !== ""
-                                spacing: Kirigami.Units.smallSpacing
+                // ── Content — only shown when logged in ───────────────────────
+                FormCard.FormHeader {
+                    Layout.fillWidth: true
+                    title: "Content"
+                    visible: authManager.isLoggedIn
+                }
+                FormCard.FormCard {
+                    Layout.fillWidth: true
+
+                    FormCard.AbstractFormDelegate {
+                        visible: authManager.isLoggedIn
+                        background: Item {}
+
+                        contentItem: RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.largeSpacing
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: Kirigami.Units.smallSpacing / 2
 
                                 Controls.Label {
-                                    text:    "Example:"
-                                    opacity: 0.6
+                                    Layout.fillWidth: true
+                                    text: "Enable NSFW"
+                                    wrapMode: Text.WordWrap
+                                    font.bold: true
+                                }
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Show adult (18+) anime, manga, and characters. This changes "
+                                        + "your actual AniList account setting, so it also applies on "
+                                        + "anilist.co and any other app you use with this account."
+                                        + "Takes a while to apply."
+                                    wrapMode: Text.WordWrap
+                                    opacity:  0.65
                                     font.pixelSize: 12
                                 }
-                                Controls.Label {
-                                    // Show a mid-range score in whatever the user's format is
-                                    text: {
-                                        const fmt = anilistService.scoreFormat
-                                        if (fmt === "POINT_100")        return anilistService.formatScore(72)
-                                        if (fmt === "POINT_10_DECIMAL") return anilistService.formatScore(7.2)
-                                        if (fmt === "POINT_10")         return anilistService.formatScore(7)
-                                        if (fmt === "POINT_5")          return anilistService.formatScore(4)
-                                        if (fmt === "POINT_3")          return anilistService.formatScore(2)
-                                        return ""
-                                    }
-                                    color: Kirigami.Theme.highlightColor
-                                    font { pixelSize: 13; bold: true }
-                                }
+                            }
+
+                            Controls.Switch {
+                                id:      nsfwSwitch
+                                checked: anilistService.nsfwEnabled
+                                enabled: !anilistService.loading
+                                onToggled: anilistService.setNsfwEnabled(checked)
                             }
                         }
                     }
