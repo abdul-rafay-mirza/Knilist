@@ -13,6 +13,7 @@ from .anilist_service      import AniListService
 from .anime_themes_service import AnimeThemesService
 from .themechanger import ThemeChanger
 from .settings import Settings
+from .about import About
 
 
 def main():
@@ -43,11 +44,14 @@ def main():
     theme_changer = ThemeChanger()
     theme_changer.restoreTheme()
 
+    about = About()
+
     engine.rootContext().setContextProperty("authManager",       auth)
     engine.rootContext().setContextProperty("anilistService",    service)
     engine.rootContext().setContextProperty("animeThemesService", anime_themes_service)
     engine.rootContext().setContextProperty("themeChanger", theme_changer)
     engine.rootContext().setContextProperty("settings", settings)
+    engine.rootContext().setContextProperty("about", about)
 
     base_path = files("knilist").joinpath("qml", "Main.qml")
     engine.load(QUrl(str(base_path)))

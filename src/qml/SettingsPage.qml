@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
+import org.kde.kirigamiaddons.formcard as FormCard
 import "components"
 
 Kirigami.Page {
@@ -90,262 +91,281 @@ Kirigami.Page {
                     showCloseButton:  true
                 }
 
-                // Theme Changer
-                Controls.Label {
-                    text: "Theme:"
-                    font.bold: true
-                }
-
-                Controls.ComboBox {
-                    id: themeComboBox
+                // General
+                FormCard.FormHeader {
                     Layout.fillWidth: true
-                    model: themeChanger ? themeChanger.getThemes() : []
-
-                    onActivated: (index) => {
-                        if (!themeChanger) return
-                        let selectedName = model[index]
-                        themeChanger.applyTheme(selectedName)
-                    }
-
-                    Component.onCompleted: {
-                        let index = model.indexOf(themeChanger.currentTheme())
-                        if (index >= 0)
-                            currentIndex = index
-                    }
+                    title: "General"
                 }
-
-                // ── AniList account card ──────────────────────────────────────────────
-                Kirigami.Card {
+                FormCard.FormCard {
                     Layout.fillWidth: true
 
-                    header: RowLayout {
-                        spacing: Kirigami.Units.smallSpacing
-                        anchors.margins: Kirigami.Units.largeSpacing
+                    FormCard.AbstractFormDelegate {
+                        background: Item {}
 
-                        Kirigami.Icon {
-                            source: "im-user-symbolic"
-                            implicitWidth:  Kirigami.Units.iconSizes.medium
-                            implicitHeight: Kirigami.Units.iconSizes.medium
-                        }
-                        Kirigami.Heading {
-                            text:  "AniList Account"
-                            level: 3
-                        }
-                    }
-
-                    contentItem: ColumnLayout {
-                        spacing: Kirigami.Units.largeSpacing
-
-                        // ── Logged-out view ───────────────────────────────────────────
-                        ColumnLayout {
-                            visible:  !authManager.isLoggedIn
-                            spacing:  Kirigami.Units.smallSpacing
+                        contentItem: RowLayout {
+                            Layout.fillWidth: true
 
                             Controls.Label {
-                                Layout.fillWidth: true
-                                text:     "Connect your AniList account to sync your anime and manga lists."
-                                wrapMode: Text.WordWrap
-                                opacity:  0.7
+                                text: "Application Theme"
+                                font.bold: true
                             }
 
-                            Controls.Button {
-                                text:      "Log in to AniList"
-                                icon.name: "network-connect-symbolic"
-                                Layout.topMargin: Kirigami.Units.smallSpacing
-                                onClicked: {
-                                    statusBar.type    = Kirigami.MessageType.Information
-                                    statusBar.text    = "Opening browser… complete login there, then return here."
-                                    statusBar.visible = true
-                                    authManager.login()
+                            Item {
+                                Layout.fillWidth: true
+                            }
+
+                            Controls.ComboBox {
+                                id: themeComboBox
+                                model: themeChanger ? themeChanger.getThemes() : []
+
+                                onActivated: (index) => {
+                                    if (!themeChanger) return
+                                    let selectedName = model[index]
+                                    themeChanger.applyTheme(selectedName)
+                                }
+
+                                Component.onCompleted: {
+                                    let index = model.indexOf(themeChanger.currentTheme())
+                                    if (index >= 0)
+                                        currentIndex = index
                                 }
                             }
                         }
+                    }
+                }
 
-                        // ── Logged-in view ────────────────────────────────────────────
-                        RowLayout {
-                            visible:  authManager.isLoggedIn
-                            spacing:  Kirigami.Units.largeSpacing
+                // Account
+                FormCard.FormHeader {
+                    Layout.fillWidth: true
+                    title: "Account"
+                }
+                FormCard.FormCard {
+                    Layout.fillWidth: true
 
-                            Rectangle {
-                                width:  Kirigami.Units.iconSizes.huge
-                                height: Kirigami.Units.iconSizes.huge
-                                radius: width / 2
-                                color:  Kirigami.Theme.highlightColor
+                    FormCard.AbstractFormDelegate {
+                        background: Item {}
 
-                                Controls.Label {
-                                    anchors.centerIn: parent
-                                    text:  authManager.username.length > 0
-                                           ? authManager.username[0].toUpperCase()
-                                           : "?"
-                                    font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.6
-                                    color: Kirigami.Theme.highlightedTextColor
-                                }
-                            }
+                        contentItem: ColumnLayout {
+                            spacing: Kirigami.Units.largeSpacing
 
+                            // ── Logged-out view ───────────────────────────────────────
                             ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
+                                visible:  !authManager.isLoggedIn
+                                spacing:  Kirigami.Units.smallSpacing
 
                                 Controls.Label {
-                                    text:        authManager.username || "Loading…"
-                                    font.weight: Font.DemiBold
-                                    font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.15
+                                    Layout.fillWidth: true
+                                    text:     "Connect your AniList account to sync your anime and manga lists."
+                                    wrapMode: Text.WordWrap
+                                    opacity:  0.7
+                                }
+
+                                Controls.Button {
+                                    text:      "Log in to AniList"
+                                    icon.name: "network-connect-symbolic"
+                                    Layout.topMargin: Kirigami.Units.smallSpacing
+                                    onClicked: {
+                                        statusBar.type    = Kirigami.MessageType.Information
+                                        statusBar.text    = "Opening browser… complete login there, then return here."
+                                        statusBar.visible = true
+                                        authManager.login()
+                                    }
+                                }
+                            }
+
+                            // ── Logged-in view ────────────────────────────────────────
+                            RowLayout {
+                                visible:  authManager.isLoggedIn
+                                spacing:  Kirigami.Units.largeSpacing
+
+                                Rectangle {
+                                    width:  Kirigami.Units.iconSizes.huge
+                                    height: Kirigami.Units.iconSizes.huge
+                                    radius: width / 2
+                                    color:  Kirigami.Theme.highlightColor
+
+                                    Controls.Label {
+                                        anchors.centerIn: parent
+                                        text:  authManager.username.length > 0
+                                               ? authManager.username[0].toUpperCase()
+                                               : "?"
+                                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.6
+                                        color: Kirigami.Theme.highlightedTextColor
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+
+                                    Controls.Label {
+                                        text:        authManager.username || "Loading…"
+                                        font.weight: Font.DemiBold
+                                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.15
+                                    }
+                                    Controls.Label {
+                                        text:    "Connected to AniList"
+                                        opacity: 0.6
+                                    }
+                                }
+
+                                Item {
+                                    Layout.fillWidth: true
+                                }
+
+                                Controls.Button {
+                                    text:      "Sync now"
+                                    icon.name: "view-refresh-symbolic"
+                                    Layout.alignment: Qt.AlignVCenter
+                                    enabled:  !anilistService.loading
+                                    onClicked: {
+                                        anilistService.fetchAnime()
+                                        anilistService.fetchManga()
+                                    }
+                                }
+
+                                Controls.Button {
+                                    text:      "Log out"
+                                    icon.name: "system-log-out-symbolic"
+                                    Layout.alignment: Qt.AlignVCenter
+                                    onClicked: logoutDialog.open()
+                                }
+                            }
+
+                            // Loading indicator
+                            RowLayout {
+                                visible:  anilistService.loading
+                                spacing:  Kirigami.Units.smallSpacing
+
+                                Controls.BusyIndicator {
+                                    implicitWidth:  Kirigami.Units.iconSizes.small
+                                    implicitHeight: Kirigami.Units.iconSizes.small
+                                    running: true
                                 }
                                 Controls.Label {
-                                    text:    "Connected to AniList"
-                                    opacity: 0.6
+                                    text:    "Syncing with AniList…"
+                                    opacity: 0.7
                                 }
-                            }
-
-                            Controls.Button {
-                                text:      "Sync now"
-                                icon.name: "view-refresh-symbolic"
-                                Layout.alignment: Qt.AlignVCenter
-                                enabled:  !anilistService.loading
-                                onClicked: {
-                                    anilistService.fetchAnime()
-                                    anilistService.fetchManga()
-                                }
-                            }
-
-                            Controls.Button {
-                                text:      "Log out"
-                                icon.name: "system-log-out-symbolic"
-                                Layout.alignment: Qt.AlignVCenter
-                                onClicked: logoutDialog.open()
-                            }
-                        }
-
-                        // Loading indicator
-                        RowLayout {
-                            visible:  anilistService.loading
-                            spacing:  Kirigami.Units.smallSpacing
-
-                            Controls.BusyIndicator {
-                                implicitWidth:  Kirigami.Units.iconSizes.small
-                                implicitHeight: Kirigami.Units.iconSizes.small
-                                running: true
-                            }
-                            Controls.Label {
-                                text:    "Syncing with AniList…"
-                                opacity: 0.7
                             }
                         }
                     }
                 }
 
-                // ── Scoring format card — only shown when logged in ───────────────────
-                Kirigami.Card {
+                // ── Scoring format — only shown when logged in ────────────────
+                FormCard.FormHeader {
                     Layout.fillWidth: true
+                    title: "Scoring System"
                     visible: authManager.isLoggedIn
+                }
+                FormCard.FormCard {
+                    Layout.fillWidth: true
 
-                    header: RowLayout {
-                        spacing: Kirigami.Units.smallSpacing
-                        anchors.margins: Kirigami.Units.largeSpacing
+                    FormCard.AbstractFormDelegate {
+                        visible: authManager.isLoggedIn
+                        background: Item {}
 
-                        Kirigami.Icon {
-                            source: "starred-symbolic"
-                            implicitWidth:  Kirigami.Units.iconSizes.medium
-                            implicitHeight: Kirigami.Units.iconSizes.medium
-                        }
-                        Kirigami.Heading {
-                            text:  "Scoring System"
-                            level: 3
+                        contentItem: ColumnLayout {
+                            spacing: Kirigami.Units.largeSpacing
+
+                            // Detected format row
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Kirigami.Units.largeSpacing
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+
+                                    Controls.Label {
+                                        text: anilistService.scoreFormat !== ""
+                                                ? settingsPage.scoreFormatLabel(anilistService.scoreFormat)
+                                                : "Not yet detected — sync to load"
+                                        font.pixelSize: 14
+                                        font.weight:    Font.DemiBold
+                                        color: Kirigami.Theme.textColor
+                                    }
+
+                                    Controls.Label {
+                                        Layout.fillWidth: true
+                                        text: "Detected automatically from your AniList account settings. "
+                                            + "To change it, update your scoring system on AniList, then sync."
+                                        wrapMode: Text.WordWrap
+                                        opacity:  0.65
+                                        font.pixelSize: 12
+                                    }
+                                }
+
+                                // Quick link to AniList settings
+                                Controls.Button {
+                                    text:      "Change on AniList"
+                                    icon.name: "internet-web-browser-symbolic"
+                                    Layout.alignment: Qt.AlignVCenter
+                                    onClicked: Qt.openUrlExternally(
+                                        "https://anilist.co/settings/lists")
+                                }
+                            }
+
+                            // Visual example of how a score looks in the current format
+                            RowLayout {
+                                visible: anilistService.scoreFormat !== ""
+                                spacing: Kirigami.Units.smallSpacing
+
+                                Controls.Label {
+                                    text:    "Example:"
+                                    opacity: 0.6
+                                    font.pixelSize: 12
+                                }
+                                Controls.Label {
+                                    // Show a mid-range score in whatever the user's format is
+                                    text: {
+                                        const fmt = anilistService.scoreFormat
+                                        if (fmt === "POINT_100")        return anilistService.formatScore(72)
+                                        if (fmt === "POINT_10_DECIMAL") return anilistService.formatScore(7.2)
+                                        if (fmt === "POINT_10")         return anilistService.formatScore(7)
+                                        if (fmt === "POINT_5")          return anilistService.formatScore(4)
+                                        if (fmt === "POINT_3")          return anilistService.formatScore(2)
+                                        return ""
+                                    }
+                                    color: Kirigami.Theme.highlightColor
+                                    font { pixelSize: 13; bold: true }
+                                }
+                            }
                         }
                     }
+                }
 
-                    contentItem: ColumnLayout {
-                        spacing: Kirigami.Units.largeSpacing
+                // Defaults
+                FormCard.FormHeader {
+                    Layout.fillWidth: true
+                    title: "Defaults"
+                }
+                FormCard.FormCard {
+                    Layout.fillWidth: true
 
-                        // Detected format row
-                        RowLayout {
+                    FormCard.AbstractFormDelegate {
+                        background: Item {}
+
+                        contentItem: RowLayout {
                             Layout.fillWidth: true
                             spacing: Kirigami.Units.largeSpacing
 
                             ColumnLayout {
                                 Layout.fillWidth: true
-                                spacing: 4
-
-                                Controls.Label {
-                                    text: anilistService.scoreFormat !== ""
-                                          ? settingsPage.scoreFormatLabel(anilistService.scoreFormat)
-                                          : "Not yet detected — sync to load"
-                                    font.pixelSize: 14
-                                    font.weight:    Font.DemiBold
-                                    color: Kirigami.Theme.textColor
-                                }
+                                spacing: Kirigami.Units.smallSpacing / 2
 
                                 Controls.Label {
                                     Layout.fillWidth: true
-                                    text: "Detected automatically from your AniList account settings. "
-                                        + "To change it, update your scoring system on AniList, then sync."
+                                    text: "Default Visibility for About Section"
                                     wrapMode: Text.WordWrap
-                                    opacity:  0.65
+                                    font.bold: true
+                                }
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Set the default visibility of the About section in Profile Page and for other users page"
+                                    wrapMode: Text.WordWrap
+                                    opacity: 0.65
                                     font.pixelSize: 12
                                 }
-                            }
-
-                            // Quick link to AniList settings
-                            Controls.Button {
-                                text:      "Change on AniList"
-                                icon.name: "internet-web-browser-symbolic"
-                                Layout.alignment: Qt.AlignVCenter
-                                onClicked: Qt.openUrlExternally(
-                                    "https://anilist.co/settings/lists")
-                            }
-                        }
-
-                        // Visual example of how a score looks in the current format
-                        RowLayout {
-                            visible: anilistService.scoreFormat !== ""
-                            spacing: Kirigami.Units.smallSpacing
-
-                            Controls.Label {
-                                text:    "Example:"
-                                opacity: 0.6
-                                font.pixelSize: 12
-                            }
-                            Controls.Label {
-                                // Show a mid-range score in whatever the user's format is
-                                text: {
-                                    const fmt = anilistService.scoreFormat
-                                    if (fmt === "POINT_100")        return anilistService.formatScore(72)
-                                    if (fmt === "POINT_10_DECIMAL") return anilistService.formatScore(7.2)
-                                    if (fmt === "POINT_10")         return anilistService.formatScore(7)
-                                    if (fmt === "POINT_5")          return anilistService.formatScore(4)
-                                    if (fmt === "POINT_3")          return anilistService.formatScore(2)
-                                    return ""
-                                }
-                                color: Kirigami.Theme.highlightColor
-                                font { pixelSize: 13; bold: true }
-                            }
-                        }
-                    }
-                }
-
-                Kirigami.Card {
-                    Layout.fillWidth: true
-
-                    header: Controls.Label {
-                        text: "Default Visibility for About Section"
-                        font {
-                            pixelSize: 13
-                            bold: true
-                        }
-                    }
-
-                    contentItem: ColumnLayout {
-                        Layout.fillWidth: true
-                        
-                        RowLayout {
-                            Layout.fillWidth: true
-
-                            Controls.Label {
-                                text: "Set the default visibility of the About section in Profile Page and for other users page"
-                            }
-
-                            Item {
-                                Layout.fillWidth: true
                             }
 
                             Controls.Switch {
@@ -354,118 +374,112 @@ Kirigami.Page {
                             }
                         }
                     }
-                }
 
-                Kirigami.Card {
-                    Layout.fillWidth: true
+                    FormCard.FormDelegateSeparator {}
 
-                    header: Controls.Label {
-                        text: "Default List Selection for Anime List"
-                        font {
-                            pixelSize: 13
-                            bold: true
-                        }
-                    }
+                    FormCard.AbstractFormDelegate {
+                        background: Item {}
 
-                    contentItem: RowLayout {
-                        Layout.fillWidth: true
-
-                        Controls.Label {
+                        contentItem: RowLayout {
                             Layout.fillWidth: true
-                            text: "Choose which list is shown by default when opening the Anime List page."
-                            wrapMode: Text.WordWrap
-                        }
 
-                        Controls.ComboBox {
+                            Controls.Label {
+                                Layout.fillWidth: true
+                                text: "Default List Selection for Anime List"
+                                wrapMode: Text.WordWrap
+                                font.bold: true
+                            }
 
-                            model: [
-                                { text: "All",         value: "ALL" },
-                                { text: "Watching",    value: "CURRENT" },
-                                { text: "Rewatching",  value: "REPEATING" },
-                                { text: "Completed",   value: "COMPLETED" },
-                                { text: "Paused",      value: "PAUSED" },
-                                { text: "Dropped",     value: "DROPPED" },
-                                { text: "Planning",    value: "PLANNING" }
-                            ]
+                            Controls.ComboBox {
 
-                            textRole: "text"
+                                model: [
+                                    { text: "All",         value: "ALL" },
+                                    { text: "Watching",    value: "CURRENT" },
+                                    { text: "Rewatching",  value: "REPEATING" },
+                                    { text: "Completed",   value: "COMPLETED" },
+                                    { text: "Paused",      value: "PAUSED" },
+                                    { text: "Dropped",     value: "DROPPED" },
+                                    { text: "Planning",    value: "PLANNING" }
+                                ]
 
-                            Component.onCompleted: {
-                                for (let i = 0; i < model.length; ++i) {
-                                    if (model[i].value === settings.animeListSelectedStatus) {
-                                        currentIndex = i
-                                        break
+                                textRole: "text"
+
+                                Component.onCompleted: {
+                                    for (let i = 0; i < model.length; ++i) {
+                                        if (model[i].value === settings.animeListSelectedStatus) {
+                                            currentIndex = i
+                                            break
+                                        }
                                     }
                                 }
-                            }
 
-                            onActivated: {
-                                settings.animeListSelectedStatus = model[currentIndex].value
-                            }
-                        }
-                    }
-                }
-
-                Kirigami.Card {
-                    Layout.fillWidth: true
-
-                    header: Controls.Label {
-                        text: "Default List Selection for Manga List"
-                        font {
-                            pixelSize: 13
-                            bold: true
-                        }
-                    }
-
-                    contentItem: RowLayout {
-                        Layout.fillWidth: true
-
-                        Controls.Label {
-                            Layout.fillWidth: true
-                            text: "Choose which list is shown by default when opening the Manga List page."
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Controls.ComboBox {
-
-                            model: [
-                                { text: "All",         value: "ALL" },
-                                { text: "Reading",    value: "CURRENT" },
-                                { text: "Rereading",  value: "REPEATING" },
-                                { text: "Completed",   value: "COMPLETED" },
-                                { text: "Paused",      value: "PAUSED" },
-                                { text: "Dropped",     value: "DROPPED" },
-                                { text: "Planning",    value: "PLANNING" }
-                            ]
-
-                            textRole: "text"
-
-                            Component.onCompleted: {
-                                for (let i = 0; i < model.length; ++i) {
-                                    if (model[i].value === settings.mangaListSelectedStatus) {
-                                        currentIndex = i
-                                        break
-                                    }
+                                onActivated: {
+                                    settings.animeListSelectedStatus = model[currentIndex].value
                                 }
                             }
+                        }
+                    }
 
-                            onActivated: {
-                                settings.mangaListSelectedStatus = model[currentIndex].value
+                    FormCard.FormDelegateSeparator {}
+
+                    FormCard.AbstractFormDelegate {
+                        background: Item {}
+
+                        contentItem: RowLayout {
+                            Layout.fillWidth: true
+
+                            Controls.Label {
+                                Layout.fillWidth: true
+                                text: "Default List Selection for Manga List"
+                                wrapMode: Text.WordWrap
+                                font.bold: true
+                            }
+
+                            Controls.ComboBox {
+
+                                model: [
+                                    { text: "All",         value: "ALL" },
+                                    { text: "Reading",    value: "CURRENT" },
+                                    { text: "Rereading",  value: "REPEATING" },
+                                    { text: "Completed",   value: "COMPLETED" },
+                                    { text: "Paused",      value: "PAUSED" },
+                                    { text: "Dropped",     value: "DROPPED" },
+                                    { text: "Planning",    value: "PLANNING" }
+                                ]
+
+                                textRole: "text"
+
+                                Component.onCompleted: {
+                                    for (let i = 0; i < model.length; ++i) {
+                                        if (model[i].value === settings.mangaListSelectedStatus) {
+                                            currentIndex = i
+                                            break
+                                        }
+                                    }
+                                }
+
+                                onActivated: {
+                                    settings.mangaListSelectedStatus = model[currentIndex].value
+                                }
                             }
                         }
                     }
                 }
 
-                Kirigami.Card {
+                // ══════════════════════════════════════════════════════════════════
+                // About
+                // ══════════════════════════════════════════════════════════════════
+                FormCard.FormHeader {
+                    Layout.fillWidth: true
+                    title: "About"
+                }
+                FormCard.FormCard {
                     Layout.fillWidth: true
 
-                    header: Controls.Label {
-                        Layout.fillWidth: true
+                    FormCard.FormButtonDelegate {
                         text: "About Knilist"
-                        wrapMode: Text.WordWrap
+                        onClicked: aboutDialog.open()
                     }
-
-                    onClicked: aboutDialog.open()
                 }
 
                 Item { Layout.preferredHeight: Kirigami.Units.largeSpacing }
