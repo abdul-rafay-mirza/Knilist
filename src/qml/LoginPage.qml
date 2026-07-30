@@ -6,10 +6,10 @@ import org.kde.kirigami as Kirigami
 // Shown in place of the whole drawer+pageStack UI whenever
 // authManager.isLoggedIn is false — see the Loader in Main.qml.
 // There's no username/password form here because AniList's OAuth
-// flow (AuthManager.login()) opens the system browser and spins up
-// a localhost callback server; this page's job is just to kick that
-// off and show waiting/error state until loginSuccess or
-// loginFailed comes back.
+// flow uses the auth-pin redirect: authManager.login() opens the
+// system browser to AniList, which shows the token as plain text on
+// its own page (no redirect_uri, no local server). This page's job
+// is to kick that off, then let the user paste the token back in.
 Kirigami.Page {
     id: root
 
@@ -21,8 +21,10 @@ Kirigami.Page {
 
     // ── State ────────────────────────────────────────────────────────
     // "idle"    → show button, ready to start login
-    // "waiting" → login() has been called; browser is open, local
-    //             server is listening for the OAuth redirect
+    // "waiting" → login() has been called; browser is open, showing
+    //             the token on AniList's own page; app is waiting for
+    //             the user to paste it back here (no local server —
+    //             nothing to time out on this end)
     // "error"   → loginFailed fired; message holds the reason
     property string state: "idle"
     property string errorMessage: ""
@@ -33,8 +35,8 @@ Kirigami.Page {
         function onLoginSuccess() {
             // Main.qml's Loader swaps away from this page automatically
             // once authManager.isLoggedIn flips (loginStateChanged is
-            // emitted right after loginSuccess in AuthManager.login()),
-            // so nothing else to do here.
+            // emitted right after loginSuccess in AuthManager), so
+            // nothing else to do here.
             root.state = "idle"
         }
 
@@ -77,17 +79,16 @@ Kirigami.Page {
             }
         }
 
-        // ── Idle / waiting ──────────────────────────────────────────
+        // ── Idle ────────────────────────────────────────────────────
         ColumnLayout {
             Layout.fillWidth: true
             Layout.topMargin: Kirigami.Units.largeSpacing
             spacing: Kirigami.Units.largeSpacing
-            visible: root.state !== "error"
+            visible: root.state === "idle"
 
             Controls.Button {
-                text: root.state === "waiting" ? "Waiting for browser…" : "Log in with AniList"
+                text: "Log in with AniList"
                 icon.name: "internet-services"
-                enabled: root.state !== "waiting"
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 2.5
 
@@ -97,22 +98,49 @@ Kirigami.Page {
                     authManager.login()
                 }
             }
+        }
 
-            RowLayout {
-                visible: root.state === "waiting"
-                Layout.alignment: Qt.AlignHCenter
-                spacing: Kirigami.Units.smallSpacing
+        // ── Waiting: paste token back ───────────────────────────────
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: Kirigami.Units.largeSpacing
+            spacing: Kirigami.Units.largeSpacing
+            visible: root.state === "waiting"
 
-                Controls.BusyIndicator {
-                    implicitWidth: Kirigami.Units.iconSizes.small
-                    implicitHeight: Kirigami.Units.iconSizes.small
-                    running: root.state === "waiting"
-                }
+            Controls.Label {
+                text: "AniList will show you a token on its own page — copy it and paste it below."
+                opacity: 0.7
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
 
-                Controls.Label {
-                    text: "Continue in your browser, then return here"
-                    opacity: 0.7
-                    font: Kirigami.Theme.smallFont
+            Controls.TextField {
+                id: tokenField
+                Layout.fillWidth: true
+                placeholderText: "Paste token here"
+                onAccepted: submitButton.clicked()
+            }
+
+            Controls.Button {
+                id: submitButton
+                text: "Submit"
+                icon.name: "dialog-ok"
+                enabled: tokenField.text.length > 0
+                Layout.fillWidth: true
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 2.5
+
+                onClicked: authManager.submitToken(tokenField.text)
+            }
+
+            Controls.Button {
+                text: "Start over"
+                flat: true
+                Layout.fillWidth: true
+
+                onClicked: {
+                    root.state = "idle"
+                    tokenField.text = ""
                 }
             }
         }

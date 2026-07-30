@@ -1,20 +1,9 @@
-import os
-import stat
-import threading
 import webbrowser
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from pathlib    import Path
-from urllib.parse import urlparse, parse_qs
 
 import keyring
 from PySide6.QtCore import QObject, Signal, Slot, Property
 
-from .config import (
-    ANILIST_CLIENT_ID,
-    ANILIST_CLIENT_SECRET,
-    OAUTH_REDIRECT_PORT,
-    OAUTH_TOKEN_URL,
-)
+from .config import ANILIST_CLIENT_ID
 
 # ── Keyring service name ───────────────────────────────────────────────────────
 _SERVICE = "knilist"
@@ -70,53 +59,25 @@ def _delete(key: str, retries: int = 2) -> bool:
     return False
 
 
-# ── Callback HTML pages ───────────────────────────────────────────────────────
-
-_SUCCESS_HTML = b"""<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>knilist \xe2\x80\x94 Login</title>
-  <style>
-    body { font-family: sans-serif; display: flex; align-items: center;
-           justify-content: center; height: 100vh; margin: 0;
-           background: #0d1117; color: #e6e6e6; }
-    .box { text-align: center; padding: 2rem 3rem;
-           border-radius: 14px; background: #1a1f2e; }
-    h2 { margin: 0 0 .5rem; } p { opacity: .6; margin: 0; }
-  </style>
-</head>
-<body>
-<div class="box">
-  <h2>\xe2\x9c\x94 Logged in!</h2>
-  <p>You can close this tab and return to knilist.</p>
-</div>
-</body>
-</html>"""
-
-_ERROR_HTML = b"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>knilist \xe2\x80\x94 Error</title></head>
-<body style="font-family:sans-serif;background:#0d1117;color:#e6e6e6;
-             display:flex;align-items:center;justify-content:center;height:100vh">
-  <div style="text-align:center">
-    <h2>\xe2\x9c\x98 Login failed</h2><p>No authorisation code received.</p>
-  </div>
-</body>
-</html>"""
-
-
 # ── AuthManager ───────────────────────────────────────────────────────────────
 
 class AuthManager(QObject):
-    loginSuccess      = Signal()
-    loginFailed       = Signal(str)
-    logoutDone        = Signal()
-    loginStateChanged = Signal()
+    loginSuccess            = Signal()
+    loginFailed             = Signal(str)
+    logoutDone              = Signal()
+    loginStateChanged       = Signal()
+    # Fired right after submitToken stores a pasted token — before it's
+    # been checked against AniList. app.py listens for this and issues a
+    # Viewer query via AniListService; that call's outcome decides
+    # whether loginSuccess (verified) or loginFailed (rejected, token
+    # rolled back) fires next. Kept separate from loginSuccess so nothing
+    # downstream (fetchAnime/fetchManga/etc., all wired to loginSuccess)
+    # runs against a token that turns out to be garbage.
+    tokenPendingVerification = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Load persisted values from ~/.config/knilist/.env on startup
+        # Load persisted values from the OS keyring on startup
         self._token    = _load(_KEY_TOKEN)
         self._user_id  = _load(_KEY_USER_ID)  or ""
         self._username = _load(_KEY_USERNAME) or ""
@@ -145,86 +106,68 @@ class AuthManager(QObject):
 
     @Slot()
     def login(self) -> None:
-        if not ANILIST_CLIENT_ID or not ANILIST_CLIENT_SECRET:
-            self.loginFailed.emit(
-                "ANILIST_CLIENT_ID or ANILIST_CLIENT_SECRET is empty.\n"
-                "Add them to ~/.config/knilist/.env"
-            )
+        # Pin flow: AniList's app Redirect URL must be set to
+        # https://anilist.co/api/v2/oauth/pin — with that in place,
+        # AniList ignores any redirect_uri we'd send here and instead
+        # shows the token as plain text on its own page for the user
+        # to copy. So there's nothing to listen for locally; login()
+        # just opens the browser and waits for submitToken().
+        if not ANILIST_CLIENT_ID:
+            self.loginFailed.emit("ANILIST_CLIENT_ID is empty.")
             return
 
-        redirect_uri = f"http://localhost:{OAUTH_REDIRECT_PORT}"
         auth_url = (
             "https://anilist.co/api/v2/oauth/authorize"
             f"?client_id={ANILIST_CLIENT_ID}"
-            f"&redirect_uri={redirect_uri}"
-            "&response_type=code"
+            "&response_type=token"
         )
-
-        def _run_server():
-            received: dict[str, str | None] = {"code": None}
-
-            class _Handler(BaseHTTPRequestHandler):
-                def do_GET(self):
-                    parsed = urlparse(self.path)
-                    qs     = parse_qs(parsed.query)
-                    code   = (qs.get("code") or [None])[0]
-
-                    if code:
-                        received["code"] = code
-                        body = _SUCCESS_HTML
-                    else:
-                        body = _ERROR_HTML
-
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/html; charset=utf-8")
-                    self.send_header("Content-Length", str(len(body)))
-                    self.end_headers()
-                    self.wfile.write(body)
-                    threading.Thread(target=srv.shutdown, daemon=True).start()
-
-                def log_message(self, *_):
-                    pass
-
-            srv = HTTPServer(("localhost", OAUTH_REDIRECT_PORT), _Handler)
-            srv.serve_forever()
-
-            code = received["code"]
-            if not code:
-                self.loginFailed.emit("Authentication cancelled or timed out.")
-                return
-
-            # Exchange code for access token
-            try:
-                import requests as _req
-                resp = _req.post(
-                    OAUTH_TOKEN_URL,
-                    json={
-                        "grant_type":    "authorization_code",
-                        "client_id":     ANILIST_CLIENT_ID,
-                        "client_secret": ANILIST_CLIENT_SECRET,
-                        "redirect_uri":  redirect_uri,
-                        "code":          code,
-                    },
-                    headers={"Content-Type": "application/json",
-                             "Accept":       "application/json"},
-                    timeout=15,
-                )
-                resp.raise_for_status()
-                token = resp.json().get("access_token")
-            except Exception as exc:
-                self.loginFailed.emit(f"Token exchange failed: {exc}")
-                return
-
-            if token:
-                _store(_KEY_TOKEN, token)
-                self._token = token
-                self.loginSuccess.emit()
-                self.loginStateChanged.emit()
-            else:
-                self.loginFailed.emit("No access_token in AniList response.")
-
-        threading.Thread(target=_run_server, daemon=True).start()
         webbrowser.open(auth_url)
+
+    @Slot(str)
+    def submitToken(self, token: str) -> None:
+        """Called from LoginPage once the user pastes the token AniList
+        showed them on the pin page. Replaces the old local-server +
+        token-exchange flow entirely — the token arrives already-issued,
+        so there's no code to exchange and no client_secret involved.
+
+        A pasted string could be malformed, truncated, or copied wrong,
+        so this doesn't confirm login on its own. It stores the token
+        provisionally and emits tokenPendingVerification; app.py answers
+        that by running a Viewer query through AniListService (which
+        already needs a valid token to succeed) and then calls back into
+        confirmVerified() or rejectVerification() below.
+        """
+        token = token.strip()
+        if not token:
+            self.loginFailed.emit("Paste the token AniList gave you.")
+            return
+
+        _store(_KEY_TOKEN, token)
+        self._token = token
+        # isLoggedIn flips true here so token() is available for the
+        # verification call itself — AniListService._gql reads
+        # self._auth.token() at call time, so this needs to happen
+        # before app.py's handler runs the Viewer query.
+        self.loginStateChanged.emit()
+        self.tokenPendingVerification.emit()
+
+    @Slot()
+    def confirmVerified(self) -> None:
+        """Called by app.py once the post-submitToken Viewer query
+        succeeds. Finalises what submitToken started provisionally."""
+        self.loginSuccess.emit()
+
+    @Slot(str)
+    def rejectVerification(self, message: str) -> None:
+        """Called by app.py if the post-submitToken Viewer query fails —
+        AniList didn't recognise the pasted token. Rolls back exactly
+        what submitToken did: clears the keyring entry and in-memory
+        token, then flips isLoggedIn back to false so LoginPage stays
+        up instead of showing a logged-in UI backed by a dead token."""
+        _delete(_KEY_TOKEN)
+        self._token = None
+        self.loginStateChanged.emit()
+        self.loginFailed.emit(message)
 
     @Slot()
     def logout(self) -> None:

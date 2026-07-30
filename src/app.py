@@ -2,6 +2,7 @@
 import os
 import sys
 import signal
+import threading
 from importlib.resources import files
 
 from PySide6.QtGui  import QGuiApplication, QIcon
@@ -38,6 +39,29 @@ def main():
     auth.loginSuccess.connect(service.fetchManga)
     auth.loginSuccess.connect(service.fetchHomeProfile)
     auth.loginSuccess.connect(service.fetchProfile)
+
+    def _verify_pasted_token():
+        # submitToken() has already stored the pasted token provisionally
+        # and flipped isLoggedIn — this runs a Viewer query (the same one
+        # AniListService already uses elsewhere) to confirm AniList
+        # actually accepts it before anything else treats the user as
+        # logged in. Runs on AniListService's existing worker thread
+        # inside _fetch_viewer_raw/_gql, not the Qt UI thread.
+        def _run():
+            try:
+                viewer = service._fetch_viewer_raw()
+                if not viewer.get("id"):
+                    raise RuntimeError("AniList returned no viewer for this token.")
+                service._apply_viewer_bookkeeping(viewer)
+                auth.confirmVerified()
+            except Exception as exc:
+                auth.rejectVerification(
+                    f"That token wasn't accepted by AniList: {exc}"
+                )
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    auth.tokenPendingVerification.connect(_verify_pasted_token)
 
     settings = Settings()
 
