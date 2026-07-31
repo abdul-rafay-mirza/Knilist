@@ -208,8 +208,9 @@ class AuthManager(QObject):
                 "could not be removed from your OS credential store "
                 "and will likely log you back in next launch. This "
                 "usually means the credential store is locked, "
-                "misconfigured, or unavailable — check your system's "
-                "keyring/credential manager directly, or run `python3 -c "
-                "\"import keyring; print(keyring.get_keyring())\"` "
-                "to see which backend is active."
+                "misconfigured, or unavailable. Check your system's "
+                "keyring/credential manager directly. (Check in "
+                "KWalletManager GUI and delete knilist entry and also "
+                "run the command \"secret-tool search service knilist\" "
+                "and make sure it does not show anything.)"
             )
