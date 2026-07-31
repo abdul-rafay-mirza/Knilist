@@ -281,20 +281,10 @@ Kirigami.Page {
                         Layout.margins: Kirigami.Units.largeSpacing * 2
                         spacing: Kirigami.Units.smallSpacing
 
-                        RowLayout {
+                        Kirigami.Heading {
                             Layout.fillWidth: true
-
-                            Kirigami.Heading {
-                                Layout.fillWidth: true
-                                level: 3
-                                text: "Stats"
-                            }
-
-                            Controls.Label {
-                                text: "View Detail Statistics"
-                                color: Kirigami.Theme.highlightColor
-                                // stub — no dedicated statistics page yet
-                            }
+                            level: 3
+                            text: "Stats"
                         }
 
                         Kirigami.FormLayout {
@@ -425,19 +415,10 @@ Kirigami.Page {
                         spacing: Kirigami.Units.smallSpacing
                         visible: (profilePage.profile.favouriteStudios || []).length > 0
 
-                        RowLayout {
+                        Kirigami.Heading {
                             Layout.fillWidth: true
-
-                            Kirigami.Heading {
-                                Layout.fillWidth: true
-                                level: 3
-                                text: "Favorite Studios"
-                            }
-
-                            Controls.Label {
-                                text: "See More"
-                                color: Kirigami.Theme.highlightColor
-                            }
+                            level: 3
+                            text: "Favorite Studios"
                         }
 
                         Flow {
