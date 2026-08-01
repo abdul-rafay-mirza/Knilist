@@ -7,6 +7,7 @@ import "components"
 
 // The page representing any user
 // Accessed from ProfilePage > Click on Followers and Following StatBar > Click on a FollowersAndFollowingCard
+// Also accessed from notifications page when someone follows us
 
 Kirigami.Page {
     id: usersPage

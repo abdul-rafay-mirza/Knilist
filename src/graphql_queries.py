@@ -1204,6 +1204,7 @@ query ($page: Int = 1, $perPage: Int = 25, $resetCount: Boolean = false) {
         context
         createdAt
         media {
+          type
           title { userPreferred }
           coverImage { large }
         }

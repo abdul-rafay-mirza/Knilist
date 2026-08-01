@@ -18,7 +18,9 @@ Kirigami.Page {
     // exact reserved property names. Worth a quick check against the real
     // file if the navigation doesn't work as expected. AnimePage.qml's
     // { animeId } shape below, by contrast, is copied directly from
-    // NotificationsPage.qml's own onCardClicked handler.
+    // NotificationsPage.qml's own onCardClicked handler, and MangaPage.qml's
+    // { anilistId } shape (see openMedia() below) is confirmed directly
+    // against MangaPage.qml's own `property int anilistId`.
 
     // { kind, activityId, user, text, mediaId, mediaTitle, mediaCover,
     //   mediaType, recipient, createdAt, displayTime, replyCount,
@@ -48,6 +50,19 @@ Kirigami.Page {
             return
         isLoadingMoreReplies = true
         anilistService.fetchActivityReplies(activityPage.activityId, currentRepliesPage + 1)
+    }
+
+    // Shared by the cover-image click and the title-text click below, so
+    // the ANIME/MANGA branch lives in one place. Same branching NotificationsPage.qml
+    // uses for its airing/relatedMedia notifications.
+    function openMedia() {
+        if (!activityPage.activity || activityPage.activity.mediaId <= 0)
+            return
+        if (activityPage.activity.mediaType === "MANGA") {
+            pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: activityPage.activity.mediaId })
+        } else {
+            pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: activityPage.activity.mediaId })
+        }
     }
 
     // Local avatar-circle component, defined once and reused by the header
@@ -224,10 +239,7 @@ Kirigami.Page {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape:  Qt.PointingHandCursor
-                                    onClicked: {
-                                        if (activityPage.activity && activityPage.activity.mediaId > 0)
-                                            pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: activityPage.activity.mediaId })
-                                    }
+                                    onClicked: activityPage.openMedia()
                                 }
                             }
 
@@ -305,10 +317,7 @@ Kirigami.Page {
                                         anchors.fill: parent
                                         enabled:      activityPage.activity && activityPage.activity.kind === "list" && activityPage.activity.mediaId > 0
                                         cursorShape:  enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                        onClicked: {
-                                            if (activityPage.activity && activityPage.activity.mediaId > 0)
-                                                pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: activityPage.activity.mediaId })
-                                        }
+                                        onClicked: activityPage.openMedia()
                                     }
                                 }
                             }

@@ -358,6 +358,12 @@ def _flatten_notification(node: dict) -> dict | None:
             "displayTime": _format_timestamp(node.get("createdAt")),
             "activityId": 0,
             "mediaId":    media.get("id", 0),
+            # AiringNotification is episode-airing only — AniList doesn't
+            # have a manga-chapter equivalent (confirmed via AniList staff
+            # on the site forums: tracking releases for ~100k+ manga isn't
+            # feasible the way a single anime season is), so this is
+            # always ANIME, not fetched from the query.
+            "mediaType":  "ANIME",
             "userId":     0,
             "userName":   "",
         }
@@ -375,6 +381,11 @@ def _flatten_notification(node: dict) -> dict | None:
             "displayTime": _format_timestamp(node.get("createdAt")),
             "activityId": 0,
             "mediaId":    node.get("mediaId") or 0,
+            # Unlike AiringNotification, this one genuinely can be either —
+            # an anime's relations commonly include its manga source or a
+            # manga spin-off, so media.type is fetched and passed through
+            # rather than assumed.
+            "mediaType":  media.get("type") or "ANIME",
             "userId":     0,
             "userName":   "",
         }
@@ -391,6 +402,7 @@ def _flatten_notification(node: dict) -> dict | None:
             "displayTime": _format_timestamp(node.get("createdAt")),
             "activityId": 0,
             "mediaId":    0,
+            "mediaType":  "ANIME",
             "userId":     user.get("id", 0),
             "userName":   user.get("name") or "",
         }
@@ -407,6 +419,7 @@ def _flatten_notification(node: dict) -> dict | None:
             "displayTime": _format_timestamp(node.get("createdAt")),
             "activityId": node.get("activityId") or 0,
             "mediaId":    0,
+            "mediaType":  "ANIME",
             "userId":     0,
             "userName":   "",
         }
