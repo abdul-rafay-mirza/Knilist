@@ -32,6 +32,7 @@ from .graphql_queries import (
     _SEARCH_STUDIOS_QUERY, _SEARCH_USERS_QUERY,
     _NOTIFICATIONS_QUERY,
     _ACTIVITY_QUERY, _ACTIVITY_REPLIES_QUERY,
+    _SAVE_ACTIVITY_REPLY_MUTATION, _TOGGLE_ACTIVITY_LIKE_MUTATION,
     _UPDATE_NSFW_SETTING_MUTATION,
     _UPDATE_SCORE_FORMAT_MUTATION,
     _UPDATE_TITLE_LANGUAGE_MUTATION,
@@ -568,6 +569,8 @@ class AniListService(QObject):
     notificationsPageLoaded = Signal(str)   # full JSON payload for NotificationsPage
     activityPageLoaded = Signal(str)   # full JSON payload for ActivityPage (activity + first page of replies)
     activityRepliesLoaded = Signal(str)   # full JSON payload for ActivityPage's "load more replies"
+    activityReplyPosted = Signal(str)   # {activityId, reply} for a single newly-created reply — distinct from activityRepliesLoaded's page-of-replies shape, so QML can prepend one row instead of unwrapping a list
+    activityLikeToggled = Signal(int, bool, int)   # (activityId, isLiked, likeCount) — from ToggleLike's own response, no re-query
     nsfwEnabledChanged = Signal(bool)   # fires whenever the confirmed displayAdultContent value changes — after a viewer fetch, a successful setNsfwEnabled(), or a failed one snapping back to the last known-good value
     titleLanguageChanged = Signal(str)   # fires whenever the confirmed titleLanguage value changes — same shape as nsfwEnabledChanged
     staffNameLanguageChanged = Signal(str)   # fires whenever the confirmed staffNameLanguage value changes — same shape as titleLanguageChanged
@@ -1242,6 +1245,68 @@ class AniListService(QObject):
                     "replies": [], "repliesPage": page, "hasNextPage": False,
                     "isError": True,
                 }))
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, str)
+    def postActivityReply(self, activity_id: int, text: str) -> None:
+        """Backs ActivityPage.qml's reply input. SaveActivityReply(activityId,
+        text) with no $id creates a new reply rather than editing an
+        existing one (id is the edit-target argument — unused here, this
+        project doesn't support editing a reply yet) and returns the
+        created ActivityReply directly, so the new row is built from the
+        mutation's own response — no follow-up fetch needed. Reuses
+        _flatten_activity_replies (built for a list of nodes) by wrapping
+        the single returned node in a one-item list and unwrapping the
+        result, rather than duplicating that normalisation here."""
+        stripped = text.strip()
+        if not stripped:
+            return   # AniList itself rejects an empty reply body ("this reply is empty, can't post it") — check client-side rather than round-trip for a guaranteed error
+        def _run():
+            try:
+                self._begin_loading()
+                data  = self._gql(_SAVE_ACTIVITY_REPLY_MUTATION, {
+                    "activityId": activity_id,
+                    "text":       stripped,
+                })
+                node  = data.get("SaveActivityReply") or {}
+                flat_list = _flatten_activity_replies([node])
+                if not flat_list:
+                    raise RuntimeError("AniList did not return the posted reply.")
+                self.activityReplyPosted.emit(json.dumps({
+                    "activityId": activity_id,
+                    "reply":      flat_list[0],
+                }))
+            except Exception as exc:
+                self._emit_update_failure(exc, "Network Issue: Failed to post reply.")
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int)
+    def toggleActivityLike(self, activity_id: int) -> None:
+        """Backs ActivityPage.qml's like button on the activity header.
+        ToggleLike(id, type: ACTIVITY) flips the viewer's like and returns
+        the resulting [User] list of everyone who now likes it — likeCount
+        is that list's length, and isLiked is whether the viewer's own id
+        (from _get_viewer_id, cached after the first Viewer fetch) is in
+        it. No isLiked field exists to re-query the way isFavourite does
+        for character/staff/studio (see _ACTIVITY_QUERY's comment on
+        `likes` being a raw list), so this is the only source of truth for
+        the new state — one round trip, not two."""
+        def _run():
+            try:
+                self._begin_loading()
+                data      = self._gql(_TOGGLE_ACTIVITY_LIKE_MUTATION, {"id": activity_id})
+                likers    = data.get("ToggleLike") or []
+                viewer_id = self._get_viewer_id()
+                is_liked  = any(u.get("id") == viewer_id for u in likers)
+                self.activityLikeToggled.emit(activity_id, is_liked, len(likers))
+            except Exception as exc:
+                self._emit_update_failure(exc, "Network Issue: Failed to update like.")
+            finally:
+                self._end_loading()
 
         threading.Thread(target=_run, daemon=True).start()
 

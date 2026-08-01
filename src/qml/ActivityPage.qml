@@ -37,6 +37,35 @@ Kirigami.Page {
     property bool isLoadingMoreReplies: false
     property bool hasNextRepliesPage: false
     property int  currentRepliesPage: 1
+    property bool isPostingReply: false
+    property bool isTogglingLike: false
+
+    // Reads replyField's current text directly (declared further down, in
+    // the reply-input UI) rather than taking a parameter, since it's only
+    // ever called from that field's own submit action. Does NOT clear
+    // replyField here — that only happens in onActivityReplyPosted once
+    // the post actually succeeds, so a failed submit doesn't lose what was
+    // typed. The empty-string guard mirrors postActivityReply's own
+    // client-side check (AniList itself rejects an empty body), avoiding a
+    // round-trip for a guaranteed error.
+    function postReply() {
+        var text = replyField.text.trim()
+        if (text === "" || isPostingReply)
+            return
+        isPostingReply = true
+        anilistService.postActivityReply(activityPage.activityId, text)
+    }
+
+    // Only the activity itself, not individual replies — see
+    // _TOGGLE_ACTIVITY_LIKE_MUTATION's comment for why reply-liking isn't
+    // implemented (its LikeableType value was never confirmed against a
+    // real request, unlike ACTIVITY).
+    function toggleLike() {
+        if (!activityPage.activity || isTogglingLike)
+            return
+        isTogglingLike = true
+        anilistService.toggleActivityLike(activityPage.activityId)
+    }
 
     function reload() {
         isInitialLoading   = true
@@ -141,9 +170,50 @@ Kirigami.Page {
             activityPage.hasNextRepliesPage = payload.hasNextPage
         }
 
+        function onActivityReplyPosted(json) {
+            var payload = JSON.parse(json)
+            activityPage.isPostingReply = false
+
+            if (payload.activityId !== activityPage.activityId)
+                return   // stray signal for a different activity page, if one ever overlaps
+
+            activityPage.replies = activityPage.replies.concat([payload.reply])
+            replyField.text = ""
+
+            // Bump the header's reply count locally so it reflects the new
+            // reply immediately, without waiting on a full reload().
+            if (activityPage.activity) {
+                var updated = Object.assign({}, activityPage.activity)
+                updated.replyCount = (updated.replyCount || 0) + 1
+                activityPage.activity = updated
+            }
+        }
+
+        function onActivityLikeToggled(activityId, isLiked, likeCount) {
+            activityPage.isTogglingLike = false
+
+            if (activityId !== activityPage.activityId || !activityPage.activity)
+                return
+
+            var updated = Object.assign({}, activityPage.activity)
+            updated.likeCount = likeCount
+            updated.isLiked   = isLiked
+            activityPage.activity = updated
+        }
+
         function onErrorOccurred(message) {
             errorMessage.text = message
             errorMessage.visible = true
+            // errorOccurred is the only signal guaranteed to fire on every
+            // failure path in the service (activityReplyPosted/
+            // activityLikeToggled only fire on success) — so it's the one
+            // reliable place to clear these in-flight flags and avoid a
+            // stuck spinner. Trade-off: an unrelated error firing while a
+            // reply-post or like-toggle happens to be in flight will also
+            // clear its flag early. Acceptable — the alternative is a
+            // permanently stuck UI state, which is worse.
+            activityPage.isPostingReply = false
+            activityPage.isTogglingLike = false
         }
     }
 
@@ -334,15 +404,45 @@ Kirigami.Page {
                             RowLayout {
                                 visible: activityPage.activity && activityPage.activity.replyCount > 0
                                 spacing: Kirigami.Units.smallSpacing / 2
-                                Kirigami.Icon { source: "im-message-new"; Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small }
+                                Kirigami.Icon { source: "dialog-messages"; Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small }
                                 Controls.Label { text: activityPage.activity ? activityPage.activity.replyCount : 0 }
                             }
 
+                            // Real toggle, unlike the reply-count display
+                            // above — stays visible even at 0 likes so the
+                            // viewer can add the first one. isLiked only
+                            // reflects a toggle made THIS session (see
+                            // onActivityLikeToggled) — the initial fetch
+                            // has no per-viewer like state to seed it with
+                            // (AniList's `likes` field is a raw user list,
+                            // not an isLiked flag), so a previously-liked
+                            // activity still starts the button unpressed
+                            // until the viewer interacts with it here.
                             RowLayout {
-                                visible: activityPage.activity && activityPage.activity.likeCount > 0
                                 spacing: Kirigami.Units.smallSpacing / 2
-                                Kirigami.Icon { source: "emblem-favorite"; Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small }
-                                Controls.Label { text: activityPage.activity ? activityPage.activity.likeCount : 0 }
+
+                                Kirigami.Icon {
+                                    source: "love"
+                                    Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                                    Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                                }
+                                Controls.Label {
+                                    text: activityPage.activity ? activityPage.activity.likeCount : 0
+                                    color: activityPage.activity && activityPage.activity.isLiked ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
+                                    font.bold: activityPage.activity && activityPage.activity.isLiked
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    // Generous hit target — the icon+label
+                                    // pair alone is small, and this button
+                                    // sends a real write, so a slightly
+                                    // wider tap area beats a frustrating miss.
+                                    anchors.margins: -Kirigami.Units.smallSpacing
+                                    cursorShape: activityPage.isTogglingLike ? Qt.ArrowCursor : Qt.PointingHandCursor
+                                    enabled: !activityPage.isTogglingLike
+                                    onClicked: activityPage.toggleLike()
+                                }
                             }
                         }
                     }
@@ -441,22 +541,53 @@ Kirigami.Page {
                 }
 
                 // Reply input ──────────────────────────────────────────
-                // TODO: read-only for now — posting a reply (SaveActivityReply
-                // mutation) and liking (ToggleLike mutation) are not wired up
-                // yet. This box mirrors the screenshot's placement but is
-                // disabled until those mutations are implemented.
                 Kirigami.Separator {
                     Layout.fillWidth: true
                     Layout.topMargin: Kirigami.Units.smallSpacing
                     visible: activityPage.activity !== null
                 }
 
-                Controls.TextField {
+                Kirigami.InlineMessage {
                     Layout.fillWidth: true
                     Layout.margins: Kirigami.Units.smallSpacing
-                    visible: activityPage.activity !== null
-                    placeholderText: "Write a reply…"
-                    enabled: false
+                    visible: activityPage.activity !== null && activityPage.activity.isLocked
+                    type: Kirigami.MessageType.Information
+                    text: "This activity is locked — new replies aren't allowed."
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.margins: Kirigami.Units.smallSpacing
+                    visible: activityPage.activity !== null && !activityPage.activity.isLocked
+                    spacing: Kirigami.Units.smallSpacing
+
+                    Controls.TextField {
+                        id: replyField
+                        Layout.fillWidth: true
+                        placeholderText: "Write a reply…"
+                        enabled: !activityPage.isPostingReply
+                        onAccepted: activityPage.postReply()
+                    }
+
+                    Controls.BusyIndicator {
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                        Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                        running: activityPage.isPostingReply
+                        visible: running
+                    }
+
+                    Controls.Button {
+                        icon.name: "document-send"
+                        text: "Reply"
+                        display: Controls.Button.IconOnly
+                        enabled: !activityPage.isPostingReply && replyField.text.trim() !== ""
+                        visible: !activityPage.isPostingReply
+                        onClicked: activityPage.postReply()
+
+                        Controls.ToolTip.text: "Send reply"
+                        Controls.ToolTip.visible: hovered
+                        Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+                    }
                 }
 
                 Item { Layout.preferredHeight: Kirigami.Units.largeSpacing * 2 }

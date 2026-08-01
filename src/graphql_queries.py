@@ -1452,6 +1452,52 @@ query ($activityId: Int, $page: Int = 1, $perPage: Int = 25) {
 }
 """
 
+# Posting a reply (ActivityPage's reply input). No $id argument — passing
+# one would target an *update* of an existing reply instead of creating a
+# new one (SaveActivityReply(activityId, id, text): ActivityReply — id is
+# only for edits), which this doesn't support yet. Returns the created
+# ActivityReply directly, so the new row can be built from the mutation's
+# own response without a second round-trip.
+_SAVE_ACTIVITY_REPLY_MUTATION = """
+mutation ($activityId: Int, $text: String) {
+  SaveActivityReply(activityId: $activityId, text: $text) {
+    id
+    activityId
+    createdAt
+    text
+    user {
+      id
+      name
+      avatar { large }
+    }
+    likes {
+      id
+      name
+      avatar { large }
+    }
+  }
+}
+"""
+
+# Liking/unliking the activity itself (not an individual reply — AniList
+# likely has a separate LikeableType value for that, but the only value
+# confirmed against a real request is ACTIVITY [from AniLink's example
+# usage: mutation.toggleLike({id, type: 'ACTIVITY'})], so reply-liking
+# stays unimplemented rather than guessed at). ToggleLike(id, type): [User]
+# — args and return type are confirmed directly against the schema; that a
+# single call both flips the like and returns the resulting list (so
+# likeCount and "did the viewer just like this" can be read straight off
+# it, no second isLiked query) follows from "Toggle" naming plus the
+# mutation's shape, not from an explicit description in the schema source
+# (this mutation has none, unlike SaveActivityReply's per-arg comments).
+_TOGGLE_ACTIVITY_LIKE_MUTATION = """
+mutation ($id: Int) {
+  ToggleLike(id: $id, type: ACTIVITY) {
+    id
+  }
+}
+"""
+
 _UPDATE_NSFW_SETTING_MUTATION = """
 mutation ($displayAdultContent: Boolean) {
   UpdateUser(displayAdultContent: $displayAdultContent) {
