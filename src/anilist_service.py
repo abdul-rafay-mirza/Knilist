@@ -31,6 +31,7 @@ from .graphql_queries import (
     _SEARCH_MEDIA_QUERY, _SEARCH_CHARACTERS_QUERY, _SEARCH_STAFF_QUERY,
     _SEARCH_STUDIOS_QUERY, _SEARCH_USERS_QUERY,
     _NOTIFICATIONS_QUERY,
+    _ACTIVITY_QUERY, _ACTIVITY_REPLIES_QUERY,
     _UPDATE_NSFW_SETTING_MUTATION,
     _UPDATE_SCORE_FORMAT_MUTATION,
     _UPDATE_TITLE_LANGUAGE_MUTATION,
@@ -58,6 +59,40 @@ def _format_timestamp(timestamp: int) -> str:
         year = dt.strftime("%Y")   # 4-digit year (e.g., "2019")
         
         return f"{day}{suffix} {month}, {year}"
+    except (ValueError, OSError, OverflowError):
+        return ""
+
+def _format_relative_timestamp(timestamp: int) -> str:
+    """Converts a Unix timestamp into AniList's short relative style
+    ('2 weeks ago', '3 hours ago') as used on activity/reply rows.
+    Falls back to _format_timestamp's full date once the gap reaches a
+    year, matching AniList's own site behaviour."""
+    if not timestamp:
+        return ""
+    try:
+        now = datetime.now(tz=timezone.utc)
+        then = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        seconds = max(0, (now - then).total_seconds())
+
+        minute, hour, day, week, month, year = 60, 3600, 86400, 604800, 2592000, 31536000
+
+        if seconds < minute:
+            value, unit = int(seconds), "second"
+        elif seconds < hour:
+            value, unit = int(seconds // minute), "minute"
+        elif seconds < day:
+            value, unit = int(seconds // hour), "hour"
+        elif seconds < week:
+            value, unit = int(seconds // day), "day"
+        elif seconds < month:
+            value, unit = int(seconds // week), "week"
+        elif seconds < year:
+            value, unit = int(seconds // month), "month"
+        else:
+            return _format_timestamp(timestamp)
+
+        value = max(1, value)
+        return f"{value} {unit if value == 1 else unit + 's'} ago"
     except (ValueError, OSError, OverflowError):
         return ""
 
@@ -380,6 +415,31 @@ def _flatten_notifications(nodes: list | None) -> list[dict]:
     return result
 
 
+def _flatten_activity_replies(nodes: list | None) -> list[dict]:
+    """Normalises ActivityReply nodes (see _ACTIVITY_QUERY /
+    _ACTIVITY_REPLIES_QUERY) into the flat shape ActivityPage.qml's reply
+    delegate expects. Shared by fetchActivity (first page, fetched inline
+    with the activity) and fetchActivityReplies (subsequent pages), so the
+    two stay in sync instead of duplicating this shape in both places."""
+    result = []
+    for node in nodes or []:
+        user = node.get("user") or {}
+        result.append({
+            "id":         node.get("id", 0),
+            "activityId": node.get("activityId") or 0,
+            "text":       node.get("text") or "",
+            "createdAt":  node.get("createdAt") or 0,
+            "displayTime": _format_relative_timestamp(node.get("createdAt")),
+            "likeCount":  len(node.get("likes") or []),
+            "user":       {
+                "id":     user.get("id", 0),
+                "name":   user.get("name") or "",
+                "avatar": (user.get("avatar") or {}).get("large", ""),
+            },
+        })
+    return result
+
+
 # searchType (exactly as sent by HomePage's searchTypes / SearchPage.qml) ->
 #   query text, extra GraphQL variables beyond search/page, the field to read
 #   off the Page result, and the flattener for that field's nodes.
@@ -485,6 +545,8 @@ class AniListService(QObject):
     userMangaLoaded = Signal(int, list)   # userId, entries - read-only list for UsersMangaListPage
     searchResultsLoaded = Signal(str)   # full JSON payload for SearchPage
     notificationsPageLoaded = Signal(str)   # full JSON payload for NotificationsPage
+    activityPageLoaded = Signal(str)   # full JSON payload for ActivityPage (activity + first page of replies)
+    activityRepliesLoaded = Signal(str)   # full JSON payload for ActivityPage's "load more replies"
     nsfwEnabledChanged = Signal(bool)   # fires whenever the confirmed displayAdultContent value changes — after a viewer fetch, a successful setNsfwEnabled(), or a failed one snapping back to the last known-good value
     titleLanguageChanged = Signal(str)   # fires whenever the confirmed titleLanguage value changes — same shape as nsfwEnabledChanged
     staffNameLanguageChanged = Signal(str)   # fires whenever the confirmed staffNameLanguage value changes — same shape as titleLanguageChanged
@@ -506,6 +568,7 @@ class AniListService(QObject):
         self._following_fetch_gen: int = 0
         self._search_gen: int = 0
         self._notifications_fetch_gen: int = 0
+        self._activity_replies_fetch_gen: int = 0
         self._nsfw_enabled: bool = False   # updated once viewer.options is fetched
         self._title_language: str = "ROMAJI"   # AniList's own default; updated once viewer.options is fetched
         self._staff_name_language: str = "ROMAJI_WESTERN"   # AniList's own default; updated once viewer.options is fetched
@@ -1027,6 +1090,137 @@ class AniListService(QObject):
                 self._emit_update_failure(exc)
             finally:
                 self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    # Activity slots
+
+    @Slot(int)
+    def fetchActivity(self, activity_id: int) -> None:
+        """Backs ActivityPage.qml. Single-shot detail fetch (same shape as
+        fetchCharacterPage/fetchStudioPage, not paginated like
+        fetchNotifications) since it targets exactly one Activity node.
+        Normalises whichever ActivityUnion member comes back (ListActivity/
+        TextActivity/MessageActivity) into one flat shape the page can
+        render uniformly, the same way _flatten_notification does for
+        NotificationUnion. Also emits the first page of replies inline so
+        the page has content immediately without a second round-trip."""
+        def _run():
+            try:
+                self._begin_loading()
+                data     = self._gql(_ACTIVITY_QUERY, {"id": activity_id})
+                activity = data.get("Activity") or {}
+                typename = activity.get("__typename")
+
+                if typename == "ListActivity":
+                    user  = activity.get("user") or {}
+                    media = activity.get("media") or {}
+                    flat = {
+                        "kind":       "list",
+                        "user":       {"id": user.get("id", 0), "name": user.get("name") or "",
+                                        "avatar": (user.get("avatar") or {}).get("large", "")},
+                        # status/progress are AniList's own short strings
+                        # ("Rewatched", "Watched 3 of 12") — already
+                        # formatted server-side, no client assembly needed
+                        "text":       f"{activity.get('status') or ''} {activity.get('progress') or ''}".strip(),
+                        "mediaId":    media.get("id", 0),
+                        "mediaTitle": (media.get("title") or {}).get("userPreferred") or "",
+                        "mediaCover": (media.get("coverImage") or {}).get("large", ""),
+                        "mediaType":  media.get("type") or "",
+                        "recipient":  None,
+                    }
+                elif typename == "TextActivity":
+                    user = activity.get("user") or {}
+                    flat = {
+                        "kind":       "text",
+                        "user":       {"id": user.get("id", 0), "name": user.get("name") or "",
+                                        "avatar": (user.get("avatar") or {}).get("large", "")},
+                        "text":       activity.get("text") or "",
+                        "mediaId":    0, "mediaTitle": "", "mediaCover": "", "mediaType": "",
+                        "recipient":  None,
+                    }
+                elif typename == "MessageActivity":
+                    messenger = activity.get("messenger") or {}
+                    recipient = activity.get("recipient") or {}
+                    flat = {
+                        "kind":       "message",
+                        "user":       {"id": messenger.get("id", 0), "name": messenger.get("name") or "",
+                                        "avatar": (messenger.get("avatar") or {}).get("large", "")},
+                        "text":       activity.get("message") or "",
+                        "mediaId":    0, "mediaTitle": "", "mediaCover": "", "mediaType": "",
+                        "recipient":  {"id": recipient.get("id", 0), "name": recipient.get("name") or "",
+                                        "avatar": (recipient.get("avatar") or {}).get("large", "")},
+                    }
+                else:
+                    # Activity was deleted, is private, or is a union member
+                    # added after this was written — surface as an error
+                    # rather than emit a broken/empty page.
+                    self.errorOccurred.emit("This activity is no longer available.")
+                    self.activityPageLoaded.emit(json.dumps({"isError": True}))
+                    return
+
+                flat["activityId"]  = activity.get("id", 0)
+                flat["createdAt"]   = activity.get("createdAt") or 0
+                flat["displayTime"] = _format_relative_timestamp(activity.get("createdAt"))
+                flat["replyCount"]  = activity.get("replyCount") or 0
+                flat["likeCount"]   = len(activity.get("likes") or [])
+                flat["isLocked"]    = activity.get("isLocked", False)
+                flat["siteUrl"]     = activity.get("siteUrl") or ""
+
+                page_obj  = data.get("Page") or {}
+                has_next  = (page_obj.get("pageInfo") or {}).get("hasNextPage", False)
+                replies   = _flatten_activity_replies(page_obj.get("activityReplies"))
+
+                self.activityPageLoaded.emit(json.dumps({
+                    "activity":     flat,
+                    "replies":      replies,
+                    "repliesPage":  1,
+                    "hasNextPage":  has_next,
+                    "isError":      False,
+                }))
+            except Exception as exc:
+                self.errorOccurred.emit(str(exc))
+                self.activityPageLoaded.emit(json.dumps({"isError": True}))
+            finally:
+                self._end_loading()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @Slot(int, int)
+    def fetchActivityReplies(self, activity_id: int, page: int) -> None:
+        """Backs ActivityPage's "load more replies". Same paging/generation-
+        counter shape as fetchNotifications: QML passes currentPage+1, and
+        a generation counter makes sure only the most recently requested
+        page ever gets emitted if the page is left (or refreshed) while an
+        older page request is still in flight."""
+        self._activity_replies_fetch_gen += 1
+        my_gen = self._activity_replies_fetch_gen
+
+        def _run():
+            try:
+                data = self._gql(_ACTIVITY_REPLIES_QUERY, {
+                    "activityId": activity_id,
+                    "page":       page if page > 0 else 1,
+                })
+                if my_gen != self._activity_replies_fetch_gen:
+                    return   # a newer replies request has since superseded this one
+                page_obj = data.get("Page") or {}
+                has_next = (page_obj.get("pageInfo") or {}).get("hasNextPage", False)
+
+                self.activityRepliesLoaded.emit(json.dumps({
+                    "replies":     _flatten_activity_replies(page_obj.get("activityReplies")),
+                    "repliesPage": page,
+                    "hasNextPage": has_next,
+                    "isError":     False,
+                }))
+            except Exception as exc:
+                if my_gen != self._activity_replies_fetch_gen:
+                    return
+                self.errorOccurred.emit(str(exc))
+                self.activityRepliesLoaded.emit(json.dumps({
+                    "replies": [], "repliesPage": page, "hasNextPage": False,
+                    "isError": True,
+                }))
 
         threading.Thread(target=_run, daemon=True).start()
 

@@ -1303,6 +1303,154 @@ query ($page: Int = 1, $perPage: Int = 25, $resetCount: Boolean = false) {
 }
 """
 
+# Activity (ActivityPage)
+# Reached by tapping any of the 6 activity-style notifications above (their
+# activityId is the $id here). The root Activity field is a single node,
+# not wrapped in Page — see AniList's schema: Activity(id: Int): ActivityUnion.
+# All three ActivityUnion members are queried via inline fragments; the
+# caller distinguishes them at runtime via __typename, same pattern as
+# _NOTIFICATIONS_QUERY's NotificationUnion handling.
+#
+# `likes` is a raw [User] list (AniList doesn't expose a per-viewer
+# isLiked boolean on activities the way isFavourite works for
+# character/staff/studio), so "did I like this" would have to be derived
+# client-side by checking the viewer's id against this list — not needed
+# yet since likes/replies are read-only for now.
+#
+# The first page of replies is fetched inline here (perPage: 25, AniList's
+# max) so the page has content immediately; _ACTIVITY_REPLIES_QUERY below
+# is a separate query for continued pagination, since AniList paginates
+# replies independently of the parent activity.
+_ACTIVITY_QUERY = """
+query ($id: Int, $replyPage: Int = 1, $replyPerPage: Int = 25) {
+  Activity(id: $id) {
+    __typename
+
+    ... on ListActivity {
+      id
+      type
+      status
+      progress
+      isLocked
+      replyCount
+      siteUrl
+      createdAt
+      media {
+        id
+        title { userPreferred }
+        coverImage { large }
+        type
+      }
+      user {
+        id
+        name
+        avatar { large }
+      }
+      likes {
+        id
+        name
+        avatar { large }
+      }
+    }
+
+    ... on TextActivity {
+      id
+      type
+      text
+      isLocked
+      replyCount
+      siteUrl
+      createdAt
+      user {
+        id
+        name
+        avatar { large }
+      }
+      likes {
+        id
+        name
+        avatar { large }
+      }
+    }
+
+    ... on MessageActivity {
+      id
+      type
+      message
+      isLocked
+      replyCount
+      siteUrl
+      createdAt
+      messenger {
+        id
+        name
+        avatar { large }
+      }
+      recipient {
+        id
+        name
+        avatar { large }
+      }
+      likes {
+        id
+        name
+        avatar { large }
+      }
+    }
+  }
+
+  Page(page: $replyPage, perPage: $replyPerPage) {
+    pageInfo {
+      hasNextPage
+    }
+    activityReplies(activityId: $id) {
+      id
+      activityId
+      createdAt
+      text
+      user {
+        id
+        name
+        avatar { large }
+      }
+      likes {
+        id
+        name
+        avatar { large }
+      }
+    }
+  }
+}
+"""
+
+# Standalone reply page for ActivityPage's "load more replies" — same
+# activityReplies field as above, without re-fetching the activity itself.
+_ACTIVITY_REPLIES_QUERY = """
+query ($activityId: Int, $page: Int = 1, $perPage: Int = 25) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    activityReplies(activityId: $activityId) {
+      id
+      activityId
+      createdAt
+      text
+      user {
+        id
+        name
+        avatar { large }
+      }
+      likes {
+        id
+        name
+        avatar { large }
+      }
+    }
+  }
+}
+"""
+
 _UPDATE_NSFW_SETTING_MUTATION = """
 mutation ($displayAdultContent: Boolean) {
   UpdateUser(displayAdultContent: $displayAdultContent) {

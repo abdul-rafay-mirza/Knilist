@@ -171,12 +171,19 @@ Kirigami.Page {
 
                         // "airing" (episode released) and "relatedMedia"
                         // (new related anime/manga added) both carry a real
-                        // mediaId — following/activity notifications point
-                        // at a user or activity, not a piece of media, so
-                        // there's nowhere for those to navigate to.
+                        // mediaId. "activity" covers all 6 activity-style
+                        // notification kinds (like/reply/reply-like/mention/
+                        // message/reply-subscribed) — _flatten_notification
+                        // collapses them to this one kind and carries the
+                        // target in activityId instead of a per-type kind,
+                        // so one branch handles all 6. "following" points
+                        // at a user, not a media or an activity, so there's
+                        // nowhere for it to navigate to (yet).
                         onCardClicked: {
                             if ((modelData.kind === "airing" || modelData.kind === "relatedMedia") && modelData.mediaId > 0) {
                                 pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
+                            } else if (modelData.kind === "activity" && modelData.activityId > 0) {
+                                pageStack.layers.push(Qt.resolvedUrl("ActivityPage.qml"), { activityId: modelData.activityId })
                             }
                         }
                     }
