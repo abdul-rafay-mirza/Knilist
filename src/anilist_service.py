@@ -358,6 +358,8 @@ def _flatten_notification(node: dict) -> dict | None:
             "displayTime": _format_timestamp(node.get("createdAt")),
             "activityId": 0,
             "mediaId":    media.get("id", 0),
+            "userId":     0,
+            "userName":   "",
         }
 
     if typename == "RelatedMediaAdditionNotification":
@@ -373,6 +375,8 @@ def _flatten_notification(node: dict) -> dict | None:
             "displayTime": _format_timestamp(node.get("createdAt")),
             "activityId": 0,
             "mediaId":    node.get("mediaId") or 0,
+            "userId":     0,
+            "userName":   "",
         }
 
     if typename == "FollowingNotification":
@@ -387,6 +391,8 @@ def _flatten_notification(node: dict) -> dict | None:
             "displayTime": _format_timestamp(node.get("createdAt")),
             "activityId": 0,
             "mediaId":    0,
+            "userId":     user.get("id", 0),
+            "userName":   user.get("name") or "",
         }
 
     if typename in _ACTIVITY_STYLE_NOTIFICATIONS:
@@ -401,6 +407,8 @@ def _flatten_notification(node: dict) -> dict | None:
             "displayTime": _format_timestamp(node.get("createdAt")),
             "activityId": node.get("activityId") or 0,
             "mediaId":    0,
+            "userId":     0,
+            "userName":   "",
         }
 
     return None

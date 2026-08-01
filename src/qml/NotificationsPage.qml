@@ -176,14 +176,15 @@ Kirigami.Page {
                         // message/reply-subscribed) — _flatten_notification
                         // collapses them to this one kind and carries the
                         // target in activityId instead of a per-type kind,
-                        // so one branch handles all 6. "following" points
-                        // at a user, not a media or an activity, so there's
-                        // nowhere for it to navigate to (yet).
+                        // so one branch handles all 6. "following" carries
+                        // the new follower's userId/userName.
                         onCardClicked: {
                             if ((modelData.kind === "airing" || modelData.kind === "relatedMedia") && modelData.mediaId > 0) {
                                 pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
                             } else if (modelData.kind === "activity" && modelData.activityId > 0) {
                                 pageStack.layers.push(Qt.resolvedUrl("ActivityPage.qml"), { activityId: modelData.activityId })
+                            } else if (modelData.kind === "following" && modelData.userId > 0) {
+                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
                             }
                         }
                     }
