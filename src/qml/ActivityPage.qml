@@ -418,30 +418,44 @@ Kirigami.Page {
                             // not an isLiked flag), so a previously-liked
                             // activity still starts the button unpressed
                             // until the viewer interacts with it here.
-                            RowLayout {
-                                spacing: Kirigami.Units.smallSpacing / 2
+                            //
+                            // Matches AnimePage.qml's favourite-button
+                            // pattern: a real Controls.Button (native
+                            // hover/press/disabled/focus handling) with a
+                            // Kirigami.Icon as contentItem, rather than a
+                            // bare Icon + manual MouseArea — contentItem
+                            // here holds an icon+count row instead of just
+                            // the icon, since the like count needs to stay
+                            // visible too.
+                            Controls.Button {
+                                flat: true
+                                enabled: !activityPage.isTogglingLike
+                                onClicked: activityPage.toggleLike()
 
-                                Kirigami.Icon {
-                                    source: "love"
-                                    Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                                    Layout.preferredHeight: Kirigami.Units.iconSizes.small
-                                }
-                                Controls.Label {
-                                    text: activityPage.activity ? activityPage.activity.likeCount : 0
-                                    color: activityPage.activity && activityPage.activity.isLiked ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
-                                    font.bold: activityPage.activity && activityPage.activity.isLiked
-                                }
+                                contentItem: RowLayout {
+                                    spacing: Kirigami.Units.smallSpacing / 2
 
-                                MouseArea {
-                                    anchors.fill: parent
-                                    // Generous hit target — the icon+label
-                                    // pair alone is small, and this button
-                                    // sends a real write, so a slightly
-                                    // wider tap area beats a frustrating miss.
-                                    anchors.margins: -Kirigami.Units.smallSpacing
-                                    cursorShape: activityPage.isTogglingLike ? Qt.ArrowCursor : Qt.PointingHandCursor
-                                    enabled: !activityPage.isTogglingLike
-                                    onClicked: activityPage.toggleLike()
+                                    Kirigami.Icon {
+                                        source: "love"
+                                        isMask: true
+                                        // Icon.color only has an effect when isMask
+                                        // is true (confirmed via api.kde.org's Icon
+                                        // docs) — isMask flattens the icon to a
+                                        // single-tone silhouette using `color`, in
+                                        // both states, trading away whatever
+                                        // multi-tone styling "love" has by default.
+                                        // Matches the color the user confirmed
+                                        // working in AnimePage.qml's own favourite
+                                        // button.
+                                        color: activityPage.activity && activityPage.activity.isLiked ? "#e05562" : Kirigami.Theme.textColor
+                                        implicitWidth:  Kirigami.Units.iconSizes.small
+                                        implicitHeight: Kirigami.Units.iconSizes.small
+                                    }
+                                    Controls.Label {
+                                        text: activityPage.activity ? activityPage.activity.likeCount : 0
+                                        color: activityPage.activity && activityPage.activity.isLiked ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
+                                        font.bold: activityPage.activity && activityPage.activity.isLiked
+                                    }
                                 }
                             }
                         }
