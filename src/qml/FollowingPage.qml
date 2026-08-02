@@ -81,6 +81,7 @@ Kirigami.Page {
                     bannerImage: u.bannerImage,
                     isFollowing: u.isFollowing,
                     isFollower:  u.isFollower,
+                    isSelf:      u.isSelf,
                     createdAt:   u.createdAt,
                     updatedAt:   u.updatedAt
                 })
@@ -151,6 +152,7 @@ Kirigami.Page {
                     bannerImage: model.bannerImage
                     isFollowing: model.isFollowing
                     isFollower:  model.isFollower
+                    isSelf:      model.isSelf
                     createdAt:   model.createdAt
                     updatedAt:   model.updatedAt
                     context: "following"

@@ -18,6 +18,11 @@ Kirigami.AbstractCard {
     property bool isFollowing: false
     property bool isFollower: false
     readonly property bool isMutual: isFollowing && isFollower
+    // Whether this card represents the logged-in viewer. Comes straight off
+    // fetchFollowing/fetchFollowers' isSelf field (_flatten_user_list), which
+    // mirrors fetchUserProfile's isSelf on UsersPage.qml — a person can't
+    // follow/unfollow themselves there, and can't from here either.
+    property bool isSelf: false
 
     property var createdAt: ""
     property var updatedAt: ""
@@ -148,6 +153,9 @@ Kirigami.AbstractCard {
                     Controls.MenuItem {
                         text: root.followMenuLabel
                         icon.name: root.showsUnfollow ? "list-remove-user" : "list-add-user"
+                        // Can't follow/unfollow yourself — same guard as
+                        // UsersPage's Follow button gating on profile.isSelf.
+                        enabled: !root.isSelf
                         onTriggered: root.actionRequested(root.followMenuAction)
                     }
 

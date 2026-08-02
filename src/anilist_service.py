@@ -243,22 +243,31 @@ def _flatten_favourite_studios(edges: list | None) -> list[dict]:
         result.append({"id": node.get("id", 0), "name": node.get("name") or ""})
     return result
 
-def _flatten_user_list(users: list | None) -> list[dict]:
+def _flatten_user_list(users: list | None, viewer_id: int = 0) -> list[dict]:
     """Flatten Page.following/Page.followers results into flat dicts.
     Unlike Favourites/Studio.media, these fields return plain User objects
-    directly — no edges/node wrapper."""
+    directly — no edges/node wrapper.
+
+    viewer_id: the logged-in user's numeric id, passed in by the caller
+    (fetchFollowing/fetchFollowers already resolve it via _get_viewer_id()
+    to build the query itself). Used to derive isSelf per-entry the same
+    way fetchUserProfile derives it for a single user — so a viewer's own
+    card, wherever it turns up in someone else's followers/following list,
+    can't be followed/unfollowed from here either."""
     result = []
     for u in users or []:
         is_following = u.get("isFollowing", False)
         is_follower  = u.get("isFollower", False)
+        user_id      = u.get("id", 0)
         result.append({
-            "id":          u.get("id", 0),
+            "id":          user_id,
             "name":        u.get("name") or "",
             "avatar":      (u.get("avatar") or {}).get("large", ""),
             "bannerImage": u.get("bannerImage") or "",
             "isFollowing": is_following,
             "isFollower":  is_follower,
             "isMutual":    bool(is_following) and bool(is_follower),
+            "isSelf":      bool(viewer_id) and user_id == viewer_id,
             "createdAt":   _format_timestamp(u.get("createdAt")),
             "updatedAt":   _format_timestamp(u.get("updatedAt"))
         })
@@ -960,7 +969,8 @@ class AniListService(QObject):
             try:
                 if is_first_page:
                     self._begin_loading()
-                target_id = user_id if user_id else self._get_viewer_id()
+                viewer_id = self._get_viewer_id()
+                target_id = user_id if user_id else viewer_id
                 data     = self._gql(_FOLLOWING_LIST_QUERY, {
                     "userId": target_id,
                     "page":   page if page > 0 else 1,
@@ -972,7 +982,7 @@ class AniListService(QObject):
 
                 self.followingPageLoaded.emit(json.dumps({
                     "page":        page,
-                    "users":       _flatten_user_list(page_obj.get("following")),
+                    "users":       _flatten_user_list(page_obj.get("following"), viewer_id),
                     "hasNextPage": has_next,
                     "isError":     False,
                 }))
@@ -1000,7 +1010,8 @@ class AniListService(QObject):
             try:
                 if is_first_page:
                     self._begin_loading()
-                target_id = user_id if user_id else self._get_viewer_id()
+                viewer_id = self._get_viewer_id()
+                target_id = user_id if user_id else viewer_id
                 data     = self._gql(_FOLLOWERS_LIST_QUERY, {
                     "userId": target_id,
                     "page":   page if page > 0 else 1,
@@ -1012,7 +1023,7 @@ class AniListService(QObject):
 
                 self.followersPageLoaded.emit(json.dumps({
                     "page":        page,
-                    "users":       _flatten_user_list(page_obj.get("followers")),
+                    "users":       _flatten_user_list(page_obj.get("followers"), viewer_id),
                     "hasNextPage": has_next,
                     "isError":     False,
                 }))
