@@ -42,6 +42,54 @@ Kirigami.Page {
         anilistService.fetchNotifications(currentPage + 1)
     }
 
+    function openNotification(notification, target) {
+        if ((notification.kind === "airing" || notification.kind === "relatedMedia")
+                && notification.mediaId > 0) {
+
+            if (notification.mediaType === "MANGA") {
+                pageStack.layers.push(
+                    Qt.resolvedUrl("MangaPage.qml"),
+                    { anilistId: notification.mediaId }
+                )
+            } else {
+                pageStack.layers.push(
+                    Qt.resolvedUrl("AnimePage.qml"),
+                    { animeId: notification.mediaId }
+                )
+            }
+            return
+        }
+
+        if (notification.kind === "activity") {
+            if (target === "card" && notification.activityId > 0) {
+                pageStack.layers.push(
+                    Qt.resolvedUrl("ActivityPage.qml"),
+                    { activityId: notification.activityId }
+                )
+            } else if ((target === "image" || target === "title")
+                    && notification.userId > 0) {
+                pageStack.layers.push(
+                    Qt.resolvedUrl("UsersPage.qml"),
+                    {
+                        userId: notification.userId,
+                        userName: notification.userName
+                    }
+                )
+            }
+            return
+        }
+
+        if (notification.kind === "following" && notification.userId > 0) {
+            pageStack.layers.push(
+                Qt.resolvedUrl("UsersPage.qml"),
+                {
+                    userId: notification.userId,
+                    userName: notification.userName
+                }
+            )
+        }
+    }
+
     actions: [
         Kirigami.Action {
             icon.name: "mail-mark-read"
@@ -162,48 +210,9 @@ Kirigami.Page {
                         notification: modelData
                         unread: index < notificationsPage.unreadCount
 
-                        onCardClicked: {
-                            if ((modelData.kind === "airing" || modelData.kind === "relatedMedia") && modelData.mediaId > 0) {
-                                if (modelData.mediaType === "MANGA") {
-                                    pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId })
-                                } else {
-                                    pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
-                                }
-                            } else if (modelData.kind === "activity" && modelData.activityId > 0) {
-                                pageStack.layers.push(Qt.resolvedUrl("ActivityPage.qml"), { activityId: modelData.activityId })
-                            } else if (modelData.kind === "following" && modelData.userId > 0) {
-                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
-                            }
-                        }
-
-                        onImageClicked: {
-                            console.log(modelData.userId)
-                            if ((modelData.kind === "airing" || modelData.kind === "relatedMedia") && modelData.mediaId > 0) {
-                                if (modelData.mediaType === "MANGA") {
-                                    pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId })
-                                } else {
-                                    pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
-                                }
-                            } else if (modelData.kind === "activity" && modelData.userId > 0) {
-                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
-                            } else if (modelData.kind === "following" && modelData.userId > 0) {
-                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
-                            }
-                        }
-
-                        onTitleClicked: {
-                            if ((modelData.kind === "airing" || modelData.kind === "relatedMedia") && modelData.mediaId > 0) {
-                                if (modelData.mediaType === "MANGA") {
-                                    pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId })
-                                } else {
-                                    pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
-                                }
-                            } else if (modelData.kind === "activity" && modelData.userId > 0) {
-                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
-                            } else if (modelData.kind === "following" && modelData.userId > 0) {
-                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
-                            }
-                        }
+                        onCardClicked:  openNotification(modelData, "card")
+                        onImageClicked: openNotification(modelData, "image")
+                        onTitleClicked: openNotification(modelData, "title")
                     }
                 }
                 
