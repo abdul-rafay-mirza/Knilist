@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
+import "components"
 
 Kirigami.Page {
     id: activityPage
@@ -275,7 +276,7 @@ Kirigami.Page {
                     Kirigami.Theme.colorSet: Kirigami.Theme.View
                     implicitHeight:   headerLayout.implicitHeight + Kirigami.Units.largeSpacing * 2
 
-                    ColumnLayout {
+                    RowLayout {
                         id: headerLayout
                         anchors {
                             left:    parent.left
@@ -285,176 +286,184 @@ Kirigami.Page {
                         }
                         spacing: Kirigami.Units.smallSpacing
 
-                        RowLayout {
+                        // Media cover, only shown for list-activity updates.
+                        // Layout.fillHeight here is what the user asked for:
+                        // the cover should span the whole card, not sit at a
+                        // fixed height with empty space below it. That only
+                        // works because it's now a direct sibling (in this
+                        // RowLayout) of the ColumnLayout beside it — the
+                        // card's Rectangle sizes itself off headerLayout's
+                        // implicitHeight (see implicitHeight: headerLayout.
+                        // implicitHeight + ... above), and headerLayout's
+                        // height is in turn set by whichever child is
+                        // tallest. Previously the cover sat one level
+                        // deeper (inside a RowLayout that was itself only
+                        // one of two children in an outer ColumnLayout,
+                        // stacked above the like/reply row) — filling that
+                        // inner row's height would still have stopped
+                        // short of the like/reply row below it, since that
+                        // row lived in a different container the cover had
+                        // no relationship to. Flattening to one RowLayout
+                        // removes that indirection: the cover and the
+                        // column of everything else are now both measured
+                        // against the same height.
+                        ActivityMediaCard {
+                            visible: activityPage.activity && activityPage.activity.kind === "list" && activityPage.activity.mediaCover !== ""
+                            Layout.preferredWidth: Kirigami.Units.gridUnit * 3.5
+                            Layout.fillHeight: true
+                            mediaCover: activityPage.activity ? activityPage.activity.mediaCover : ""
+                            onCardClicked: activityPage.openMedia()
+                        }
+
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: Kirigami.Units.smallSpacing
+                            spacing: Kirigami.Units.smallSpacing / 2
 
-                            // Media cover, only shown for list-activity updates
-                            Rectangle {
-                                visible: activityPage.activity && activityPage.activity.kind === "list" && activityPage.activity.mediaCover !== ""
-                                Layout.preferredWidth:  Kirigami.Units.gridUnit * 3.5
-                                Layout.preferredHeight: Kirigami.Units.gridUnit * 5
-                                Layout.alignment: Qt.AlignTop
-                                radius: Kirigami.Units.smallSpacing
-                                clip:   true
-                                color:  "transparent"
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Kirigami.Units.smallSpacing
 
-                                Image {
-                                    anchors.fill: parent
-                                    source:       activityPage.activity ? activityPage.activity.mediaCover : ""
-                                    fillMode:     Image.PreserveAspectCrop
-                                    asynchronous: true
+                                RoundAvatar {
+                                    Layout.preferredWidth:  Kirigami.Units.gridUnit * 1.6
+                                    Layout.preferredHeight: Kirigami.Units.gridUnit * 1.6
+                                    source: activityPage.activity ? activityPage.activity.user.avatar : ""
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape:  Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (activityPage.activity && activityPage.activity.user.id > 0)
+                                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: activityPage.activity.user.id, userName: activityPage.activity.user.name })
+                                        }
+                                    }
+                                }
+
+                                Controls.Label {
+                                    text: activityPage.activity ? activityPage.activity.user.name : ""
+                                    font.bold: true
+                                    color: Kirigami.Theme.linkColor
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape:  Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (activityPage.activity && activityPage.activity.user.id > 0)
+                                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: activityPage.activity.user.id, userName: activityPage.activity.user.name })
+                                        }
+                                    }
+                                }
+
+                                // Message activities are addressed to a
+                                // second person — show that inline
+                                // ("Alice → Bob") the way AniList's own
+                                // message rows do.
+                                Controls.Label {
+                                    visible: activityPage.activity && activityPage.activity.kind === "message" && activityPage.activity.recipient !== null
+                                    text: "→ " + (activityPage.activity && activityPage.activity.recipient ? activityPage.activity.recipient.name : "")
+                                    color: Kirigami.Theme.linkColor
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                Controls.Label {
+                                    text: activityPage.activity ? activityPage.activity.displayTime : ""
+                                    color: Kirigami.Theme.disabledTextColor
+                                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                }
+                            }
+
+                            // "Rewatched Show Name" / free-text post,
+                            // with the media title (if any) appended
+                            Controls.Label {
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                text: {
+                                    if (!activityPage.activity)
+                                        return ""
+                                    if (activityPage.activity.kind === "list" && activityPage.activity.mediaTitle !== "")
+                                        return activityPage.activity.text + " " + activityPage.activity.mediaTitle
+                                    return activityPage.activity.text
                                 }
 
                                 MouseArea {
                                     anchors.fill: parent
-                                    cursorShape:  Qt.PointingHandCursor
+                                    enabled:      activityPage.activity && activityPage.activity.kind === "list" && activityPage.activity.mediaId > 0
+                                    cursorShape:  enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                     onClicked: activityPage.openMedia()
                                 }
                             }
 
-                            ColumnLayout {
+                            // Like / reply counts — Layout.fillHeight below
+                            // pushes this row to the bottom of the column
+                            // when the cover (its sibling in headerLayout)
+                            // is tall enough to force extra vertical space;
+                            // without it, this row would just sit directly
+                            // under the text label with a gap opening up
+                            // beneath itself instead of beneath the cover.
+                            RowLayout {
                                 Layout.fillWidth: true
-                                spacing: Kirigami.Units.smallSpacing / 2
+                                Layout.fillHeight: true
+                                Layout.alignment: Qt.AlignBottom
+                                Layout.topMargin: Kirigami.Units.smallSpacing
+                                spacing: Kirigami.Units.largeSpacing
+
+                                Item { Layout.fillWidth: true }
 
                                 RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: Kirigami.Units.smallSpacing
-
-                                    RoundAvatar {
-                                        Layout.preferredWidth:  Kirigami.Units.gridUnit * 1.6
-                                        Layout.preferredHeight: Kirigami.Units.gridUnit * 1.6
-                                        source: activityPage.activity ? activityPage.activity.user.avatar : ""
-
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape:  Qt.PointingHandCursor
-                                            onClicked: {
-                                                if (activityPage.activity && activityPage.activity.user.id > 0)
-                                                    pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: activityPage.activity.user.id, userName: activityPage.activity.user.name })
-                                            }
-                                        }
-                                    }
-
-                                    Controls.Label {
-                                        text: activityPage.activity ? activityPage.activity.user.name : ""
-                                        font.bold: true
-                                        color: Kirigami.Theme.linkColor
-
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape:  Qt.PointingHandCursor
-                                            onClicked: {
-                                                if (activityPage.activity && activityPage.activity.user.id > 0)
-                                                    pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: activityPage.activity.user.id, userName: activityPage.activity.user.name })
-                                            }
-                                        }
-                                    }
-
-                                    // Message activities are addressed to a
-                                    // second person — show that inline
-                                    // ("Alice → Bob") the way AniList's own
-                                    // message rows do.
-                                    Controls.Label {
-                                        visible: activityPage.activity && activityPage.activity.kind === "message" && activityPage.activity.recipient !== null
-                                        text: "→ " + (activityPage.activity && activityPage.activity.recipient ? activityPage.activity.recipient.name : "")
-                                        color: Kirigami.Theme.linkColor
-                                    }
-
-                                    Item { Layout.fillWidth: true }
-
-                                    Controls.Label {
-                                        text: activityPage.activity ? activityPage.activity.displayTime : ""
-                                        color: Kirigami.Theme.disabledTextColor
-                                        font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                    }
-                                }
-
-                                // "Rewatched Show Name" / free-text post,
-                                // with the media title (if any) appended
-                                Controls.Label {
-                                    Layout.fillWidth: true
-                                    wrapMode: Text.Wrap
-                                    text: {
-                                        if (!activityPage.activity)
-                                            return ""
-                                        if (activityPage.activity.kind === "list" && activityPage.activity.mediaTitle !== "")
-                                            return activityPage.activity.text + " " + activityPage.activity.mediaTitle
-                                        return activityPage.activity.text
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        enabled:      activityPage.activity && activityPage.activity.kind === "list" && activityPage.activity.mediaId > 0
-                                        cursorShape:  enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                        onClicked: activityPage.openMedia()
-                                    }
-                                }
-                            }
-                        }
-
-                        // Like / reply counts
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.topMargin: Kirigami.Units.smallSpacing
-                            spacing: Kirigami.Units.largeSpacing
-
-                            Item { Layout.fillWidth: true }
-
-                            RowLayout {
-                                visible: activityPage.activity && activityPage.activity.replyCount > 0
-                                spacing: Kirigami.Units.smallSpacing / 2
-                                Kirigami.Icon { source: "dialog-messages"; Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small }
-                                Controls.Label { text: activityPage.activity ? activityPage.activity.replyCount : 0 }
-                            }
-
-                            // Real toggle, unlike the reply-count display
-                            // above — stays visible even at 0 likes so the
-                            // viewer can add the first one. isLiked only
-                            // reflects a toggle made THIS session (see
-                            // onActivityLikeToggled) — the initial fetch
-                            // has no per-viewer like state to seed it with
-                            // (AniList's `likes` field is a raw user list,
-                            // not an isLiked flag), so a previously-liked
-                            // activity still starts the button unpressed
-                            // until the viewer interacts with it here.
-                            //
-                            // Matches AnimePage.qml's favourite-button
-                            // pattern: a real Controls.Button (native
-                            // hover/press/disabled/focus handling) with a
-                            // Kirigami.Icon as contentItem, rather than a
-                            // bare Icon + manual MouseArea — contentItem
-                            // here holds an icon+count row instead of just
-                            // the icon, since the like count needs to stay
-                            // visible too.
-                            Controls.Button {
-                                flat: true
-                                enabled: !activityPage.isTogglingLike
-                                onClicked: activityPage.toggleLike()
-
-                                contentItem: RowLayout {
+                                    visible: activityPage.activity && activityPage.activity.replyCount > 0
                                     spacing: Kirigami.Units.smallSpacing / 2
+                                    Kirigami.Icon { source: "dialog-messages"; Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small }
+                                    Controls.Label { text: activityPage.activity ? activityPage.activity.replyCount : 0 }
+                                }
 
-                                    Kirigami.Icon {
-                                        source: "love"
-                                        isMask: true
-                                        // Icon.color only has an effect when isMask
-                                        // is true (confirmed via api.kde.org's Icon
-                                        // docs) — isMask flattens the icon to a
-                                        // single-tone silhouette using `color`, in
-                                        // both states, trading away whatever
-                                        // multi-tone styling "love" has by default.
-                                        // Matches the color the user confirmed
-                                        // working in AnimePage.qml's own favourite
-                                        // button.
-                                        color: activityPage.activity && activityPage.activity.isLiked ? "#e05562" : Kirigami.Theme.textColor
-                                        implicitWidth:  Kirigami.Units.iconSizes.small
-                                        implicitHeight: Kirigami.Units.iconSizes.small
-                                    }
-                                    Controls.Label {
-                                        text: activityPage.activity ? activityPage.activity.likeCount : 0
-                                        color: activityPage.activity && activityPage.activity.isLiked ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
-                                        font.bold: activityPage.activity && activityPage.activity.isLiked
+                                // Real toggle, unlike the reply-count display
+                                // above — stays visible even at 0 likes so the
+                                // viewer can add the first one. isLiked only
+                                // reflects a toggle made THIS session (see
+                                // onActivityLikeToggled) — the initial fetch
+                                // has no per-viewer like state to seed it with
+                                // (AniList's `likes` field is a raw user list,
+                                // not an isLiked flag), so a previously-liked
+                                // activity still starts the button unpressed
+                                // until the viewer interacts with it here.
+                                //
+                                // Matches AnimePage.qml's favourite-button
+                                // pattern: a real Controls.Button (native
+                                // hover/press/disabled/focus handling) with a
+                                // Kirigami.Icon as contentItem, rather than a
+                                // bare Icon + manual MouseArea — contentItem
+                                // here holds an icon+count row instead of just
+                                // the icon, since the like count needs to stay
+                                // visible too.
+                                Controls.Button {
+                                    flat: true
+                                    enabled: !activityPage.isTogglingLike
+                                    onClicked: activityPage.toggleLike()
+
+                                    contentItem: RowLayout {
+                                        spacing: Kirigami.Units.smallSpacing / 2
+
+                                        Kirigami.Icon {
+                                            source: "love"
+                                            isMask: true
+                                            // Icon.color only has an effect when isMask
+                                            // is true (confirmed via api.kde.org's Icon
+                                            // docs) — isMask flattens the icon to a
+                                            // single-tone silhouette using `color`, in
+                                            // both states, trading away whatever
+                                            // multi-tone styling "love" has by default.
+                                            // Matches the color the user confirmed
+                                            // working in AnimePage.qml's own favourite
+                                            // button.
+                                            color: activityPage.activity && activityPage.activity.isLiked ? "#e05562" : Kirigami.Theme.textColor
+                                            implicitWidth:  Kirigami.Units.iconSizes.small
+                                            implicitHeight: Kirigami.Units.iconSizes.small
+                                        }
+                                        Controls.Label {
+                                            text: activityPage.activity ? activityPage.activity.likeCount : 0
+                                            color: activityPage.activity && activityPage.activity.isLiked ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
+                                            font.bold: activityPage.activity && activityPage.activity.isLiked
+                                        }
                                     }
                                 }
                             }
