@@ -3,12 +3,6 @@ import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 
-// One row in NotificationsPage's list. Expects a flat notification object
-// shaped like anilist_service.py's _flatten_notification output:
-//   { id, kind, title, subtitle, image, createdAt, displayTime, activityId, mediaId }
-//
-// Structured like AnimeCard (AbstractCard, same 90px-wide/full-height cover
-// image column) rather than a SwipeListItem.
 Kirigami.AbstractCard {
     id: card
 
@@ -21,6 +15,8 @@ Kirigami.AbstractCard {
     property bool unread: false
 
     signal cardClicked()
+    signal imageClicked()
+    signal titleClicked()
 
     // Geometry — matches AnimeCard's card sizing exactly.
     width:           440
@@ -30,9 +26,6 @@ Kirigami.AbstractCard {
     topPadding:    0
     bottomPadding: 0
 
-    // AbstractCard's own documented background hook (see the fix applied
-    // when this card was first extracted) — a subtle tint, not a loud
-    // banner, since this is an inference rather than a fact from the API.
     background: Rectangle {
         color: card.unread
                    ? Kirigami.ColorUtils.tintWithAlpha(
@@ -71,7 +64,10 @@ Kirigami.AbstractCard {
 
             TapHandler {
                 gesturePolicy: TapHandler.WithinBounds
-                onTapped: card.cardClicked()
+                onTapped: {
+                    console.log("Image Clicked!")
+                    card.imageClicked()
+                }
             }
 
             HoverHandler {
@@ -108,13 +104,36 @@ Kirigami.AbstractCard {
             Layout.topMargin:   10
             spacing: 2
 
-            Controls.Label {
+            Item {
                 Layout.fillWidth: true
-                text:  card.notification ? card.notification.title : ""
-                color: Kirigami.Theme.textColor
-                font { bold: true; pixelSize: 15 }
-                elide: Text.ElideRight
-                maximumLineCount: 1
+                implicitHeight: titleLabel.implicitHeight
+
+                TapHandler {
+                    gesturePolicy: TapHandler.WithinBounds
+                    onTapped: {
+                        console.log("Title Clicked!")
+                        card.titleClicked()
+                    }
+                }
+
+                HoverHandler {
+                    cursorShape: Qt.PointingHandCursor
+                }
+
+                Controls.Label {
+                    id: titleLabel
+                    anchors.fill: parent
+
+                    text: card.notification ? card.notification.title : ""
+                    color: Kirigami.Theme.textColor
+                    font {
+                        bold: true
+                        pixelSize: 15
+                    }
+                    elide: Text.ElideRight
+                    maximumLineCount: 1
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
 
             Controls.Label {
