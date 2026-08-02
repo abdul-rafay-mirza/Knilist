@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
-import "components"
 
 Kirigami.Page {
     id: activityPage
@@ -113,6 +112,51 @@ Kirigami.Page {
             anchors.fill: parent
             fillMode:     Image.PreserveAspectCrop
             asynchronous: true
+        }
+    }
+
+    // Used by the header below for the media cover on list-activity
+    // updates (rewatch/reread/status-change posts). Same Rectangle+clip+
+    // Image approach as RoundAvatar above, for the same reason: no
+    // confirmed kirigami-addons ShadowedImage API to fall back on, so this
+    // stays plain QtQuick primitives rather than reaching for an
+    // unverified one. Folded back into this file (was briefly its own
+    // components/ActivityMediaCard.qml) to keep everything in one place.
+    //
+    // `mediaCover` is a property rather than the component reading
+    // activityPage.activity directly, so it isn't tied to this page's
+    // specific property names. `cardClicked` fires on tap; the caller
+    // decides what that means (openMedia() below, which already knows
+    // where to find the target id and branches ANIME/MANGA) rather than
+    // this component knowing about AnimePage/MangaPage navigation itself.
+    //
+    // Owns its own MouseArea internally (unlike RoundAvatar, which leaves
+    // that to each of its call sites) because this component has exactly
+    // one call site with click behavior that never varies — a
+    // self-contained signal simplifies that call site rather than adding
+    // indirection for no reason. RoundAvatar's two call sites each need
+    // different, call-site-specific click targets (the activity's user vs.
+    // a specific reply's user, which needs modelData in scope), so an
+    // external MouseArea per site is the better fit there instead.
+    component ActivityMediaCard: Rectangle {
+        property alias mediaCover: cardImage.source
+        signal cardClicked()
+
+        radius: Kirigami.Units.smallSpacing
+        clip:   true
+        color:  "transparent"
+
+        Image {
+            id: cardImage
+            anchors.fill: parent
+            fillMode:     Image.PreserveAspectCrop
+            asynchronous: true
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape:  Qt.PointingHandCursor
+            onClicked:    parent.cardClicked()
         }
     }
 
@@ -284,7 +328,14 @@ Kirigami.Page {
                             top:     parent.top
                             margins: Kirigami.Units.largeSpacing
                         }
-                        spacing: Kirigami.Units.smallSpacing
+                        // largeSpacing rather than smallSpacing here
+                        // specifically — this is the one gap between the
+                        // cover and everything beside it, not a tight
+                        // icon-to-label pairing the way smallSpacing is
+                        // used elsewhere in this file (e.g. the like-count
+                        // icon+label spacing further down), so it reads
+                        // better with more room.
+                        spacing: Kirigami.Units.largeSpacing * 2
 
                         // Media cover, only shown for list-activity updates.
                         // Layout.fillHeight here is what the user asked for:

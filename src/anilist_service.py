@@ -1139,6 +1139,8 @@ class AniListService(QObject):
                 if typename == "ListActivity":
                     user  = activity.get("user") or {}
                     media = activity.get("media") or {}
+                    text = f"{activity.get('status') or ''} {activity.get('progress') or ''}".strip()
+                    text = text[:1].upper() + text[1:] if text else ""
                     flat = {
                         "kind":       "list",
                         "user":       {"id": user.get("id", 0), "name": user.get("name") or "",
@@ -1146,7 +1148,7 @@ class AniListService(QObject):
                         # status/progress are AniList's own short strings
                         # ("Rewatched", "Watched 3 of 12") — already
                         # formatted server-side, no client assembly needed
-                        "text":       f"{activity.get('status') or ''} {activity.get('progress') or ''}".strip(),
+                        "text":       text,
                         "mediaId":    media.get("id", 0),
                         "mediaTitle": (media.get("title") or {}).get("userPreferred") or "",
                         "mediaCover": (media.get("coverImage") or {}).get("large", ""),
