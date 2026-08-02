@@ -160,32 +160,8 @@ Kirigami.Page {
                     delegate: NotificationCard {
                         Layout.fillWidth: true
                         notification: modelData
-                        // Position-based inference: the first unreadCount
-                        // items (in newest-first order, enforced by the
-                        // sort in onNotificationsPageLoaded) are treated as
-                        // unread. This is a client-side guess built from
-                        // the one real signal AniList gives us
-                        // (unreadNotificationCount) — not a per-item flag
-                        // the server actually returns.
                         unread: index < notificationsPage.unreadCount
 
-                        // "airing" (episode released) and "relatedMedia"
-                        // (new related anime/manga added) both carry a real
-                        // mediaId, branched on mediaType since relatedMedia
-                        // can point at either an anime or a manga (a title's
-                        // relations commonly include its manga source or a
-                        // manga spin-off) — airing is always ANIME in
-                        // practice (AniList has no chapter-release
-                        // notification for manga), but reads the same field
-                        // rather than special-casing it, so this still holds
-                        // if that ever changes. "activity" covers all 6
-                        // activity-style notification kinds (like/reply/
-                        // reply-like/mention/message/reply-subscribed) —
-                        // _flatten_notification collapses them to this one
-                        // kind and carries the target in activityId instead
-                        // of a per-type kind, so one branch handles all 6.
-                        // "following" carries the new follower's
-                        // userId/userName.
                         onCardClicked: {
                             if ((modelData.kind === "airing" || modelData.kind === "relatedMedia") && modelData.mediaId > 0) {
                                 if (modelData.mediaType === "MANGA") {
@@ -199,8 +175,38 @@ Kirigami.Page {
                                 pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
                             }
                         }
+
+                        onImageClicked: {
+                            console.log(modelData.userId)
+                            if ((modelData.kind === "airing" || modelData.kind === "relatedMedia") && modelData.mediaId > 0) {
+                                if (modelData.mediaType === "MANGA") {
+                                    pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId })
+                                } else {
+                                    pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
+                                }
+                            } else if (modelData.kind === "activity" && modelData.userId > 0) {
+                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
+                            } else if (modelData.kind === "following" && modelData.userId > 0) {
+                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
+                            }
+                        }
+
+                        onTitleClicked: {
+                            if ((modelData.kind === "airing" || modelData.kind === "relatedMedia") && modelData.mediaId > 0) {
+                                if (modelData.mediaType === "MANGA") {
+                                    pageStack.layers.push(Qt.resolvedUrl("MangaPage.qml"), { anilistId: modelData.mediaId })
+                                } else {
+                                    pageStack.layers.push(Qt.resolvedUrl("AnimePage.qml"), { animeId: modelData.mediaId })
+                                }
+                            } else if (modelData.kind === "activity" && modelData.userId > 0) {
+                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
+                            } else if (modelData.kind === "following" && modelData.userId > 0) {
+                                pageStack.layers.push(Qt.resolvedUrl("UsersPage.qml"), { userId: modelData.userId, userName: modelData.userName })
+                            }
+                        }
                     }
                 }
+                
 
                 Controls.BusyIndicator {
                     Layout.alignment:    Qt.AlignHCenter

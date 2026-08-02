@@ -421,8 +421,8 @@ def _flatten_notification(node: dict) -> dict | None:
             "activityId": node.get("activityId") or 0,
             "mediaId":    0,
             "mediaType":  "ANIME",
-            "userId":     0,
-            "userName":   "",
+            "userId":     user.get("id", 0),
+            "userName":   user.get("name") or "",
         }
 
     return None
