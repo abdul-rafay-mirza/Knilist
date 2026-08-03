@@ -1,4 +1,4 @@
-# Maintainer: Abdul Rafay <abdulrafayaneesmirza@gmail.com>
+# Maintainer: Abdul Rafay <abdulrafey79@yahoo.com>
 pkgname=knilist-git
 pkgver=r1.0000000
 pkgrel=1
@@ -47,10 +47,10 @@ package() {
 
     # Install the .desktop file to the system-wide applications directory
     # so it appears in every user's app launcher automatically
-    install -Dm644 com.github.abdul-rafay-mirza.knilist.desktop \
-        "$pkgdir/usr/share/applications/com.github.abdul-rafay-mirza.knilist.desktop"
+    install -Dm644 com.github.abdulrafaymirza.knilist.desktop \
+        "$pkgdir/usr/share/applications/com.github.abdulrafaymirza.knilist.desktop"
 
     # Install the application icon
     install -Dm644 icon/knilist.svg \
-        "$pkgdir/usr/share/icons/hicolor/scalable/apps/com.github.abdul-rafay-mirza.knilist.svg"
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/com.github.abdulrafaymirza.knilist.svg"
 }

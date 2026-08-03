@@ -3,6 +3,7 @@ anilist_service.py — AniList GraphQL client exposed as a QML context property.
 """
 
 import json
+import os
 import threading
 import requests
 from PySide6.QtCore import QObject, Signal, Slot, Property, QProcess
@@ -2704,8 +2705,20 @@ class AniListService(QObject):
                 args.append(f"--cover-art-file={cover_image}")
             args.append(url)
 
+        # Inside a Flatpak sandbox, mpv/vlc are not on the sandboxed PATH —
+        # they're host binaries, and the sandbox can't see them directly.
+        # flatpak-spawn --host runs the command unsandboxed on the host via
+        # the org.freedesktop.Flatpak portal instead. FLATPAK_ID is set
+        # automatically inside every Flatpak sandbox's environment, so this
+        # check is reliable without extra configuration. Outside a sandbox
+        # (native/AUR install), FLATPAK_ID is unset and this is a no-op —
+        # program/args are launched exactly as before.
+        spawn_program, spawn_args = program, args
+        if os.environ.get("FLATPAK_ID"):
+            spawn_program, spawn_args = "flatpak-spawn", ["--host", program, *args]
+
         try:
-            started, _pid = QProcess.startDetached(program, args)
+            started, _pid = QProcess.startDetached(spawn_program, spawn_args)
         except Exception as exc:
             started = False
             print(f"[AniListService] failed to launch {program}: {exc}")

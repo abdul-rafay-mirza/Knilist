@@ -53,7 +53,7 @@ Kirigami.Page {
         spacing: Kirigami.Units.largeSpacing * 2
 
         Kirigami.Icon {
-            source: "com.github.abdul-rafay-mirza.knilist"
+            source: "com.github.abdulrafaymirza.knilist"
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: Kirigami.Units.iconSizes.huge
             Layout.preferredHeight: Kirigami.Units.iconSizes.huge

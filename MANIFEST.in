@@ -1,1 +1,3 @@
 recursive-include src/qml *.qml
+recursive-include src/qml *.js
+recursive-include icon *.svg

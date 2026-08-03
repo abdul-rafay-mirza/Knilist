@@ -214,3 +214,8 @@ class AuthManager(QObject):
                 "run the command \"secret-tool search service knilist\" "
                 "and make sure it does not show anything.)"
             )
+
+            # Run these 3 commands if "secret-tool search service knilist" shows anything
+            # secret-tool clear service knilist username token
+            # secret-tool clear service knilist username user_id
+            # secret-tool clear service knilist username username

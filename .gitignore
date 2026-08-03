@@ -11,5 +11,11 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+.flatpak-builder/
+build-dir/
+repo/
+com.github.abdulrafaymirza.knilist.json
+pypi-dependencies.json
+knilist.flatpak
 
 EXPLAIN_PROJECT.md
