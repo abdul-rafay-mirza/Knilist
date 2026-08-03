@@ -24,7 +24,7 @@ Kirigami.Page {
 
     // ── Status filters ────────────────────────────────────────────────────────
     readonly property var statusFilters: [
-        { id: "ALL",       label: "All",       icon: "view-list-symbolic"            },
+        { id: "ALL",       label: "All",       icon: "applications-all-symbolic"     },
         { id: "CURRENT",   label: "Reading",   icon: "media-playback-start-symbolic" },
         { id: "REPEATING", label: "Rereading", icon: "media-playlist-repeat"         },
         { id: "COMPLETED", label: "Completed", icon: "emblem-ok-symbolic"            },

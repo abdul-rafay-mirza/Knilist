@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
-// import org.kde.kirigamiaddons.components as Addons
 import "components"
 
 // The page representing any user
@@ -268,22 +267,6 @@ Kirigami.Page {
                     }
 
                     // -- Stat bar: Anime / Manga / Following / Followers ---------
-                    // Same shape as ProfilePage's StatBar, with one deliberate
-                    // difference: Anime and Manga push UsersAnimeListPage /
-                    // UsersMangaListPage as layers (this user's list,
-                    // read-only) instead of tab-switching to AnimeListPage /
-                    // MangaListPage, which are always the viewer's own lists -
-                    // tab-switching there from someone else's profile used to
-                    // open the viewer's own list by mistake.
-                    //
-                    // Following/Followers push FollowingPage/FollowersPage as
-                    // layers - those currently show the viewer's own
-                    // following/followers list regardless of whose profile
-                    // launched them (see fetchFollowing/fetchFollowers in
-                    // anilist_service.py, which always resolve via
-                    // _get_viewer_id()) - not this user's. Left wired
-                    // identically to ProfilePage for now rather than silently
-                    // disabling it.
                     StatBar {
                         Layout.margins: Kirigami.Units.largeSpacing * 2
                         Layout.alignment: Qt.AlignHCenter
@@ -354,8 +337,6 @@ Kirigami.Page {
                     }
 
                     // -- Detailed Stats ---------------------------------------------
-                    // Same fields as ProfilePage - fetchUserProfile's payload
-                    // carries the identical stat set.
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.margins: Kirigami.Units.largeSpacing * 2

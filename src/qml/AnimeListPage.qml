@@ -11,9 +11,9 @@ Kirigami.Page {
 
     // ── Status filters ────────────────────────────────────────────────────────
     readonly property var statusFilters: [
-        { id: "ALL",       label: "All",       icon: "applications-all-symbolic"            },
+        { id: "ALL",       label: "All",       icon: "applications-all-symbolic"     },
         { id: "CURRENT",   label: "Watching",  icon: "media-playback-start-symbolic" },
-        { id: "REPEATING", label: "Rewatching", icon: "media-playlist-repeat"     },
+        { id: "REPEATING", label: "Rewatching", icon: "media-playlist-repeat"        },
         { id: "COMPLETED", label: "Completed", icon: "emblem-ok-symbolic"            },
         { id: "PAUSED",    label: "Paused",    icon: "media-playback-pause-symbolic" },
         { id: "DROPPED",   label: "Dropped",   icon: "edit-delete-symbolic"          },
