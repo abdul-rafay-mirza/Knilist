@@ -9,6 +9,15 @@ Kirigami.Page {
     title: "Manga List"
     padding: 0
 
+    actions: [
+        Kirigami.Action {
+            icon.name: "view-refresh"
+            text: "Refresh"
+            enabled: !anilistService.loading
+            onTriggered: anilistService.fetchManga()
+        }
+    ]
+
     // ── Status filters ────────────────────────────────────────────────────────
     readonly property var statusFilters: [
         { id: "ALL",       label: "All",       icon: "applications-all-symbolic"     },
@@ -252,17 +261,18 @@ Kirigami.Page {
 
                 Item { Layout.fillHeight: true }
 
-                Controls.ToolButton {
-                    Layout.fillWidth:    true
-                    Layout.leftMargin:   Kirigami.Units.smallSpacing
-                    Layout.rightMargin:  Kirigami.Units.smallSpacing
-                    Layout.bottomMargin: Kirigami.Units.smallSpacing
-                    icon.name: "view-refresh-symbolic"
-                    text:      "Sync"
-                    visible:   authManager.isLoggedIn
-                    enabled:   !anilistService.loading
-                    onClicked: anilistService.fetchManga()
-                }
+                // This for some reason does not render correctly in the flatpak build, so removed
+                // Controls.ToolButton {
+                //     Layout.fillWidth:    true
+                //     Layout.leftMargin:   Kirigami.Units.smallSpacing
+                //     Layout.rightMargin:  Kirigami.Units.smallSpacing
+                //     Layout.bottomMargin: Kirigami.Units.smallSpacing
+                //     icon.name: "view-refresh-symbolic"
+                //     text:      "Sync"
+                //     visible:   authManager.isLoggedIn
+                //     enabled:   !anilistService.loading
+                //     onClicked: anilistService.fetchManga()
+                // }
             }
         }
 
