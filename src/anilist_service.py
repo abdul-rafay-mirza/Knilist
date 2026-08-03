@@ -1,11 +1,5 @@
 """
 anilist_service.py — AniList GraphQL client exposed as a QML context property.
-
-IMPORTANT — AniList score semantics:
-  The `score` field in both queries AND mutations is always in the user's
-  chosen display format (scoreFormat). There is NO internal 0-100 scale on
-  the v2 API. Whatever number the user types is sent directly to AniList.
-  We only need scoreFormat to know how to *display* and *validate* the value.
 """
 
 import json

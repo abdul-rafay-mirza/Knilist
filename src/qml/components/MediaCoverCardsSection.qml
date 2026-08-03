@@ -4,9 +4,6 @@ import org.kde.kirigami as Kirigami
 
 // Reusable "heading + separator + wrapping row of cover cards" block.
 // Covers Appearances / Favorite Anime / Favorite Manga / Favorite Staff.
-// Navigation is intentionally NOT baked in here — target page and id-prop
-// name differ per caller (Appearances also branches on entry.type), so
-// callers just handle cardTapped(entry) themselves.
 ColumnLayout {
     id: mediaCoverCardsSection
 

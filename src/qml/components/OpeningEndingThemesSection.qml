@@ -4,26 +4,7 @@ import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 
 // Renders a list of OP/ED themes (as produced by anime_themes_service.py's
-// _flatten_anime_themes / fetchOpeningEndingSongs). Each theme can have more
-// than one entry (different episode ranges/versions) and each entry can have
-// more than one video variant (resolution, subbed/unsubbed, source) — both
-// are shown rather than collapsed, since the backend deliberately keeps them
-// as lists instead of picking a "best" one.
-//
-// Each theme renders as a card with a left-hand thumbnail (matching the
-// AnimeCard/StaffCard/RelationCard layout used elsewhere in this app),
-// collapsed to just the header by default — tap the header to reveal
-// episode/video details. The thumbnail prefers the song's actual album art
-// (resolved via MusicBrainz + the Cover Art Archive, arriving progressively
-// per-theme after the list first renders — see AnimePage.qml's
-// onThemeAlbumArtLoaded, fed by animeThemesService), falling back to the
-// performing artist's own photo from animethemes.moe when no album art is
-// found or hasn't resolved yet. Every action button (copy link, open, open
-// in mpv/VLC) confirms itself with a passive notification, matching the
-// "Added to Favorites" toast already used elsewhere in this app. Those
-// action buttons call anilistService (copyToClipboard/openInExternalPlayer)
-// — generic clipboard/process-launch helpers, not animethemes-specific, so
-// they stayed on AniListService rather than moving to AnimeThemesService.
+// _flatten_anime_themes / fetchOpeningEndingSongs).
 ColumnLayout {
     id: root
 
@@ -257,19 +238,6 @@ ColumnLayout {
                 }
 
                 // ── Body: entries/videos, collapsed until the header is tapped ──
-                //
-                // bodyContent is never resized itself — it just reports its
-                // natural (implicitHeight) size. The wrapping Item is what
-                // actually animates, sized to bodyContent's height only when
-                // expanded. This avoids a Behavior fighting a binding that
-                // reads back its own animated target (which is what happens
-                // if Layout.preferredHeight both drives *and* is driven by
-                // implicitHeight): here the animated property (clipItem's
-                // height) and the measured property (bodyContent's
-                // implicitHeight) are two different items, so there's
-                // nothing for the Behavior to fight, and content that
-                // resizes later (e.g. episode text wrapping differently)
-                // still reflows correctly next time expanded flips.
                 Item {
                     id: clipItem
                     Layout.fillWidth: true

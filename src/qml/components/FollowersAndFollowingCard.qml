@@ -7,10 +7,6 @@ import org.kde.kirigami as Kirigami
 Kirigami.AbstractCard {
     id: root
 
-    // ── Public API ───────────────────────────────────────────────────────
-    // Field names match the JSON coming out of AniListService.fetchFollowing/
-    // fetchFollowers (_flatten_user_list), so wiring this up later is a
-    // straight property binding — no renaming needed.
     property int userId: 0
     property string name: ""
     property string avatar: ""
@@ -20,7 +16,7 @@ Kirigami.AbstractCard {
     readonly property bool isMutual: isFollowing && isFollower
     // Whether this card represents the logged-in viewer. Comes straight off
     // fetchFollowing/fetchFollowers' isSelf field (_flatten_user_list), which
-    // mirrors fetchUserProfile's isSelf on UsersPage.qml — a person can't
+    // mirrors fetchUserProfile's isSelf on UsersPage.qml, a person can't
     // follow/unfollow themselves there, and can't from here either.
     property bool isSelf: false
 
@@ -28,16 +24,8 @@ Kirigami.AbstractCard {
     property var updatedAt: ""
 
     // Which page this card is displayed on — "followers" or "following".
-    // On the Following page the follow-menu item is always "Unfollow"
-    // (you're following them, full stop — mutual or not doesn't change
-    // that action). On the Followers page it depends on isFollowing: a
-    // mutual gets "Unfollow" (you also follow them, so ToggleFollow would
-    // unfollow), a one-way follower gets "Follow" (you don't follow them
-    // yet, so ToggleFollow would follow). Either way it's the same
-    // ToggleFollow(userId) call underneath — only the label differs.
     property string context: "followers"
 
-    // FollowersAndFollowingCard.qml
     property bool viewingOwnList: true   // false when this card is shown inside another user's followers/following
 
     readonly property bool showsUnfollow: root.viewingOwnList

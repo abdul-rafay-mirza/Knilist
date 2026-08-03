@@ -116,28 +116,7 @@ Kirigami.Page {
     }
 
     // Used by the header below for the media cover on list-activity
-    // updates (rewatch/reread/status-change posts). Same Rectangle+clip+
-    // Image approach as RoundAvatar above, for the same reason: no
-    // confirmed kirigami-addons ShadowedImage API to fall back on, so this
-    // stays plain QtQuick primitives rather than reaching for an
-    // unverified one. Folded back into this file (was briefly its own
-    // components/ActivityMediaCard.qml) to keep everything in one place.
-    //
-    // `mediaCover` is a property rather than the component reading
-    // activityPage.activity directly, so it isn't tied to this page's
-    // specific property names. `cardClicked` fires on tap; the caller
-    // decides what that means (openMedia() below, which already knows
-    // where to find the target id and branches ANIME/MANGA) rather than
-    // this component knowing about AnimePage/MangaPage navigation itself.
-    //
-    // Owns its own MouseArea internally (unlike RoundAvatar, which leaves
-    // that to each of its call sites) because this component has exactly
-    // one call site with click behavior that never varies — a
-    // self-contained signal simplifies that call site rather than adding
-    // indirection for no reason. RoundAvatar's two call sites each need
-    // different, call-site-specific click targets (the activity's user vs.
-    // a specific reply's user, which needs modelData in scope), so an
-    // external MouseArea per site is the better fit there instead.
+    // updates (rewatch/reread/status-change posts).
     component ActivityMediaCard: Rectangle {
         property alias mediaCover: cardImage.source
         signal cardClicked()
@@ -328,36 +307,9 @@ Kirigami.Page {
                             top:     parent.top
                             margins: Kirigami.Units.largeSpacing
                         }
-                        // largeSpacing rather than smallSpacing here
-                        // specifically — this is the one gap between the
-                        // cover and everything beside it, not a tight
-                        // icon-to-label pairing the way smallSpacing is
-                        // used elsewhere in this file (e.g. the like-count
-                        // icon+label spacing further down), so it reads
-                        // better with more room.
+
                         spacing: Kirigami.Units.largeSpacing * 2
 
-                        // Media cover, only shown for list-activity updates.
-                        // Layout.fillHeight here is what the user asked for:
-                        // the cover should span the whole card, not sit at a
-                        // fixed height with empty space below it. That only
-                        // works because it's now a direct sibling (in this
-                        // RowLayout) of the ColumnLayout beside it — the
-                        // card's Rectangle sizes itself off headerLayout's
-                        // implicitHeight (see implicitHeight: headerLayout.
-                        // implicitHeight + ... above), and headerLayout's
-                        // height is in turn set by whichever child is
-                        // tallest. Previously the cover sat one level
-                        // deeper (inside a RowLayout that was itself only
-                        // one of two children in an outer ColumnLayout,
-                        // stacked above the like/reply row) — filling that
-                        // inner row's height would still have stopped
-                        // short of the like/reply row below it, since that
-                        // row lived in a different container the cover had
-                        // no relationship to. Flattening to one RowLayout
-                        // removes that indirection: the cover and the
-                        // column of everything else are now both measured
-                        // against the same height.
                         ActivityMediaCard {
                             visible: activityPage.activity && activityPage.activity.kind === "list" && activityPage.activity.mediaCover !== ""
                             Layout.preferredWidth: Kirigami.Units.gridUnit * 3.5
@@ -497,15 +449,6 @@ Kirigami.Page {
                                         Kirigami.Icon {
                                             source: "love"
                                             isMask: true
-                                            // Icon.color only has an effect when isMask
-                                            // is true (confirmed via api.kde.org's Icon
-                                            // docs) — isMask flattens the icon to a
-                                            // single-tone silhouette using `color`, in
-                                            // both states, trading away whatever
-                                            // multi-tone styling "love" has by default.
-                                            // Matches the color the user confirmed
-                                            // working in AnimePage.qml's own favourite
-                                            // button.
                                             color: activityPage.activity && activityPage.activity.isLiked ? "#e05562" : Kirigami.Theme.textColor
                                             implicitWidth:  Kirigami.Units.iconSizes.small
                                             implicitHeight: Kirigami.Units.iconSizes.small
