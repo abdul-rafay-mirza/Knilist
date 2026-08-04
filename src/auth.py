@@ -5,6 +5,37 @@ from PySide6.QtCore import QObject, Signal, Slot, Property
 
 from .config import ANILIST_CLIENT_ID
 
+# secretstorage is keyring's own dependency for the SecretService backend,
+# not a direct dependency of this app — it's only importable when that
+# backend is actually available (both PKGBUILD's python-secretstorage and
+# whatever the flatpak manifest pulls in satisfy this in practice, but
+# nothing guarantees it: e.g. a system where the KWallet backend wins
+# keyring's chain instead never needs it installed at all). Guarded so a
+# missing secretstorage degrades to "these except clauses have one fewer
+# exception type to catch" rather than an ImportError at module load.
+#
+# Why this is needed at all: secretstorage.exceptions.ItemNotFoundException
+# (raised deep in secretstorage's D-Bus layer — see secretstorage/util.py's
+# send_and_get_reply, which turns a DBUS_NO_SUCH_OBJECT/DBUS_UNKNOWN_OBJECT/
+# DBUS_UNKNOWN_METHOD D-Bus error reply into this exact exception, with the
+# message "Item does not exist!") does NOT inherit from
+# keyring.errors.KeyringError. It never has, in any keyring or secretstorage
+# version — keyring.errors has no ItemNotFoundException of its own to
+# inherit from. So `except keyring.errors.KeyringError` alone never catches
+# it, in the SecretService backend, on any keyring version. This mostly
+# shows up under Flatpak because flatpak's D-Bus proxy (xdg-dbus-proxy)
+# filters/mediates which object paths a sandboxed app can see, making the
+# underlying D-Bus lookups that surface this exception more likely to hit a
+# not-yet-resolved or filtered path than an unsandboxed session bus does.
+try:
+    import secretstorage.exceptions as _secretstorage_exceptions
+    _KEYRING_MISS_EXCEPTIONS = (
+        keyring.errors.KeyringError,
+        _secretstorage_exceptions.ItemNotFoundException,
+    )
+except ImportError:
+    _KEYRING_MISS_EXCEPTIONS = (keyring.errors.KeyringError,)
+
 # ── Keyring service name ───────────────────────────────────────────────────────
 _SERVICE = "knilist"
 
@@ -14,45 +45,26 @@ _KEY_USERNAME = "username"
 
 
 def _probe_token_backend() -> str:
-    """Check each backend in the chain individually for the token key,
-    same as the manual probe used to diagnose where a stored token
-    actually lives:
+    """Report which backend keyring actually resolved the token through,
+    for logging right after a confirmed login.
+    Returns a string like "keyring.backends.SecretService.Keyring" or
+    "NOT FOUND". Never raises — same suppression _load() already
+    applies to _KEYRING_MISS_EXCEPTIONS (see that tuple's definition
+    above for why keyring.errors.KeyringError alone isn't enough)."""
+    try:
+        backend = keyring.get_keyring()
+    except Exception as exc:
+        return f"NOT FOUND (backend lookup failed: {exc})"
 
-        for kr in ChainerBackend.backends:
-            kr.get_password('knilist', 'token')
+    try:
+        found = keyring.get_password(_SERVICE, _KEY_TOKEN)
+    except _KEYRING_MISS_EXCEPTIONS:
+        found = None
 
-    This makes a REAL get_password() call against every backend in the
-    chain — not just a check of which backend is importable/usable in
-    principle. For KWallet specifically that can trigger a wallet-open/
-    unlock prompt if the wallet isn't already unlocked. That cost is
-    fine to pay ONCE, right after a confirmed login, to report where the
-    token landed — it would not be fine to pay on every _load()/_store()
-    call, which is why this stays a separate opt-in function rather than
-    being called from _store() itself.
+    if not found:
+        return "NOT FOUND"
 
-    Returns a summary string like "kwallet.DBusKeyring (others: none)"
-    for the caller to print or log. Never raises — a backend erroring
-    during the probe is reported inline rather than aborting the whole
-    check."""
-    from keyring.backends.chainer import ChainerBackend
-
-    hits = []
-    misses = []
-    for kr in ChainerBackend.backends:
-        name = f"{kr.__class__.__module__}.{kr.__class__.__name__}"
-        try:
-            found = kr.get_password(_SERVICE, _KEY_TOKEN)
-        except Exception as exc:
-            misses.append(f"{name} (error: {exc})")
-            continue
-        (hits if found else misses).append(name)
-
-    if not hits:
-        return f"NOT FOUND in any backend (checked: {', '.join(misses) or 'none'})"
-    primary = hits[0]
-    if len(hits) > 1:
-        return f"{primary} (also found in: {', '.join(hits[1:])})"
-    return primary
+    return f"{backend.__class__.__module__}.{backend.__class__.__name__}"
 
 
 def _store(key: str, value: str) -> None:
@@ -66,23 +78,39 @@ def _load(key: str) -> str | None:
     that contract isn't honored uniformly across backends. The KWallet
     backend does return None as documented. The SecretService backend
     (one possible member of keyring.backends.chainer.ChainerBackend's
-    chained backend list, see _probe_token_backend() above) instead
-    raises keyring.errors.ItemNotFoundException on a miss — which on a
-    fresh install / first run, with nothing stored yet, surfaced to the
-    user as an "Item does not exist" toast once per _load() call in
-    AuthManager.__init__ (three: token, user_id, username).
+    chained backend list, see _probe_token_backend() above) can instead
+    raise secretstorage.exceptions.ItemNotFoundException on a miss —
+    raised from deep in secretstorage's D-Bus layer (send_and_get_reply
+    in secretstorage/util.py, message "Item does not exist!") whenever a
+    D-Bus call it makes gets back DBUS_NO_SUCH_OBJECT /
+    DBUS_UNKNOWN_OBJECT / DBUS_UNKNOWN_METHOD. On a fresh install / first
+    run, with nothing stored yet, this surfaced to the user as an "Item
+    does not exist" toast once per _load() call in AuthManager.__init__
+    (three: token, user_id, username).
+
+    NOTE: this is a secretstorage exception, not a keyring one — it does
+    NOT inherit from keyring.errors.KeyringError (keyring.errors has no
+    ItemNotFoundException of its own for it to inherit from — that name
+    only exists in secretstorage.exceptions). So `except
+    keyring.errors.KeyringError` alone never catches it. This was mostly
+    invisible outside Flatpak because an unsandboxed session bus tends
+    not to hit those D-Bus error conditions in the first place; Flatpak's
+    D-Bus proxy (xdg-dbus-proxy) filters/mediates object paths for
+    sandboxed apps, making them more likely. _KEYRING_MISS_EXCEPTIONS
+    (module-level, above) folds this in alongside KeyringError so this
+    catch stays backend-agnostic: which concrete backend keyring picks
+    can change from call to call (ChainerBackend.backends is
+    re-evaluated on every access, see _probe_token_backend()'s
+    docstring), so narrowing to one specific backend's exception type
+    here would be fragile.
 
     Same reasoning as _delete()'s handling of PasswordDeleteError below:
     a backend-specific "not found" signal is a normal, expected outcome
     here, not a real error — trusting the documented return-None
-    contract uniformly across backends is what caused this. This catch
-    is backend-agnostic on purpose: which concrete backend raises it can
-    change from call to call (ChainerBackend.backends is re-evaluated on
-    every access, see _probe_token_backend()'s docstring), so narrowing
-    to one specific backend's exception type here would be fragile."""
+    contract uniformly across backends is what caused this."""
     try:
         return keyring.get_password(_SERVICE, key) or None
-    except keyring.errors.KeyringError:
+    except _KEYRING_MISS_EXCEPTIONS:
         return None
 
 
@@ -104,12 +132,41 @@ def _delete(key: str, retries: int = 2) -> bool:
     attempt shouldn't be taken as final — retry a couple of times
     with a short backoff before concluding the delete genuinely
     failed.
+
+    keyring.delete_password() can ALSO raise
+    secretstorage.exceptions.ItemNotFoundException directly, before ever
+    reaching the SecretService backend's own explicit
+    `raise PasswordDeleteError("No such password!")` — the same
+    early-D-Bus-resolution path _load() can hit (see _load()'s
+    docstring). Left uncaught, this would propagate straight out of
+    _delete() into logout(), which could stop logout() from clearing
+    in-memory state at all, not just produce a toast — worse than
+    _load()'s case. Handled as its own branch below rather than folded
+    into the PasswordDeleteError branch: PasswordDeleteError's re-check
+    via _load(key) exists because the backend can also raise
+    PasswordDeleteError for real, non-miss failures (e.g. surfaced from
+    a KeyringLocked/InitError chain upstream of it), so confirming via
+    _load() there is meaningful. An ItemNotFoundException arising from
+    the same D-Bus condition _load() already treats as a harmless miss
+    is, by that same reasoning, already sufficiently confirmed — re-
+    running _load(key) against it would just be a redundant round trip.
     """
     import time
+
+    # Reuses the module-level guarded import (see _KEYRING_MISS_EXCEPTIONS
+    # above) rather than importing secretstorage.exceptions again here —
+    # one source of truth for "is secretstorage available on this system".
+    _delete_miss_exception = (
+        _secretstorage_exceptions.ItemNotFoundException
+        if "_secretstorage_exceptions" in globals()
+        else ()
+    )
 
     for attempt in range(retries + 1):
         try:
             keyring.delete_password(_SERVICE, key)
+            return True
+        except _delete_miss_exception:
             return True
         except keyring.errors.PasswordDeleteError:
             # Confirm this was actually a "not found" case before treating
