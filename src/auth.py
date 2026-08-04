@@ -13,12 +13,77 @@ _KEY_USER_ID  = "user_id"
 _KEY_USERNAME = "username"
 
 
+def _probe_token_backend() -> str:
+    """Check each backend in the chain individually for the token key,
+    same as the manual probe used to diagnose where a stored token
+    actually lives:
+
+        for kr in ChainerBackend.backends:
+            kr.get_password('knilist', 'token')
+
+    This makes a REAL get_password() call against every backend in the
+    chain — not just a check of which backend is importable/usable in
+    principle. For KWallet specifically that can trigger a wallet-open/
+    unlock prompt if the wallet isn't already unlocked. That cost is
+    fine to pay ONCE, right after a confirmed login, to report where the
+    token landed — it would not be fine to pay on every _load()/_store()
+    call, which is why this stays a separate opt-in function rather than
+    being called from _store() itself.
+
+    Returns a summary string like "kwallet.DBusKeyring (others: none)"
+    for the caller to print or log. Never raises — a backend erroring
+    during the probe is reported inline rather than aborting the whole
+    check."""
+    from keyring.backends.chainer import ChainerBackend
+
+    hits = []
+    misses = []
+    for kr in ChainerBackend.backends:
+        name = f"{kr.__class__.__module__}.{kr.__class__.__name__}"
+        try:
+            found = kr.get_password(_SERVICE, _KEY_TOKEN)
+        except Exception as exc:
+            misses.append(f"{name} (error: {exc})")
+            continue
+        (hits if found else misses).append(name)
+
+    if not hits:
+        return f"NOT FOUND in any backend (checked: {', '.join(misses) or 'none'})"
+    primary = hits[0]
+    if len(hits) > 1:
+        return f"{primary} (also found in: {', '.join(hits[1:])})"
+    return primary
+
+
 def _store(key: str, value: str) -> None:
     keyring.set_password(_SERVICE, key, value)
 
 
 def _load(key: str) -> str | None:
-    return keyring.get_password(_SERVICE, key) or None
+    """Look up a keyring entry. Returns None if it isn't set.
+
+    keyring.get_password() is documented to return None on a miss, but
+    that contract isn't honored uniformly across backends. The KWallet
+    backend does return None as documented. The SecretService backend
+    (one possible member of keyring.backends.chainer.ChainerBackend's
+    chained backend list, see _probe_token_backend() above) instead
+    raises keyring.errors.ItemNotFoundException on a miss — which on a
+    fresh install / first run, with nothing stored yet, surfaced to the
+    user as an "Item does not exist" toast once per _load() call in
+    AuthManager.__init__ (three: token, user_id, username).
+
+    Same reasoning as _delete()'s handling of PasswordDeleteError below:
+    a backend-specific "not found" signal is a normal, expected outcome
+    here, not a real error — trusting the documented return-None
+    contract uniformly across backends is what caused this. This catch
+    is backend-agnostic on purpose: which concrete backend raises it can
+    change from call to call (ChainerBackend.backends is re-evaluated on
+    every access, see _probe_token_backend()'s docstring), so narrowing
+    to one specific backend's exception type here would be fragile."""
+    try:
+        return keyring.get_password(_SERVICE, key) or None
+    except keyring.errors.KeyringError:
+        return None
 
 
 def _delete(key: str, retries: int = 2) -> bool:
@@ -155,6 +220,7 @@ class AuthManager(QObject):
     def confirmVerified(self) -> None:
         """Called by app.py once the post-submitToken Viewer query
         succeeds. Finalises what submitToken started provisionally."""
+        print(f"Token backend on login: {_probe_token_backend()}")
         self.loginSuccess.emit()
 
     @Slot(str)

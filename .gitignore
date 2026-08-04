@@ -18,4 +18,4 @@ com.github.abdulrafaymirza.knilist.json
 pypi-dependencies.json
 knilist.flatpak
 
-EXPLAIN_PROJECT.md
+flatpak_build_process.txt
