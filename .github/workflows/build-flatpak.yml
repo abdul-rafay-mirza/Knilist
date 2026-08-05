@@ -1,0 +1,69 @@
+name: Build and Publish Flatpak
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # allows manual trigger from the Actions tab
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:kde-6.11
+      options: --privileged
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 -d | gpg --batch --import
+        shell: bash
+
+      - name: Install PySide BaseApp
+         run: |
+           flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+           flatpak install --system -y flathub io.qt.PySide.BaseApp//6.11
+         shell: bash
+
+      - name: Build Flatpak repo
+        run: |
+          flatpak-builder \
+            --gpg-sign=${{ secrets.GPG_KEY_ID }} \
+            --repo=repo \
+            --force-clean \
+            build-dir \
+            com.github.abdulrafaymirza.knilist.json
+        shell: bash
+
+      - name: Regenerate summary
+        run: |
+          flatpak build-update-repo --gpg-sign=${{ secrets.GPG_KEY_ID }} repo/
+        shell: bash
+
+      - name: Checkout Pages repo
+        uses: actions/checkout@v4
+        with:
+          repository: abdul-rafay-mirza/knilist-flatpak
+          token: ${{ secrets.FLATPAK_REPO_PAT }}
+          path: knilist-flatpak
+
+      - name: Sync repo into Pages checkout
+        run: |
+          rsync -a --delete repo/ knilist-flatpak/repo/
+        shell: bash
+
+      - name: Commit and push
+        working-directory: knilist-flatpak
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add repo/
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+          else
+            git commit -m "Automated repo update from ${{ github.sha }}"
+            git push
+          fi
+        shell: bash
