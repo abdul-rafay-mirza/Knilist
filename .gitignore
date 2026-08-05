@@ -14,7 +14,6 @@ build/
 .flatpak-builder/
 build-dir/
 repo/
-com.github.abdulrafaymirza.knilist.json
 pypi-dependencies.json
 knilist.flatpak
 
