@@ -45,7 +45,9 @@ jobs:
 
       - name: Sync repo into Pages checkout
         run: |
-          rsync -a --delete repo/ knilist-flatpak/repo/
+          rm -rf knilist-flatpak/repo
+          mkdir -p knilist-flatpak/repo
+          cp -a repo/. knilist-flatpak/repo/
         shell: bash
 
       - name: Commit and push
