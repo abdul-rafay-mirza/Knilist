@@ -3,13 +3,13 @@ name: Build and Publish Flatpak
 on:
   push:
     branches: [main]
-  workflow_dispatch:  # allows manual trigger from the Actions tab
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: bilelmoussaoui/flatpak-github-actions:kde-6.11
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.10
       options: --privileged
 
     steps:
@@ -27,20 +27,14 @@ jobs:
           flatpak install --system -y flathub io.qt.PySide.BaseApp//6.11
         shell: bash
 
-      - name: Build Flatpak repo
-        run: |
-          flatpak-builder \
-            --gpg-sign=${{ secrets.GPG_KEY_ID }} \
-            --repo=repo \
-            --force-clean \
-            build-dir \
-            com.github.abdulrafaymirza.knilist.json
-        shell: bash
-
-      - name: Regenerate summary
-        run: |
-          flatpak build-update-repo --gpg-sign=${{ secrets.GPG_KEY_ID }} repo/
-        shell: bash
+      - name: Build Flatpak
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: knilist.flatpak
+          manifest-path: com.github.abdulrafaymirza.knilist.json
+          gpg-sign: ${{ secrets.GPG_KEY_ID }}
+          repo-dir: repo
+          cache-key: flatpak-builder-${{ github.sha }}
 
       - name: Checkout Pages repo
         uses: actions/checkout@v4
