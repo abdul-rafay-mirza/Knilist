@@ -30,7 +30,7 @@ cd "$BUILDDIR"
 makepkg --syncdeps --noconfirm --noprogressbar 2>&1 | grep -v "^$"
 
 echo "==> Installing package..."
-sudo pacman -U --noconfirm knilist-git-*.pkg.tar.zst
+sudo pacman -U --noconfirm knilist-git-*.pkg.tar.*
 
 echo ""
 echo "==> Knilist installed successfully!"
