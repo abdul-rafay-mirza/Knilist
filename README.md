@@ -17,7 +17,7 @@ Knilist *(pronounced as **kay-nee-list**)* is an Unofficial Anilist client for L
 - View Anime Page, Manga Page, Character Page, Staff Page, Studio Page
 - View other Anilist Users and their lists
 - View your followers and following Anilist Users
-- Get Anime Opening and Ending songs and open them via [MPV](mpv.io) or VLC (thanks to [animethemes.moe](animethemes.moe))
+- Get Anime Opening and Ending songs and open them via [MPV](https://mpv.io/) or VLC (thanks to [animethemes.moe](https://animethemes.moe/))
 
 ## Screenshots
 <p align="center">
