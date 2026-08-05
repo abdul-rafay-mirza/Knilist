@@ -22,10 +22,10 @@ jobs:
         shell: bash
 
       - name: Install PySide BaseApp
-         run: |
-           flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-           flatpak install --system -y flathub io.qt.PySide.BaseApp//6.11
-         shell: bash
+        run: |
+          flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --system -y flathub io.qt.PySide.BaseApp//6.11
+        shell: bash
 
       - name: Build Flatpak repo
         run: |
