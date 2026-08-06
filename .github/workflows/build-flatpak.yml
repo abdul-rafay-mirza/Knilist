@@ -1,9 +1,12 @@
 name: Build and Publish Flatpak
 
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -27,14 +30,31 @@ jobs:
           flatpak install --system -y flathub io.qt.PySide.BaseApp//6.11
         shell: bash
 
+      - name: Compute versioned bundle filename
+        id: version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          # v0.1.0 -> v_0_1_0
+          SUFFIX="${TAG//./_}"
+          SUFFIX="${SUFFIX/v/v_}"
+          echo "bundle_name=knilist_${SUFFIX}.flatpak" >> "$GITHUB_OUTPUT"
+        shell: bash
+
       - name: Build Flatpak
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: knilist.flatpak
+          bundle: ${{ steps.version.outputs.bundle_name }}
           manifest-path: com.github.abdulrafaymirza.knilist.json
           gpg-sign: ${{ secrets.GPG_KEY_ID }}
           repo-dir: repo
           cache-key: flatpak-builder-${{ github.sha }}
+
+      - name: Upload bundle to release
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" "${{ steps.version.outputs.bundle_name }}" --clobber
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout Pages repo
         uses: actions/checkout@v4
